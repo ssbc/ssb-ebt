@@ -19,10 +19,6 @@ exports.init = function (ssb, config) {
     pull.drain(appended.set)
   )
 
-//  appended(function (msg) {
-//    console.log(ssb.id, msg.value.author, msg.value.sequence)
-//  })
-
   return {
     replicate: function () {
       return pContDuplex(function (cb) {
@@ -38,16 +34,14 @@ exports.init = function (ssb, config) {
 
           var stream = EBTStream(states, function get (id, seq, cb) {
             ssb.clock([id, seq], function (err, data) {
-              cb(null, data.value)
+              cb(null, data && data.value || data)
             })
           }, function append (msg, cb) {
-            ssb.add(msg, function (err, data) {
-              cb()
-            })
+            ssb.add(msg, cb)
           }, id)
+
           appended(function (data) {
             stream.onAppend(data.value)
-            //console.log(states)
           })
 
           cb(null, stream)
@@ -56,14 +50,4 @@ exports.init = function (ssb, config) {
     }
   }
 }
-
-
-
-
-
-
-
-
-
-
 
