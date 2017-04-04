@@ -1,8 +1,7 @@
 var Obv = require('obv')
 var pull = require('pull-stream')
 var pContDuplex = require('pull-cont/duplex')
-var EBTStream = require('epidemic-broadcast-trees/stream')
-var EBTState = require('epidemic-broadcast-trees/state')
+var EBTStream = require('epidemic-broadcast-trees')
 exports.name = 'ebt'
 
 exports.version = '1.0.0'
@@ -22,23 +21,22 @@ exports.init = function (ssb, config) {
   return {
     replicate: function () {
       return pContDuplex(function (cb) {
-        ssb.seq(function (err, seqs) {
+        ssb.getVectorClock(function (err, clock) {
+          if(err) return cb(err)
           //TODO: compare with the feeds we know they have...
           //basically, when we are in sync, write their vector clock to an atomic file.
           //on startup, read that, and only request feeds where our seq != their seq.
           //unless they explicitly said they didn't want it.
           //request anything we don't know they have.
-          var states = {}
-          for(var k in seqs)
-            states[k] = EBTState.init(seqs[k])
-
-          var stream = EBTStream(states, function get (id, seq, cb) {
-            ssb.clock([id, seq], function (err, data) {
-              cb(null, data && data.value || data)
-            })
-          }, function append (msg, cb) {
-            ssb.add(msg, cb)
-          }, id)
+          var stream = EBTStream(
+            clock,
+            function get (id, seq, cb) {
+              ssb.getAtSequence([id, seq], function (err, data) {
+                cb(null, data && data.value || data)
+              })
+            },
+            ssb.add //append
+          )
 
           appended(function (data) {
             stream.onAppend(data.value)
