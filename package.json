@@ -7,7 +7,12 @@
     "type": "git",
     "url": "git://github.com/dominictarr/ssb-ebt.git"
   },
-  "dependencies": {},
+  "dependencies": {
+    "epidemic-broadcast-trees": "^1.0.1",
+    "obv": "0.0.1",
+    "pull-cont": "^0.1.1",
+    "pull-stream": "^3.5.0"
+  },
   "devDependencies": {},
   "scripts": {
     "test": "set -e; for t in test/*.js; do node $t; done"
