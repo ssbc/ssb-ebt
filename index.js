@@ -7,45 +7,65 @@ exports.name = 'ebt'
 exports.version = '1.0.0'
 
 exports.manifest = { replicate: 'duplex' }
+exports.permissions= {
+    anonymous: {allow: ['replicate']}
+  },
 
-exports.init = function (ssb, config) {
-  var id = ssb.id.substring(0, 8)
+exports.init = function (sbot, config) {
+  var id = sbot.id.substring(0, 8)
   var appended = Obv()
 
   //messages appended in realtime.
   pull(
-    ssb.createLogStream({old: false}),
+    sbot.createLogStream({old: false}),
     pull.drain(appended.set)
   )
 
-  return {
-    replicate: function () {
-      return pContDuplex(function (cb) {
-        ssb.getVectorClock(function (err, clock) {
-          if(err) return cb(err)
-          //TODO: compare with the feeds we know they have...
-          //basically, when we are in sync, write their vector clock to an atomic file.
-          //on startup, read that, and only request feeds where our seq != their seq.
-          //unless they explicitly said they didn't want it.
-          //request anything we don't know they have.
-          var stream = EBTStream(
-            clock,
-            function get (id, seq, cb) {
-              ssb.getAtSequence([id, seq], function (err, data) {
-                cb(null, data && data.value || data)
-              })
-            },
-            ssb.add //append
-          )
+  function replicate (_, callback) {
+    return pContDuplex(function (cb) {
+      sbot.getVectorClock(function (err, clock) {
+        if(err) return cb(err)
+        //TODO: compare with the feeds we know they have...
+        //basically, when we are in sync, write their vector clock to an atomic file.
+        //on startup, read that, and only request feeds where our seq != their seq.
+        //unless they explicitly said they didn't want it.
+        //request anything we don't know they have.
+        var stream = EBTStream(
+          clock,
+          function get (id, seq, cb) {
+            sbot.getAtSequence([id, seq], function (err, data) {
+              cb(null, data && data.value || data)
+            })
+          },
+          sbot.add, //append
+          function (prog) { console.log(prog) },
+          callback
+        )
 
-          appended(function (data) {
-            stream.onAppend(data.value)
-          })
-
-          cb(null, stream)
+        appended(function (data) {
+          stream.onAppend(data.value)
         })
+
+        cb(null, stream)
       })
+    })
+  }
+
+  sbot.on('rpc:connect', function (rpc, isClient) {
+    if(isClient) {
+      var a = replicate(function (err) {
+        console.log('EBT failed, fallback to legacy')
+        rpc._emit('fallback:replicate') //trigger legacy replication
+      })
+      var b = rpc.ebt.replicate(function () {})
+      pull(a, b, a)
     }
+  })
+
+  return {
+    replicate: replicate
   }
 }
+
+
 
