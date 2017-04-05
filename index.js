@@ -41,7 +41,7 @@ exports.init = function (sbot, config) {
           sbot.add, //append
           function (prog) { console.log(prog) },
           callback || function (err) {
-            console.log('EBT', err.stack)
+            console.log('Error (on ebt stream):', err.stack)
           }
         )
 
@@ -57,7 +57,7 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
       var a = replicate(function (err) {
-        console.log('EBT failed, fallback to legacy')
+        console.log('EBT failed, fallback to legacy', err)
         rpc._emit('fallback:replicate') //trigger legacy replication
       })
       var b = rpc.ebt.replicate(function () {})
@@ -69,6 +69,9 @@ exports.init = function (sbot, config) {
     replicate: replicate
   }
 }
+
+
+
 
 
 
