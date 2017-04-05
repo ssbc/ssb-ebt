@@ -22,6 +22,7 @@ exports.init = function (sbot, config) {
   )
 
   function replicate (_, callback) {
+    if(!callback) callback = _
     return pContDuplex(function (cb) {
       sbot.getVectorClock(function (err, clock) {
         if(err) return cb(err)
@@ -39,7 +40,9 @@ exports.init = function (sbot, config) {
           },
           sbot.add, //append
           function (prog) { console.log(prog) },
-          callback
+          callback || function (err) {
+            console.log('EBT', err.stack)
+          }
         )
 
         appended(function (data) {
