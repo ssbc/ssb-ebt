@@ -16,10 +16,7 @@ exports.init = function (sbot, config) {
   var appended = Obv()
 
   //messages appended in realtime.
-  pull(
-    sbot.createLogStream({old: false}),
-    pull.drain(appended.set)
-  )
+  sbot.post(appended.set)
 
   function replicate (_, callback) {
     if(!callback) callback = _
@@ -60,7 +57,9 @@ exports.init = function (sbot, config) {
         console.log('EBT failed, fallback to legacy', err)
         rpc._emit('fallback:replicate') //trigger legacy replication
       })
-      var b = rpc.ebt.replicate(function () {})
+      var b = rpc.ebt.replicate(function (err) {
+        console.log('replication ended:', rpc.id, err && err.stack)
+      })
       pull(a, b, a)
     }
   })
@@ -69,6 +68,7 @@ exports.init = function (sbot, config) {
     replicate: replicate
   }
 }
+
 
 
 
