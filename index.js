@@ -2,12 +2,13 @@ var Obv = require('obv')
 var pull = require('pull-stream')
 var pContDuplex = require('pull-cont/duplex')
 var EBTStream = require('epidemic-broadcast-trees')
+
 exports.name = 'ebt'
 
 exports.version = '1.0.0'
 
 exports.manifest = { replicate: 'duplex' }
-exports.permissions= {
+exports.permissions = {
     anonymous: {allow: ['replicate']}
   },
 
@@ -18,10 +19,17 @@ exports.init = function (sbot, config) {
   //messages appended in realtime.
   sbot.post(appended.set)
 
+  var ts = Date.now(), _recv
+
   function replicate (_, callback) {
     if(!callback) callback = _
     return pContDuplex(function (cb) {
+      //TODO:
+      //check if we have connected to this peer before,
+      //and if so, get their previous requested clock.
+      //then we can make the handshake very small.
       sbot.getVectorClock(function (err, clock) {
+
         if(err) return cb(err)
         //TODO: compare with the feeds we know they have...
         //basically, when we are in sync, write their vector clock to an atomic file.
@@ -35,8 +43,18 @@ exports.init = function (sbot, config) {
               cb(null, data && data.value || data)
             })
           },
-          sbot.add, //append
-          function (prog) { console.log(prog) },
+          function (msg, cb) {
+            sbot.add(msg, cb)
+          }, //append
+          function (prog) {
+            //log replication progress, but not more than every second.
+            var _ts = Date.now()
+            if(_ts - ts > 1000) {
+              console.log(prog, _recv - prog.recv)
+              ts = _ts
+              _recv = prog.recv
+            }
+          },
           callback || function (err) {
             console.log('Error (on ebt stream):', err.stack)
           }
@@ -68,10 +86,4 @@ exports.init = function (sbot, config) {
     replicate: replicate
   }
 }
-
-
-
-
-
-
 
