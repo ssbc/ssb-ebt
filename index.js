@@ -7,9 +7,9 @@ exports.name = 'ebt'
 
 exports.version = '1.0.0'
 
-exports.manifest = { replicate: 'duplex' }
+exports.manifest = { replicate: 'duplex', _dump: 'source'}
 exports.permissions = {
-    anonymous: {allow: ['replicate']}
+    anonymous: {allow: ['replicate']},
   },
 
 exports.init = function (sbot, config) {
@@ -18,7 +18,6 @@ exports.init = function (sbot, config) {
 
   //messages appended in realtime.
   sbot.post(appended.set)
-
   var ts = Date.now(), _recv
 
   function replicate (_, callback) {
@@ -29,7 +28,6 @@ exports.init = function (sbot, config) {
       //and if so, get their previous requested clock.
       //then we can make the handshake very small.
       sbot.getVectorClock(function (err, clock) {
-
         if(err) return cb(err)
         //TODO: compare with the feeds we know they have...
         //basically, when we are in sync, write their vector clock to an atomic file.
@@ -44,7 +42,9 @@ exports.init = function (sbot, config) {
             })
           },
           function (msg, cb) {
-            sbot.add(msg, cb)
+            sbot.add(msg, function (err) {
+              cb()
+            })
           }, //append
           function (prog) {
             //log replication progress, but not more than every second.
@@ -83,7 +83,10 @@ exports.init = function (sbot, config) {
   })
 
   return {
-    replicate: replicate
+    replicate: replicate,
+    _dump: require('./dump/local')(sbot) //just for performance testing. not public api
   }
 }
+
+
 
