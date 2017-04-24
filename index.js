@@ -72,11 +72,19 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
       var a = replicate(function (err) {
-        console.log('EBT failed, fallback to legacy', err)
-        rpc._emit('fallback:replicate') //trigger legacy replication
+        if (/ebt.replicate/.test(err.message)) {
+          console.log('EBT not supported; fallback to legacy')
+          rpc._emit('fallback:replicate') //trigger legacy replication
+        } else if (err.syscall
+         || err.message === 'unexpected end of parent stream') {
+          // connection closed
+        } else {
+          console.log('EBT failed; fallback to legacy')
+          rpc._emit('fallback:replicate')
+        }
       })
       var b = rpc.ebt.replicate(function (err) {
-        console.log('replication ended:', rpc.id, err && err.stack)
+        console.log('replication ended:', rpc.id, err && err.message)
       })
       pull(a, b, a)
     }
