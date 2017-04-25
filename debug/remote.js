@@ -8,8 +8,8 @@ function createStream (cb) {
     feeds: {},
     error: null
   }
-
-  var _ts = Date.now(), start = Date.now(), _recv
+  console.log('messages/second, messages total, time elapsed')
+  var ts = Date.now(), start = Date.now(), count = 0, _count = 0
   var s
   return s = EBT(
     {}, //empty, because we'll just replicate everything
@@ -19,25 +19,28 @@ function createStream (cb) {
     function (msg, cb) {
       state = v.append(state, msg)
       if(state.error) throw state.error
+
+      count ++
+      if(Date.now() > ts + 1000) {
+        console.log([count - _count, _count = count, ((ts = Date.now()) - start)].join(', '))
+      }
       s.onAppend(msg)
       cb()
     },
-    function (progress) {
-      var ts = Date.now()
-      if(_ts + 1000 < ts) {
-        console.log(progress.recv, _recv -  progress.recv, progress.recv / ((Date.now() - start) / 1000))
-        _ts = ts
-        _recv = progress.recv
-      }
+    function () {
     },
     function (err) {
-      console.log((Date.now() - start)/1000)
       cb(err)
     }
   )
 }
 
-require('ssb-client')(function (err, sbot) {
+var opts = null
+if(process.argv[2])
+  opts = {remote: process.argv[2]}
+
+require('ssb-client')(null, opts, function (err, sbot) {
+  if(err) throw err
   var ebt = createStream(function (err) {
     if(err) throw err
     sbot.close()
@@ -49,6 +52,15 @@ require('ssb-client')(function (err, sbot) {
   }), ebt)
 
 })
+
+
+
+
+
+
+
+
+
 
 
 
