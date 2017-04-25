@@ -79,8 +79,16 @@ cont.para(feeds.map(function (f) {
 
 })
 
+var i = 5
+var int =
 setInterval(function () {
-  console.log('post')
+  console.log('post', a_bot.since())
   feeds[~~(Math.random()*feeds.length)].publish({type:'post', text: new Date().toString()}, function () {})
-}, 1000)
+  if(--i) return
+  clearInterval(int)
+  a_bot.close()
+  b_bot.close()
+  c_bot.close()
+}, 500)
+
 
