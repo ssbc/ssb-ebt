@@ -8,12 +8,14 @@
     "url": "git://github.com/dominictarr/ssb-ebt.git"
   },
   "dependencies": {
-    "epidemic-broadcast-trees": "^1.0.1",
+    "cont": "^1.0.3",
+    "epidemic-broadcast-trees": "^2.0.0",
     "obv": "0.0.1",
     "pull-cont": "^0.1.1",
     "pull-stream": "^3.5.0"
   },
   "devDependencies": {
+    "scuttlebot": "^9.6.1",
     "ssb-client": "^4.4.0",
     "ssb-validate": "0.0.0"
   },
