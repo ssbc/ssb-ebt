@@ -1,3 +1,4 @@
+'use strict'
 var Obv = require('obv')
 var pull = require('pull-stream')
 var pContDuplex = require('pull-cont/duplex')
@@ -15,6 +16,19 @@ exports.permissions = {
 exports.init = function (sbot, config) {
   var id = sbot.id.substring(0, 8)
   var appended = Obv()
+
+  var createStream = EBTStream(
+    function get (id, seq, cb) {
+      sbot.getAtSequence([id, seq], function (err, data) {
+        cb(null, data && data.value || data)
+      })
+    },
+    function append (msg, cb) {
+      sbot.add(msg, function (err) {
+        cb()
+      })
+    }
+  )
 
   //messages appended in realtime.
   sbot.post(appended.set)
@@ -34,25 +48,15 @@ exports.init = function (sbot, config) {
         //on startup, read that, and only request feeds where our seq != their seq.
         //unless they explicitly said they didn't want it.
         //request anything we don't know they have.
-        var stream = EBTStream(
-          clock,
-          function get (id, seq, cb) {
-            sbot.getAtSequence([id, seq], function (err, data) {
-              cb(null, data && data.value || data)
-            })
-          },
-          function (msg, cb) {
-            sbot.add(msg, function (err) {
-              cb()
-            })
-          }, //append
-          function (prog) {
-            //log replication progress, but not more than every second.
-            var _ts = Date.now()
-            if(_ts - ts > 1000) {
-              console.log(prog, _recv - prog.recv)
-              ts = _ts
-              _recv = prog.recv
+        var stream = createStream({
+            seqs: clock,
+            onChange: function () {
+              //log replication progress, but not more than every second.
+              var _ts = Date.now()
+              if(_ts - ts > 1000) {
+                console.log("PROG", stream.progress())
+                ts = _ts
+              }
             }
           },
           callback || function (err) {
@@ -84,9 +88,7 @@ exports.init = function (sbot, config) {
 
   return {
     replicate: replicate,
-    _dump: require('./dump/local')(sbot) //just for performance testing. not public api
+    _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
 
