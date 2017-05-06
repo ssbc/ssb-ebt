@@ -59,8 +59,8 @@ cont.para(feeds.map(function (f) {
   }
 
   function peers (a, b, name1, name2, d) {
-    var a_rep = a.ebt.replicate()
-    var b_rep = b.ebt.replicate()
+    var a_rep = a.ebt.replicate({version: 2})
+    var b_rep = b.ebt.replicate({version: 2})
 
 
     pull(
@@ -86,9 +86,17 @@ setInterval(function () {
   feeds[~~(Math.random()*feeds.length)].publish({type:'post', text: new Date().toString()}, function () {})
   if(--i) return
   clearInterval(int)
+
+  console.log('Alice', a_bot.since())
+  console.log('Bob', a_bot.since())
+  console.log('Charles', a_bot.since())
+
   a_bot.close()
   b_bot.close()
   c_bot.close()
 }, 500)
+
+
+
 
 
