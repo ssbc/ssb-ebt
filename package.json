@@ -10,6 +10,7 @@
   "dependencies": {
     "cont": "^1.0.3",
     "epidemic-broadcast-trees": "^2.0.0",
+    "lossy-store": "^1.0.0",
     "obv": "0.0.1",
     "pull-cont": "^0.1.1",
     "pull-stream": "^3.5.0"
