@@ -3,6 +3,8 @@ var Obv = require('obv')
 var pull = require('pull-stream')
 var pContDuplex = require('pull-cont/duplex')
 var EBTStream = require('epidemic-broadcast-trees')
+var Store = require('lossy-store')
+var path = require('path')
 
 function streamError(err) {
   if(!err) throw new Error('expected error')
@@ -25,6 +27,23 @@ exports.init = function (sbot, config) {
   var id = sbot.id.substring(0, 8)
   var appended = Obv()
 
+  var store = Store(path.join(config.path || '/tmp', 'ebt'))
+
+  var clock = {}, following = {}, streams = {}
+
+  //this should be always up to date...
+  var waiting = []
+  sbot.getVectorClock(function (err, _clock) {
+    clock = _clock
+    for(var k in clock) following[k] = true
+    while(waiting.length) waiting.shift()()
+  })
+
+  function ready(fn) {
+    if(clock) fn()
+    else waiting.push(fn)
+  }
+
   var createStream = EBTStream(
     function get (id, seq, cb) {
       sbot.getAtSequence([id, seq], function (err, data) {
@@ -39,10 +58,13 @@ exports.init = function (sbot, config) {
   )
 
   //messages appended in realtime.
-  sbot.post(appended.set)
+  sbot.post(function (msg) {
+    //ensure the clock object is always up to date, once loaded.
+    if(clock[msg.author] && clock[msg.author] < msg.sequence)
+      clock[msg.author] = msg.sequence
+    appended.set(msg)
+  })
   var ts = Date.now(), start = Date.now()
-
-  function getRemoteVectorClock(remote, cb) { cb(null, {}) }
 
   function replicate (opts, callback) {
     if('function' === typeof opts) callback = opts, opts = null
@@ -51,14 +73,26 @@ exports.init = function (sbot, config) {
       return streamError(new Error('expected ebt.replicate({version: 2})'))
     }
 
-    var stream = createStream({
+    var stream = streams[other] = createStream({
       onChange: function () {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
+      },
+      onRequest: function (id, seq) {
+        //incase this is one we skipped, but the remote has an update
+        
+        if(true || following[id]) stream.request(id, clock[id]|0)
       }
     },
-      callback || function (err) {
-        console.log('Error (on ebt stream):', err.stack)
+      function (err) {
+        //remember their clock, so we can skip requests next time.
+//        var _clock = store.get(id)
+//        for(var k in stream.state)
+//          if(stream.state[k].remote.req != null)
+//            _clock[k] = stream.state[k].remote.req
+//
+  //      store.set(id, _clock)
+        callback(err)
       }
     )
 
@@ -66,18 +100,15 @@ exports.init = function (sbot, config) {
       stream.onAppend(data.value)
     })
 
-    sbot.getVectorClock(function (err, clock) {
-      if(err) return cb(err)
-      //TODO: compare with the feeds we know they have...
-      //basically, when we are in sync, write their vector clock to an atomic file.
-      //on startup, read that, and only request feeds where our seq != their seq.
-      //unless they explicitly said they didn't want it.
-      //request anything we don't know they have.
-      getRemoteVectorClock(other, function (_, remoteClock) {
-        for(var k in clock)
-          if(remoteClock[k] != clock[k])
+//    store.ensure(other, function () {
+      var _clock = {} //store.get(id)
+
+      ready(function () {
+        for(var k in clock) {
+          if(following[k] && !_clock || _clock[k] != clock[k])
             stream.request(k, clock[k])
-      })
+        }
+//      })
     })
 
     return stream
@@ -99,10 +130,24 @@ exports.init = function (sbot, config) {
 
   return {
     replicate: replicate,
+
+    //local only; sets feeds that will be replicated.
+    //this is only set for the current session. other plugins
+    //need to manage who is actually running it.
+    request: function (id) {
+      if(following[id]) return
+      following[id] = true
+      //start all current streams following this one.
+      ready(function () {
+        for(var k in streams) {
+          if(!streams[k].state[id])
+            streams[k].request(id, clock[id])
+        }
+      })
+    },
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
 
 
