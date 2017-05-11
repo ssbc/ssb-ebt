@@ -9,12 +9,19 @@ module.exports = function (sbot) {
       for(var k in streams)
         streams[k].request(id, seq)
     },
-    replicateWith: function (id, stream) {
-      streams[id] = stream
+    replicateWith: function (id, createStream) {
       //if we have a clock for id, ensure it is loaded.
       //this calls back immediately if we have already
       //replicated with id since the process started.
       store.ensure(id, function () {
+        streams[id] = createStream(function (err) {{
+          var _clock = store.get(id)
+          for(var k in stream.state)
+            if(stream.state[k].remote.req != null)
+              _clock[k] = stream.state[k].remote.req
+
+          store.set(id, _clock)
+        })
 
         var _clock = store.get(id)
 
@@ -24,14 +31,7 @@ module.exports = function (sbot) {
               stream.request(k, clock[k])
           }
         })
-        stream.onClose = function () {
-          var _clock = store.get(id)
-          for(var k in stream.state)
-            if(stream.state[k].remote.req != null)
-              _clock[k] = stream.state[k].remote.req
-
-          store.set(id, _clock)
-        }
+      }
     }
   }
 }
