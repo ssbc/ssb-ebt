@@ -59,8 +59,8 @@ cont.para(feeds.map(function (f) {
   }
 
   function peers (a, b, name1, name2, d) {
-    var a_rep = a.ebt.replicate({version: 2})
-    var b_rep = b.ebt.replicate({version: 2})
+    var a_rep = a.ebt.replicate.call({id: name1}, {version: 2})
+    var b_rep = b.ebt.replicate.call({id: name2}, {version: 2})
 
 
     pull(
