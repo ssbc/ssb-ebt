@@ -27,7 +27,7 @@ exports.init = function (sbot, config) {
   var id = sbot.id.substring(0, 8)
   var appended = Obv()
 
-  var store = Store(path.join(config.path || '/tmp', 'ebt'))
+  var store = Store(config.path ? path.join(config.path, 'ebt') : null)
 
   var clock = {}, following = {}, streams = {}
 
@@ -35,7 +35,6 @@ exports.init = function (sbot, config) {
   var waiting = []
   sbot.getVectorClock(function (err, _clock) {
     clock = _clock
-    for(var k in clock) following[k] = true
     while(waiting.length) waiting.shift()()
   })
 
@@ -60,8 +59,8 @@ exports.init = function (sbot, config) {
   //messages appended in realtime.
   sbot.post(function (msg) {
     //ensure the clock object is always up to date, once loaded.
-    if(clock[msg.author] && clock[msg.author] < msg.sequence)
-      clock[msg.author] = msg.sequence
+//    if(clock[msg.author] && clock[msg.author] < msg.sequence)
+//      clock[msg.author] = msg.sequence
     appended.set(msg)
   })
   var ts = Date.now(), start = Date.now()
@@ -86,12 +85,12 @@ exports.init = function (sbot, config) {
     },
       function (err) {
         //remember their clock, so we can skip requests next time.
-//        var _clock = store.get(id)
-//        for(var k in stream.state)
-//          if(stream.state[k].remote.req != null)
-//            _clock[k] = stream.state[k].remote.req
-//
-  //      store.set(id, _clock)
+        var _clock = store.get(id)
+        for(var k in stream.state)
+          if(stream.state[k].remote.req != null)
+            _clock[k] = stream.state[k].remote.req
+
+        store.set(id, _clock)
         callback(err)
       }
     )
@@ -100,15 +99,15 @@ exports.init = function (sbot, config) {
       stream.onAppend(data.value)
     })
 
-//    store.ensure(other, function () {
-      var _clock = {} //store.get(id)
+    store.ensure(other, function () {
+      var _clock = store.get(id)
 
       ready(function () {
         for(var k in clock) {
           if(following[k] && !_clock || _clock[k] != clock[k])
             stream.request(k, clock[k])
         }
-//      })
+      })
     })
 
     return stream
@@ -148,6 +147,8 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
+
 
 
 
