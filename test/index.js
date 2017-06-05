@@ -1,10 +1,14 @@
 var cont = require('cont')
 var pull = require('pull-stream')
 var createSbot = require('scuttlebot')
+  .use({
+    //fake replicate plugin
+    name: 'replicate',
+    init: function () {
+      return {request: function () {}}
+    }
+  })
   .use(require('../')) //EBT
-//  .use(require('../plugins/friends'))
-//  .use(require('../plugins/replicate'))
-//  .use(require('../plugins/gossip'))
 
 function Delay (d) {
   d = d || 100
@@ -25,25 +29,66 @@ var charles = ssbKeys.generate()
 var a_bot = createSbot({
   temp: 'random-animals',
   port: 45451, host: 'localhost', timeout: 20001,
-  replication: {hops: 3}, keys: alice
+  replicate: {hops: 3, legacy: false}, keys: alice
 })
 
 var b_bot = createSbot({
   temp: 'random-animals2',
   port: 45452, host: 'localhost', timeout: 20001,
-  replication: {hops: 3}, keys: bob
+  replicate: {hops: 3, legacy: false},
+  keys: bob
 })
 
 var c_bot = createSbot({
   temp: 'random-animals3',
   port: 45453, host: 'localhost', timeout: 20001,
-  replication: {hops: 3}, keys: charles
+  replicate: {hops: 3, legacy: false},
+  keys: charles
 })
 
-var n = 10
+//increasing n give an error currently...
+var n = 0
 var feeds = [a_bot.createFeed(alice), b_bot.createFeed(bob), c_bot.createFeed(charles)]
 while(n-->0)
   feeds.push([a_bot, b_bot, c_bot][~~(Math.random()*3)].createFeed())
+
+//make sure all the sbots are replicating all the feeds.
+feeds.forEach(function (f) {
+  a_bot.replicate.request(f.id)
+  b_bot.replicate.request(f.id)
+  c_bot.replicate.request(f.id)
+})
+
+var all = {}, recv = {}
+
+function consistent (name) {
+  if(!name) throw new Error('name must be provided')
+  recv[name] = {}
+  return function (msg) {
+    recv[name][msg.key] = true
+    all[msg.key] = true
+    console.log("POST", recv, all)
+    var missing = 0, has = 0
+    for(var k in all) {
+      for(var n in recv) {
+        if(!recv[n][k]) {
+          console.log('missing:', n, k)
+          missing ++
+        }
+        else
+          has ++
+      }
+    }
+
+    console.log('missing/has' ,missing, has)
+    if(!missing)
+      console.log('CONSISTENT!!!')
+  }
+}
+
+a_bot.post(consistent('alice'))
+b_bot.post(consistent('bob'))
+c_bot.post(consistent('charles'))
 
 cont.para(feeds.map(function (f) {
 //  console.log(f)
@@ -61,7 +106,6 @@ cont.para(feeds.map(function (f) {
   function peers (a, b, name1, name2, d) {
     var a_rep = a.ebt.replicate.call({id: name1}, {version: 2})
     var b_rep = b.ebt.replicate.call({id: name2}, {version: 2})
-
 
     pull(
       a_rep, 
@@ -91,12 +135,10 @@ setInterval(function () {
   console.log('Bob', a_bot.since())
   console.log('Charles', a_bot.since())
 
+  //and check that all peers are consistent.
+
   a_bot.close()
   b_bot.close()
   c_bot.close()
 }, 500)
-
-
-
-
 
