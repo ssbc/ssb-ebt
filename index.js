@@ -5,31 +5,47 @@ var pContDuplex = require('pull-cont/duplex')
 var EBTStream = require('epidemic-broadcast-trees')
 var Store = require('lossy-store')
 var path = require('path')
-
-function streamError(err) {
-  if(!err) throw new Error('expected error')
-  console.log('stream error', err)
-  return pContDuplex(function (cb) {
-    cb(err)
-  })
-}
+var Bounce = require('epidemic-broadcast-trees/bounce')
 
 exports.name = 'ebt'
 
 exports.version = '1.0.0'
 
-exports.manifest = { replicate: 'duplex', _dump: 'source'}
+exports.manifest = {
+  replicate: 'duplex',
+  _dump: 'source',
+  request: 'sync',
+}
 exports.permissions = {
     anonymous: {allow: ['replicate']},
   }
 
 exports.init = function (sbot, config) {
-  var id = sbot.id.substring(0, 8)
   var appended = Obv()
-
+  config.replicate = config.replicate || {}
+  config.replicate.fallback = true
   var store = Store(config.path ? path.join(config.path, 'ebt') : null)
 
   var clock = {}, following = {}, streams = {}
+
+  function request (id, state) {
+    state = state !== false //true unless explicitly false
+    if(following[id] === state) return
+    following[id] = state
+    //start all current streams following this one.
+    ready(function () {
+      for(var k in streams) {
+        if(!streams[k].state[id])
+          streams[k].request(id, state ? clock[id] : -1)
+      }
+    })
+  }
+
+  //HACK: patch calls to replicate.request into ebt, too.
+  sbot.replicate.request.hook(function (fn, args) {
+    request.apply(null, args)
+    fn.apply(this, args)
+  })
 
   //this should be always up to date...
   var waiting = []
@@ -42,6 +58,16 @@ exports.init = function (sbot, config) {
     if(clock) fn()
     else waiting.push(fn)
   }
+
+  //messages appended in realtime.
+  sbot.post(function (msg) {
+    //ensure the clock object is always up to date, once loaded.
+    var v = msg.value
+    if(clock[v.author] == null || clock[v.author] < v.sequence)
+      clock[v.author] = v.sequence
+    appended.set(msg)
+  })
+
 
   var createStream = EBTStream(
     function get (id, seq, cb) {
@@ -56,41 +82,46 @@ exports.init = function (sbot, config) {
     }
   )
 
-  //messages appended in realtime.
-  sbot.post(function (msg) {
-    //ensure the clock object is always up to date, once loaded.
-//    if(clock[msg.author] && clock[msg.author] < msg.sequence)
-//      clock[msg.author] = msg.sequence
-    appended.set(msg)
-  })
+
   var ts = Date.now(), start = Date.now()
+
+  function update (id, states) {
+    store.ensure(id, function () {
+      var _clock = store.get(id) || {}
+      for(var k in states)
+        if(states[k].remote.req != null)
+          _clock[k] = states[k].remote.req
+      store.set(id, _clock)
+    })
+  }
 
   function replicate (opts, callback) {
     if('function' === typeof opts) callback = opts, opts = null
     var other = this.id
     if(!opts || opts.version !== 2) {
-      return streamError(new Error('expected ebt.replicate({version: 2})'))
+      throw streamError(new Error('expected ebt.replicate({version: 2})'))
     }
 
     var stream = streams[other] = createStream({
-      onChange: function () {
+      onChange: Bounce(function () {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
-      },
+        var prog = stream.progress()
+        if(prog.sync == prog.feeds)
+          update(other, stream.states)
+      }, 100),
       onRequest: function (id, seq) {
         //incase this is one we skipped, but the remote has an update
-        
-        if(true || following[id]) stream.request(id, clock[id]|0)
+        if(following[id])
+          stream.request(id, clock[id]|0)
+        else
+          stream.request(id, -1)
+
       }
     },
       function (err) {
         //remember their clock, so we can skip requests next time.
-        var _clock = store.get(id)
-        for(var k in stream.state)
-          if(stream.state[k].remote.req != null)
-            _clock[k] = stream.state[k].remote.req
-
-        store.set(id, _clock)
+        update(other, stream.states)
         callback(err)
       }
     )
@@ -100,13 +131,15 @@ exports.init = function (sbot, config) {
     })
 
     store.ensure(other, function () {
-      var _clock = store.get(id)
+      var _clock = store.get(other)
 
       ready(function () {
-        for(var k in clock) {
-          if(following[k] && !_clock || _clock[k] != clock[k])
-            stream.request(k, clock[k])
+        for(var k in following) {
+          if(following[k] && (!_clock || (_clock[k] != clock[k]))){
+            stream.request(k, clock[k] || 0, false)
+          }
         }
+        stream.next()
       })
     })
 
@@ -116,7 +149,7 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
       var opts = {version: 2}
-      var a = replicate(opts, function (err) {
+      var a = replicate.call(rpc, opts, function (err) {
         console.log('EBT failed, fallback to legacy', err)
         rpc._emit('fallback:replicate', err) //trigger legacy replication
       })
@@ -133,24 +166,10 @@ exports.init = function (sbot, config) {
     //local only; sets feeds that will be replicated.
     //this is only set for the current session. other plugins
     //need to manage who is actually running it.
-    request: function (id) {
-      if(following[id]) return
-      following[id] = true
-      //start all current streams following this one.
-      ready(function () {
-        for(var k in streams) {
-          if(!streams[k].state[id])
-            streams[k].request(id, clock[id])
-        }
-      })
-    },
+    request: request,
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
-
-
 
 
 
