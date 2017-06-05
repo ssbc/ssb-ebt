@@ -35,7 +35,7 @@ exports.init = function (sbot, config) {
     //start all current streams following this one.
     ready(function () {
       for(var k in streams) {
-        if(!streams[k].state[id])
+        if(!streams[k].states[id])
           streams[k].request(id, state ? clock[id] : -1)
       }
     })
