@@ -27,20 +27,20 @@ var bob = ssbKeys.generate()
 var charles = ssbKeys.generate()
 
 var a_bot = createSbot({
-  temp: 'random-animals',
+  temp: 'random-animals_alice',
   port: 45451, host: 'localhost', timeout: 20001,
   replicate: {hops: 3, legacy: false}, keys: alice
 })
 
 var b_bot = createSbot({
-  temp: 'random-animals2',
+  temp: 'random-animals_bob',
   port: 45452, host: 'localhost', timeout: 20001,
   replicate: {hops: 3, legacy: false},
   keys: bob
 })
 
 var c_bot = createSbot({
-  temp: 'random-animals3',
+  temp: 'random-animals_charles',
   port: 45453, host: 'localhost', timeout: 20001,
   replicate: {hops: 3, legacy: false},
   keys: charles
@@ -67,12 +67,12 @@ function consistent (name) {
   return function (msg) {
     recv[name][msg.key] = true
     all[msg.key] = true
-    console.log("POST", recv, all)
+  //  console.log("POST", recv, all)
     var missing = 0, has = 0
     for(var k in all) {
       for(var n in recv) {
         if(!recv[n][k]) {
-          console.log('missing:', n, k)
+//          console.log('missing:', n, k)
           missing ++
         }
         else
@@ -104,17 +104,18 @@ cont.para(feeds.map(function (f) {
   }
 
   function peers (a, b, name1, name2, d) {
-    var a_rep = a.ebt.replicate.call({id: name1}, {version: 2})
-    var b_rep = b.ebt.replicate.call({id: name2}, {version: 2})
+    var a_rep = a.ebt.replicate.call({id: name2}, {version: 2})
+    var b_rep = b.ebt.replicate.call({id: name1}, {version: 2})
 
     pull(
-      a_rep, 
+      a_rep,
       Delay(d),
       log(name1+'->'+name2),
       b_rep,
       Delay(d),
       log(name2+'->'+name1),
-      a_rep)
+      a_rep
+    )
   }
 
   peers(a_bot, b_bot, 'a', 'b', 10)
@@ -123,22 +124,26 @@ cont.para(feeds.map(function (f) {
 
 })
 
-var i = 5
+var i = 10
 var int =
 setInterval(function () {
   console.log('post', a_bot.since())
-  feeds[~~(Math.random()*feeds.length)].publish({type:'post', text: new Date().toString()}, function () {})
+  var N = ~~(Math.random()*feeds.length)
+  console.log("APPEND", N)
+  feeds[N].publish({type:'post', text: new Date().toString()}, function () {})
   if(--i) return
   clearInterval(int)
 
   console.log('Alice', a_bot.since())
-  console.log('Bob', a_bot.since())
-  console.log('Charles', a_bot.since())
+  console.log('Bob', b_bot.since())
+  console.log('Charles', c_bot.since())
 
   //and check that all peers are consistent.
-
-  a_bot.close()
-  b_bot.close()
-  c_bot.close()
+  setTimeout(function () {
+    console.log('close')
+    a_bot.close()
+    b_bot.close()
+    c_bot.close()
+  }, 1000)
 }, 500)
 
