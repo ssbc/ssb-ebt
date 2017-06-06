@@ -122,7 +122,7 @@ exports.init = function (sbot, config) {
       function (err) {
         //remember their clock, so we can skip requests next time.
         update(other, stream.states)
-        callback(err)
+        callback && callback(err)
       }
     )
 
