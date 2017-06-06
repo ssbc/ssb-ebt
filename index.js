@@ -108,7 +108,6 @@ exports.init = function (sbot, config) {
         //maybe save progress to a object, per peer.
         var prog = stream.progress()
         update(other, stream.states)
-        console.log("PROGRESS", prog)
       }, 200),
       onRequest: function (id, seq) {
         //incase this is one we skipped, but the remote has an update
@@ -135,10 +134,8 @@ exports.init = function (sbot, config) {
       ready(function () {
         for(var k in following) {
           if(following[k] == true) {
-            if(!_clock)
-              stream.request(k, clock[k], false)
-            else if(!(_clock[k] == -1 || _clock[k] == clock[k]))
-              stream.request(k, clock[k], false)
+            if(!_clock || !(_clock[k] == -1 || _clock[k] == clock[k]))
+              stream.request(k, clock[k] || 0, false)
           }
         }
         stream.next()
