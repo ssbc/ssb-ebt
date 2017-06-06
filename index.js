@@ -137,7 +137,7 @@ exports.init = function (sbot, config) {
           if(following[k] == true) {
             if(!_clock)
               stream.request(k, clock[k], false)
-            else if(!(_clock[k] == -1 && _clock[k] == clock[k]))
+            else if(!(_clock[k] == -1 || _clock[k] == clock[k]))
               stream.request(k, clock[k], false)
           }
         }
