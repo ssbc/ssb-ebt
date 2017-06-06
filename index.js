@@ -132,11 +132,13 @@ exports.init = function (sbot, config) {
 
     store.ensure(other, function () {
       var _clock = store.get(other)
-
       ready(function () {
         for(var k in following) {
-          if(following[k] && (!_clock || (_clock[k] != clock[k]))){
-            stream.request(k, clock[k] || 0, false)
+          if(following[k] == true) {
+            if(!_clock)
+              stream.request(k, clock[k], false)
+            else if(!(_clock[k] == -1 && _clock[k] == clock[k]))
+              stream.request(k, clock[k], false)
           }
         }
         stream.next()
@@ -170,6 +172,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
 
