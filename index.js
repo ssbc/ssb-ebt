@@ -107,9 +107,9 @@ exports.init = function (sbot, config) {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
         var prog = stream.progress()
-        if(prog.sync == prog.feeds)
-          update(other, stream.states)
-      }, 100),
+        update(other, stream.states)
+        console.log("PROGRESS", prog)
+      }, 200),
       onRequest: function (id, seq) {
         //incase this is one we skipped, but the remote has an update
         if(following[id])
