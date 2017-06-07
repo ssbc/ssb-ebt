@@ -8,6 +8,7 @@
     "url": "git://github.com/dominictarr/ssb-ebt.git"
   },
   "dependencies": {
+    "base64-url": "^1.3.3",
     "cont": "^1.0.3",
     "epidemic-broadcast-trees": "^2.0.2",
     "lossy-store": "^1.1.1",
