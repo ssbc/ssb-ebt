@@ -7,6 +7,8 @@ var Store = require('lossy-store')
 var path = require('path')
 var Bounce = require('epidemic-broadcast-trees/bounce')
 
+var toUrlFriendly = require('base64-url').escape
+
 function isEmpty (o) {
   for(var k in o) return false
   return true
@@ -91,6 +93,7 @@ exports.init = function (sbot, config) {
   var ts = Date.now(), start = Date.now()
 
   function update (id, states) {
+    id = toUrlFriendly(id)
     store.ensure(id, function () {
       var _clock = store.get(id) || {}
       for(var k in states)
