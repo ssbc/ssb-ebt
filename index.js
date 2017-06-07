@@ -7,6 +7,11 @@ var Store = require('lossy-store')
 var path = require('path')
 var Bounce = require('epidemic-broadcast-trees/bounce')
 
+function isEmpty (o) {
+  for(var k in o) return false
+  return true
+}
+
 exports.name = 'ebt'
 
 exports.version = '1.0.0'
@@ -91,7 +96,7 @@ exports.init = function (sbot, config) {
       for(var k in states)
         if(states[k].remote.req != null)
           _clock[k] = states[k].remote.req
-      store.set(id, _clock)
+      if(!isEmpty(_clock)) store.set(id, _clock)
     })
   }
 
@@ -169,4 +174,6 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
+
 
