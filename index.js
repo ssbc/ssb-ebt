@@ -107,7 +107,7 @@ exports.init = function (sbot, config) {
     if('function' === typeof opts) callback = opts, opts = null
     var other = this.id
     if(!opts || opts.version !== 2) {
-      throw streamError(new Error('expected ebt.replicate({version: 2})'))
+      throw new Error('expected ebt.replicate({version: 2})')
     }
 
     var stream = streams[other] = createStream({
@@ -177,6 +177,5 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
 
