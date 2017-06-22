@@ -157,7 +157,6 @@ exports.init = function (sbot, config) {
           if(following[k] == true) {
             if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
               status[other].common ++
-              console.log(k, _clock[k], clock[k])
               stream.request(k, clock[k] || 0, false)
             }
             else
@@ -206,4 +205,5 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
 
