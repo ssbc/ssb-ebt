@@ -48,8 +48,10 @@ exports.init = function (sbot, config) {
     //start all current streams following this one.
     ready(function () {
       for(var k in streams) {
-        if(!streams[k].states[id])
+        if(!streams[k].states[id]) {
+          status[other].localReq = (status[other].localReq||0) + 1
           streams[k].request(id, state ? clock[id] || 0 : -1)
+        }
       }
     })
   }
@@ -127,6 +129,8 @@ exports.init = function (sbot, config) {
       }, 200),
       onRequest: function (id, seq) {
         //incase this is one we skipped, but the remote has an update
+        status[other].remoteReq = (status[other].remoteReq||0) + 1
+
         if(following[id])
           stream.request(id, clock[id]|0)
         else
@@ -157,6 +161,7 @@ exports.init = function (sbot, config) {
           if(following[k] == true) {
             if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
               status[other].common ++
+              status[other].localReq = (status[other].localReq||0) + 1
               stream.request(k, clock[k] || 0, false)
             }
             else
@@ -205,5 +210,8 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
+
+
 
 
