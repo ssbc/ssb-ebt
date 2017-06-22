@@ -14,6 +14,12 @@ function isEmpty (o) {
   return true
 }
 
+function countKeys (o) {
+  var n = 0
+  for(var k in o) n++
+  return n
+}
+
 exports.name = 'ebt'
 
 exports.version = '1.0.0'
@@ -32,7 +38,7 @@ exports.init = function (sbot, config) {
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
   var store = Store(config.path ? path.join(config.path, 'ebt') : null)
-
+  var status = {}
   var clock = {}, following = {}, streams = {}
 
   function request (id, state) {
@@ -114,7 +120,9 @@ exports.init = function (sbot, config) {
       onChange: Bounce(function () {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
-        var prog = stream.progress()
+        status[other] = status[other] || {}
+        status[other].progress = stream.progress()
+        status[other].feeds = countKeys(streams[other].states)
         update(other, stream.states)
       }, 200),
       onRequest: function (id, seq) {
@@ -137,13 +145,23 @@ exports.init = function (sbot, config) {
       stream.onAppend(data.value)
     })
 
-    store.ensure(other, function () {
-      var _clock = store.get(other)
+    var _other = toUrlFriendly(other)
+    store.ensure(_other, function () {
+      var _clock = store.get(_other)
+      status[other] = status[other] || {}
+      status[other].other = countKeys(_clock)
+      status[other].common = 0
+      status[other].diff = 0
       ready(function () {
         for(var k in following) {
           if(following[k] == true) {
-            if(!_clock || !(_clock[k] == -1 || _clock[k] == clock[k]))
+            if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
+              status[other].common ++
+              console.log(k, _clock[k], clock[k])
               stream.request(k, clock[k] || 0, false)
+            }
+            else
+              status[other].diff ++
           }
         }
         stream.next()
@@ -152,6 +170,17 @@ exports.init = function (sbot, config) {
 
     return stream
   }
+
+  if('function' === typeof sbot.status && sbot.status.hook)
+    sbot.status.hook(function (fn) {
+      var _status = fn(), feeds = 0
+      _status.ebt = status
+      for(var k in streams) {
+         status[k].progress = streams[k].progress()
+      }
+
+      return _status
+    })
 
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
@@ -177,5 +206,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
