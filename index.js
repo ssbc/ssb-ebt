@@ -49,7 +49,7 @@ exports.init = function (sbot, config) {
     ready(function () {
       for(var k in streams) {
         if(!streams[k].states[id]) {
-          status[other].localReq = (status[other].localReq||0) + 1
+          status[k].localReq = (status[k].localReq||0) + 1
           streams[k].request(id, state ? clock[id] || 0 : -1)
         }
       }
@@ -117,6 +117,8 @@ exports.init = function (sbot, config) {
     if(!opts || opts.version !== 2) {
       throw new Error('expected ebt.replicate({version: 2})')
     }
+
+    status[other] = {}
 
     var stream = streams[other] = createStream({
       onChange: Bounce(function () {
@@ -210,8 +212,5 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
-
 
 
