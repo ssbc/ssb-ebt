@@ -97,7 +97,6 @@ exports.init = function (sbot, config) {
     }
   )
 
-
   var ts = Date.now(), start = Date.now()
 
   function update (id, states) {
@@ -155,19 +154,28 @@ exports.init = function (sbot, config) {
     store.ensure(_other, function () {
       var _clock = store.get(_other)
       status[other] = status[other] || {}
-      status[other].other = countKeys(_clock)
-      status[other].common = 0
-      status[other].diff = 0
+      var req = status[other].req = {
+        total:countKeys(following),
+        common: 0,
+        requested: 0
+      }
+
+      if(_clock) {
+        for(var k in _clock) {
+          if(following[k])
+            req.common++
+          else
+            req.total++
+        }
+      }
+
       ready(function () {
         for(var k in following) {
           if(following[k] == true) {
             if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
-              status[other].common ++
-              status[other].localReq = (status[other].localReq||0) + 1
+              req.requested ++
               stream.request(k, clock[k] || 0, false)
             }
-            else
-              status[other].diff ++
           }
         }
         stream.next()
@@ -182,7 +190,8 @@ exports.init = function (sbot, config) {
       var _status = fn(), feeds = 0
       _status.ebt = status
       for(var k in streams) {
-         status[k].progress = streams[k].progress()
+          status[k].progress = streams[k].progress()
+          status[k].meta = streams[k].meta
       }
 
       return _status
@@ -212,5 +221,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
