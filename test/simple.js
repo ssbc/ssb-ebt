@@ -46,7 +46,7 @@ var b_bot = createSbot({
 })
 
 //increasing n give an error currently...
-var n = 0
+var n = 10
 var feeds = [a_bot.createFeed(alice), b_bot.createFeed(bob)]
 while(n-->0)
   feeds.push([a_bot, b_bot][~~(Math.random()*2)].createFeed())
