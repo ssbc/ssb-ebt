@@ -41,6 +41,14 @@ exports.init = function (sbot, config) {
   var status = {}
   var clock = {}, following = {}, streams = {}
 
+  function isFollowing (state) {
+    return (
+        state == null ? false
+      : state.local.req == null ? false
+      : state.local.req !== -1
+    )
+  }
+
   function request (id, state) {
     state = state !== false //true unless explicitly false
     if(following[id] === state) return
@@ -48,7 +56,7 @@ exports.init = function (sbot, config) {
     //start all current streams following this one.
     ready(function () {
       for(var k in streams) {
-        if(!streams[k].states[id] || streams[k].states[id].local.req == -1) {
+        if(state !== isFollowing(streams[k].states[id])) {
           streams[k].request(id, state ? clock[id] || 0 : -1)
         }
       }
