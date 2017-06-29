@@ -207,8 +207,10 @@ exports.init = function (sbot, config) {
     if(isClient) {
       var opts = {version: 2}
       var a = replicate.call(rpc, opts, function (err) {
-        console.log('EBT failed, fallback to legacy', err)
-        rpc._emit('fallback:replicate', err) //trigger legacy replication
+        if(!rpc.closed) {
+          console.log('EBT failed, fallback to legacy', err)
+          rpc._emit('fallback:replicate', err) //trigger legacy replication
+        }
       })
       var b = rpc.ebt.replicate(opts, function (err) {
         console.log('replication ended:', rpc.id, err && err.stack)
