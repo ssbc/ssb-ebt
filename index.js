@@ -48,8 +48,7 @@ exports.init = function (sbot, config) {
     //start all current streams following this one.
     ready(function () {
       for(var k in streams) {
-        if(!streams[k].states[id]) {
-          status[k].localReq = (status[k].localReq||0) + 1
+        if(!streams[k].states[id] || streams[k].states[id].local.req == -1) {
           streams[k].request(id, state ? clock[id] || 0 : -1)
         }
       }
@@ -59,7 +58,7 @@ exports.init = function (sbot, config) {
   //HACK: patch calls to replicate.request into ebt, too.
   sbot.replicate.request.hook(function (fn, args) {
     request.apply(null, args)
-    fn.apply(this, args)
+    return fn.apply(this, args)
   })
 
   //this should be always up to date...
@@ -130,7 +129,6 @@ exports.init = function (sbot, config) {
       }, 200),
       onRequest: function (id, seq) {
         //incase this is one we skipped, but the remote has an update
-        status[other].remoteReq = (status[other].remoteReq||0) + 1
 
         if(following[id])
           stream.request(id, clock[id]|0)
