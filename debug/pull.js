@@ -1,10 +1,17 @@
 var pull = require('pull-stream')
+var validate = require('ssb-validate')
+
+var state = {
+  queue: [],
+  feeds: {}
+}
 
 require('ssb-client')(function (err, sbot) {
   var n = 0, ts = Date.now(), start = Date.now()
   pull(
     sbot.ebt._dump(),
     pull.drain(function (msg) {
+      state = validate.append(state, msg)
       var _ts
       n++
       if((_ts = Date.now()) > ts+1000) {
@@ -14,4 +21,5 @@ require('ssb-client')(function (err, sbot) {
     }, sbot.close)
   )
 })
+
 
