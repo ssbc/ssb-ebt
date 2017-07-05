@@ -15,11 +15,14 @@ require('ssb-client')(function (err, sbot) {
       var _ts
       n++
       if((_ts = Date.now()) > ts+1000) {
+        console.log(Object.keys(state.feeds).length, state.queue.length)
         console.log(n, n / ((Date.now() - start)/1000))
         ts = _ts
       }
     }, sbot.close)
   )
 })
+
+
 
 
