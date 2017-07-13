@@ -1,8 +1,8 @@
 var pull = require('pull-stream')
 var EBT = require('epidemic-broadcast-trees')
 var v = require('ssb-validate')
-
-function createStream (cb) {
+var Bounce = require('epidemic-broadcast-trees/bounce')
+function createStream (onDone, cb) {
   var state = {
     queue: {push: function () {} }, //fake array
     feeds: {},
@@ -10,28 +10,29 @@ function createStream (cb) {
   }
   console.log('messages/second, messages total, time elapsed')
   var ts = Date.now(), start = Date.now(), count = 0, _count = 0
-  var s
-  return s = EBT(
-    {}, //empty, because we'll just replicate everything
-    function (id, seq, cb) {
-      throw new Error('we expect only to pull, in this example')
+  var stream
+  var createStream = EBT(
+    function get (id, seq, cb) {
+      //should never be called...
+      throw new Error('not expecting to ever send anything')
     },
-    function (msg, cb) {
-      state = v.append(state, msg)
-      if(state.error) throw state.error
-
-      count ++
-      if(Date.now() > ts + 1000) {
-        console.log([count - _count, _count = count, ((ts = Date.now()) - start)].join(', '))
-      }
-      s.onAppend(msg)
+    function append (msg, cb) {
+      stream.onAppend(msg)
       cb()
-    },
-    function () {
-    },
-    function (err) {
-      cb(err)
     }
+  )
+  return stream = createStream({
+      onChange: Bounce(function () {
+//        var p = stream.progress()
+//        console.log(p, stream.meta)
+//        if(p.current === p.target)
+//          onDone(p)
+      }, 1000),
+      onRequest: function (id, seq) {
+        stream.request(id, 0)
+      },
+    },
+    cb
   )
 }
 
@@ -41,26 +42,28 @@ if(process.argv[2])
 
 require('ssb-client')(null, opts, function (err, sbot) {
   if(err) throw err
-  var ebt = createStream(function (err) {
+  var ebt = createStream(function () {
+    sbot.close()
+  }, function (err) {
     if(err) throw err
     sbot.close()
   })
 
-  pull(ebt, sbot.ebt.replicate(function (err) {
-    if(err) throw err
+  var int = setInterval(function () {
+    var p = ebt.progress()
+    console.log(p, ebt.meta)
+    if(p.current == p.target) {
+      clearInterval(int)
+      console.log('close!')
+      sbot.close(true)
+    }
+  }, 1000)
+
+  pull(ebt, sbot.ebt.replicate({version: 2}, function (err) {
+//    if(err) throw err
     sbot.close()
   }), ebt)
 
 })
-
-
-
-
-
-
-
-
-
-
 
 
