@@ -14,6 +14,11 @@ function isEmpty (o) {
   return true
 }
 
+function hook(hookable, fn) {
+  if('function' === typeof hookable && hookable.hook)
+    hookable.hook(fn)
+}
+
 function countKeys (o) {
   var n = 0
   for(var k in o) n++
@@ -64,7 +69,7 @@ exports.init = function (sbot, config) {
   }
 
   //HACK: patch calls to replicate.request into ebt, too.
-  sbot.replicate.request.hook(function (fn, args) {
+  hook(sbot.replicate.request, function (fn, args) {
     request.apply(null, args)
     return fn.apply(this, args)
   })
@@ -191,8 +196,7 @@ exports.init = function (sbot, config) {
     return stream
   }
 
-  if('function' === typeof sbot.status && sbot.status.hook)
-    sbot.status.hook(function (fn) {
+    hook(sbot.status, function (fn) {
       var _status = fn(), feeds = 0
       _status.ebt = status
       for(var k in streams) {
@@ -202,6 +206,23 @@ exports.init = function (sbot, config) {
 
       return _status
     })
+
+  function progressReduce (acc, item) {
+    acc.start += item.start
+    acc.current += item.current
+    acc.target += item.target
+    return acc
+  }
+
+  hook(sbot.progress, function (fn) {
+    var prog = fn()
+    var p = {start: 0, current: 0, target: 0}
+    for(var k in streams)
+      p = progressReduce(p, streams[k].progress())
+    if(p.target)
+      prog.ebt = p
+    return prog
+  })
 
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
@@ -229,4 +250,11 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
+
+
+
+
+
+
 
