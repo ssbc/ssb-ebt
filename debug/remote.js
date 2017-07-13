@@ -52,18 +52,15 @@ require('ssb-client')(null, opts, function (err, sbot) {
   var int = setInterval(function () {
     var p = ebt.progress()
     console.log(p, ebt.meta)
-    if(p.current == p.target) {
+    if(p.target && p.current == p.target) {
       clearInterval(int)
-      console.log('close!')
       sbot.close(true)
     }
   }, 1000)
 
   pull(ebt, sbot.ebt.replicate({version: 2}, function (err) {
-//    if(err) throw err
+    if(err) throw err
     sbot.close()
   }), ebt)
 
 })
-
-
