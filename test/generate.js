@@ -3,6 +3,7 @@ var pull = require('pull-stream')
 var paramap = require('pull-paramap')
 var crypto = require('crypto')
 var ssbKeys = require('ssb-keys')
+var assert = require('assert')
 
 function randint (n) {
   return ~~(Math.random()*n)
@@ -24,7 +25,7 @@ function track(bot, name) {
   })
   setInterval(function () {
     if(_l != l) {
-      console.log(name, l, l - _l)
+      console.log(name, l, l - _l, bot.progress())
       _l = l
     }
   }, 1000).unref()
@@ -65,8 +66,6 @@ var alice = ssbKeys.generate()
   track(a_bot, 'alice')
   track(b_bot, 'bob')
 
-//  b_bot.post(console.log)
-
   gen.initialize(a_bot, 500, 4, function (err, peers) {
     if(err) throw err
     console.log('initialized')
@@ -85,8 +84,7 @@ var alice = ssbKeys.generate()
       }
     }, peers, 10000, function () {
       var c = 0
-      console.log('done, replicating')
-//      console.log(a_bot.status())
+      console.log('set up, replicating')
       ;(function next (i) {
         if(!i) {
           return
@@ -107,6 +105,11 @@ var alice = ssbKeys.generate()
         if(err) throw err
         var int = setInterval(function () {
           console.log(JSON.stringify(b_bot.status().ebt))
+
+          var prog = a_bot.progress()
+          assert.ok(prog.indexes)
+          assert.ok(prog.ebt)
+          assert.ok(prog.ebt.target)
 
           a_bot.getVectorClock(function (err, clock) {
             b_bot.getVectorClock(function (err, _clock) {
@@ -129,11 +132,13 @@ var alice = ssbKeys.generate()
               for(var k in clock)
                 total_b += clock[k]
 
-
               console.log('A',count(clock), 'B', count(_clock), 'diff', d)
-//              if(d) console.log("INCONSISTENT", d)
-//              else console.log(Object.keys(_clock).length, 'FEEDS ARE CONSISTENT')
               if(d === 0) {
+                  var prog = a_bot.progress()
+                  assert.ok(prog.indexes)
+                  assert.ok(prog.ebt)
+                  assert.ok(prog.ebt.target)
+                  assert.equal(prog.ebt.current, prog.ebt.target)
                   clearInterval(int)
                   a_bot.close()
                   b_bot.close()
@@ -147,6 +152,8 @@ var alice = ssbKeys.generate()
     })
 
   })
+
+
 
 
 
