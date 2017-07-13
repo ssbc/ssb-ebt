@@ -1,7 +1,7 @@
 {
   "name": "ssb-ebt",
   "description": "scaleable scuttlebutt replication for ssb",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "homepage": "https://github.com/dominictarr/ssb-ebt",
   "repository": {
     "type": "git",
