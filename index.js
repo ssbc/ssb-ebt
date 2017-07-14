@@ -7,6 +7,8 @@ var Store = require('lossy-store')
 var path = require('path')
 var Bounce = require('epidemic-broadcast-trees/bounce')
 
+var createReplicator = require('./stream')
+
 var toUrlFriendly = require('base64-url').escape
 
 function isEmpty (o) {
@@ -92,7 +94,10 @@ exports.init = function (sbot, config) {
   //this should be always up to date...
   var waiting = []
   sbot.getVectorClock(function (err, _clock) {
-    clock = _clock
+    for(var k in _clock)
+      clock[k] = _clock[k]
+//    clock = _clock
+
     while(waiting.length) waiting.shift()()
   })
 
@@ -136,87 +141,40 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function replicate (opts, callback) {
-    if('function' === typeof opts) callback = opts, opts = null
+
+  var _replicate = createReplicator (createStream, clock, following, store, status)
+
+  function replicate (opts, cb) {
     var other = this.id
-    if(!opts || opts.version !== 2) {
-      throw new Error('expected ebt.replicate({version: 2})')
-    }
-
-    status[other] = {}
-
-    var stream = streams[other] = createStream({
+    return streams[other] = _replicate(other, {
+      version: opts.version,
       onChange: Bounce(function () {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
         status[other] = status[other] || {}
-        status[other].progress = stream.progress()
+        status[other].progress = streams[other].progress()
         status[other].feeds = countKeys(streams[other].states)
-        update(other, stream.states)
-      }, 200),
-      onRequest: function (id, seq) {
-        //incase this is one we skipped, but the remote has an update
-
-        if(following[id])
-          stream.request(id, clock[id]|0)
-        else
-          stream.request(id, -1)
-
-      }
-    },
-      function (err) {
-        //remember their clock, so we can skip requests next time.
-        update(other, stream.states)
-        callback && callback(err)
-      }
-    )
-
-    appended(function (data) {
-      stream.onAppend(data.value)
-    })
-
-    store.ensure(other, function () {
-      var _clock = store.get(other)
-      status[other] = status[other] || {}
-      var req = status[other].req = {
-        total:countKeys(following),
-        common: 0,
-        requested: 0
-      }
-
-      if(_clock) {
-        for(var k in _clock) {
-          if(following[k])
-            req.common++
-          else
-            req.total++
-        }
-      }
-
-      for(var k in following) {
-        if(following[k] == true) {
-          if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
-            req.requested ++
-            stream.request(k, clock[k] || 0, false)
-          }
-        }
-      }
-      stream.next()
-    })
-
-    return stream
+        update(other, streams[other].states)
+      }, 200)
+    }, cb)
   }
 
-    hook(sbot.status, function (fn) {
-      var _status = fn(), feeds = 0
-      _status.ebt = status
-      for(var k in streams) {
-          status[k].progress = streams[k].progress()
-          status[k].meta = streams[k].meta
-      }
+  appended(function (data) {
+    for(var k in streams)
+      streams[k].onAppend(data.value)
+  })
 
-      return _status
-    })
+
+  hook(sbot.status, function (fn) {
+    var _status = fn(), feeds = 0
+    _status.ebt = status
+    for(var k in streams) {
+        status[k].progress = streams[k].progress()
+        status[k].meta = streams[k].meta
+    }
+
+    return _status
+  })
 
   function progressReduce (acc, item) {
     acc.start += item.start
