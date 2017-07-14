@@ -50,8 +50,12 @@ exports.init = function (sbot, config) {
         _store.ensure(key, cb)
       })
     },
-    get: _store.get,
-    set: _store.set
+    get: function (key) {
+      return _store.get(toUrlFriendly(key))
+    },
+    set: function (key, value) {
+      return _store.set(toUrlFriendly(key), value)
+    }
   }
 
   var status = {}
@@ -123,7 +127,6 @@ exports.init = function (sbot, config) {
   var ts = Date.now(), start = Date.now()
 
   function update (id, states) {
-    id = toUrlFriendly(id)
     store.ensure(id, function () {
       var _clock = store.get(id) || {}
       for(var k in states)
@@ -172,9 +175,8 @@ exports.init = function (sbot, config) {
       stream.onAppend(data.value)
     })
 
-    var _other = toUrlFriendly(other)
-    store.ensure(_other, function () {
-      var _clock = store.get(_other)
+    store.ensure(other, function () {
+      var _clock = store.get(other)
       status[other] = status[other] || {}
       var req = status[other].req = {
         total:countKeys(following),
