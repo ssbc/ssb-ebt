@@ -42,7 +42,18 @@ exports.init = function (sbot, config) {
   var appended = Obv()
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
-  var store = Store(config.path ? path.join(config.path, 'ebt') : null)
+  var _store = Store(config.path ? path.join(config.path, 'ebt') : null)
+
+  var store = {
+    ensure: function (key, cb) {
+      ready(function () {
+        _store.ensure(key, cb)
+      })
+    },
+    get: _store.get,
+    set: _store.set
+  }
+
   var status = {}
   var clock = {}, following = {}, streams = {}
 
@@ -180,17 +191,15 @@ exports.init = function (sbot, config) {
         }
       }
 
-      ready(function () {
-        for(var k in following) {
-          if(following[k] == true) {
-            if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
-              req.requested ++
-              stream.request(k, clock[k] || 0, false)
-            }
+      for(var k in following) {
+        if(following[k] == true) {
+          if(!_clock || !(_clock[k] == -1 || _clock[k] == (clock[k] || 0))) {
+            req.requested ++
+            stream.request(k, clock[k] || 0, false)
           }
         }
-        stream.next()
-      })
+      }
+      stream.next()
     })
 
     return stream
@@ -250,11 +259,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
-
-
-
-
-
 
