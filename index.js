@@ -142,7 +142,13 @@ exports.init = function (sbot, config) {
   }
 
 
-  var _replicate = createReplicator (createStream, clock, following, store, status)
+  var _replicate = createReplicator (
+    createStream,
+    clock,
+    following,
+    store,
+    status
+  )
 
   function replicate (opts, cb) {
     var other = this.id
@@ -156,7 +162,12 @@ exports.init = function (sbot, config) {
         status[other].feeds = countKeys(streams[other].states)
         update(other, streams[other].states)
       }, 200)
-    }, cb)
+    },     function (err) {
+      //remember their clock, so we can skip requests next time.
+      update(other, streams[other].states)
+      cb && cb(err)
+    }
+)
   }
 
   appended(function (data) {
@@ -219,4 +230,5 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
 
