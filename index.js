@@ -16,15 +16,15 @@ function isEmpty (o) {
   return true
 }
 
-function hook(hookable, fn) {
-  if('function' === typeof hookable && hookable.hook)
-    hookable.hook(fn)
-}
-
 function countKeys (o) {
   var n = 0
   for(var k in o) n++
   return n
+}
+
+function hook(hookable, fn) {
+  if('function' === typeof hookable && hookable.hook)
+    hookable.hook(fn)
 }
 
 exports.name = 'ebt'
@@ -44,11 +44,12 @@ exports.init = function (sbot, config) {
   var appended = Obv()
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
+
   var _store = Store(config.path ? path.join(config.path, 'ebt') : null)
 
   var store = {
     ensure: function (key, cb) {
-      ready(function () {
+      clock.once(function () {
         _store.ensure(key, cb)
       })
     },
@@ -59,9 +60,10 @@ exports.init = function (sbot, config) {
       return _store.set(toUrlFriendly(key), value)
     }
   }
-
+  var following = {}
+  var clock = require('./clock')(sbot)
   var status = {}
-  var clock = {}, following = {}, streams = {}
+  var streams = {}
 
   function isFollowing (state) {
     return (
@@ -76,13 +78,11 @@ exports.init = function (sbot, config) {
     if(following[id] === state) return
     following[id] = state
     //start all current streams following this one.
-    ready(function () {
-      for(var k in streams) {
-        if(state !== isFollowing(streams[k].states[id])) {
-          streams[k].request(id, state ? clock[id] || 0 : -1)
-        }
+    for(var k in streams) {
+      if(state !== isFollowing(streams[k].states[id])) {
+        streams[k].request(id, state ? clock.value[id] || 0 : -1)
       }
-    })
+    }
   }
 
   //HACK: patch calls to replicate.request into ebt, too.
@@ -92,29 +92,8 @@ exports.init = function (sbot, config) {
   })
 
   //this should be always up to date...
-  var waiting = []
-  sbot.getVectorClock(function (err, _clock) {
-    for(var k in _clock)
-      clock[k] = _clock[k]
-//    clock = _clock
 
-    while(waiting.length) waiting.shift()()
-  })
-
-  function ready(fn) {
-    if(clock) fn()
-    else waiting.push(fn)
-  }
-
-  //messages appended in realtime.
-  sbot.post(function (msg) {
-    //ensure the clock object is always up to date, once loaded.
-    var v = msg.value
-    if(clock[v.author] == null || clock[v.author] < v.sequence)
-      clock[v.author] = v.sequence
-    appended.set(msg)
-  })
-
+  sbot.post(appended.set)
 
   var createStream = EBTStream(
     function get (id, seq, cb) {
@@ -226,9 +205,12 @@ exports.init = function (sbot, config) {
     //local only; sets feeds that will be replicated.
     //this is only set for the current session. other plugins
     //need to manage who is actually running it.
-    request: request,
+    request: function (id, follows) {
+      clock.once(function () {
+        request(id, follows)
+      })
+    },
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
