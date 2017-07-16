@@ -7,7 +7,10 @@ var Store = require('lossy-store')
 var path = require('path')
 var Bounce = require('epidemic-broadcast-trees/bounce')
 
-var createReplicator = require('./stream')
+var shouldReplicate = require('./follows').shouldReplicate
+
+
+//var createReplicator = require('./stream')
 
 var toUrlFriendly = require('base64-url').escape
 
@@ -120,19 +123,14 @@ exports.init = function (sbot, config) {
     })
   }
 
-
-  var _replicate = createReplicator (
-    createStream,
-    clock,
-    following,
-    store,
-    status
-  )
-
-  function replicate (opts, cb) {
+  function replicate (opts, callback) {
+    if('function' === typeof opts)
+      callback = opts, opts = null
+    if(!opts || opts.version !== 2)
+      throw new Error('expected ebt.replicate({version: 2})')
     var other = this.id
-    return streams[other] = _replicate(other, {
-      version: opts.version,
+
+    var stream = streams[other] = createStream({
       onChange: Bounce(function () {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
@@ -140,13 +138,25 @@ exports.init = function (sbot, config) {
         status[other].progress = streams[other].progress()
         status[other].feeds = countKeys(streams[other].states)
         update(other, streams[other].states)
-      }, 200)
-    },     function (err) {
+      }, 200),
+      onRequest: function (id, seq) {
+        //incase this is one we skipped, but the remote has an update
+        stream.request(id, following[id] ? clock.value[id]|0 : -1)
+      }
+    },  function (err) {
       //remember their clock, so we can skip requests next time.
       update(other, streams[other].states)
       cb && cb(err)
-    }
-)
+    })
+
+    store.ensure(other, function () {
+      var _clock = store.get(other)
+      status[other].req =
+        shouldReplicate(following, _clock, clock.value, stream.request)
+      stream.next()
+    })
+
+    return stream
   }
 
   appended(function (data) {
