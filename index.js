@@ -3,16 +3,9 @@ var Obv = require('obv')
 var pull = require('pull-stream')
 var pContDuplex = require('pull-cont/duplex')
 var EBTStream = require('epidemic-broadcast-trees')
-var Store = require('lossy-store')
-var path = require('path')
 var Bounce = require('epidemic-broadcast-trees/bounce')
-
-var shouldReplicate = require('./follows').shouldReplicate
-
-
-//var createReplicator = require('./stream')
-
-var toUrlFriendly = require('base64-url').escape
+var path = require('path')
+var Follows = require('./follows')
 
 function isEmpty (o) {
   for(var k in o) return false
@@ -40,63 +33,34 @@ exports.manifest = {
   request: 'sync',
 }
 exports.permissions = {
-    anonymous: {allow: ['replicate']},
-  }
+  anonymous: {allow: ['replicate']},
+}
 
 exports.init = function (sbot, config) {
   var appended = Obv()
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
 
-  var _store = Store(config.path ? path.join(config.path, 'ebt') : null)
-
-  var store = {
-    ensure: function (key, cb) {
-      clock.once(function () {
-        _store.ensure(key, cb)
-      })
-    },
-    get: function (key) {
-      return _store.get(toUrlFriendly(key))
-    },
-    set: function (key, value) {
-      return _store.set(toUrlFriendly(key), value)
-    }
-  }
-  var following = {}
-  var clock = require('./clock')(sbot)
   var status = {}
-  var streams = {}
+  var clock = require('./clock')(sbot)
 
-  function isFollowing (state) {
-    return (
-        state == null ? false
-      : state.local.req == null ? false
-      : state.local.req !== -1
-    )
-  }
-
-  function request (id, state) {
-    state = state !== false //true unless explicitly false
-    if(following[id] === state) return
-    following[id] = state
-    //start all current streams following this one.
-    for(var k in streams) {
-      if(state !== isFollowing(streams[k].states[id])) {
-        streams[k].request(id, state ? clock.value[id] || 0 : -1)
-      }
-    }
-  }
+  var follows = Follows(
+    config.path ? path.join(config.path, 'ebt') : null,
+    clock,
+    status
+  )
 
   //HACK: patch calls to replicate.request into ebt, too.
   hook(sbot.replicate.request, function (fn, args) {
-    request.apply(null, args)
+    follows.request(args[0], args[1])
     return fn.apply(this, args)
   })
 
   //this should be always up to date...
 
-  sbot.post(appended.set)
+  sbot.post(function (data) {
+    follows.onAppend(data.value)
+  })
 
   var createStream = EBTStream(
     function get (id, seq, cb) {
@@ -113,16 +77,6 @@ exports.init = function (sbot, config) {
 
   var ts = Date.now(), start = Date.now()
 
-  function update (id, states) {
-    store.ensure(id, function () {
-      var _clock = store.get(id) || {}
-      for(var k in states)
-        if(states[k].remote.req != null)
-          _clock[k] = states[k].remote.req
-      if(!isEmpty(_clock)) store.set(id, _clock)
-    })
-  }
-
   function replicate (opts, callback) {
     if('function' === typeof opts)
       callback = opts, opts = null
@@ -130,66 +84,38 @@ exports.init = function (sbot, config) {
       throw new Error('expected ebt.replicate({version: 2})')
     var other = this.id
 
-    var stream = streams[other] = createStream({
+    return follows.add(other, createStream({
       onChange: Bounce(function () {
         //TODO: log progress in some way, here
         //maybe save progress to a object, per peer.
-        status[other] = status[other] || {}
-        status[other].progress = streams[other].progress()
-        status[other].feeds = countKeys(streams[other].states)
-        update(other, streams[other].states)
+        follows.update(other)
       }, 200),
       onRequest: function (id, seq) {
-        //incase this is one we skipped, but the remote has an update
-        stream.request(id, following[id] ? clock.value[id]|0 : -1)
+        follows.onRequest(id, seq, other)
+      },
+      //TODO:
+      //if we switch this stream into main mode,
+      //request non-send for other streams.
+      onSwitch: function (id, seq) {
+        //...
       }
     },  function (err) {
       //remember their clock, so we can skip requests next time.
-      update(other, streams[other].states)
-      cb && cb(err)
-    })
-
-    store.ensure(other, function () {
-      var _clock = store.get(other)
-      status[other].req =
-        shouldReplicate(following, _clock, clock.value, stream.request)
-      stream.next()
-    })
-
-    return stream
+      follows.update(other)
+      callback && callback(err)
+    }))
   }
-
-  appended(function (data) {
-    for(var k in streams)
-      streams[k].onAppend(data.value)
-  })
-
 
   hook(sbot.status, function (fn) {
     var _status = fn(), feeds = 0
-    _status.ebt = status
-    for(var k in streams) {
-        status[k].progress = streams[k].progress()
-        status[k].meta = streams[k].meta
-    }
-
+    _status.ebt = follows.status()
     return _status
   })
 
-  function progressReduce (acc, item) {
-    acc.start += item.start
-    acc.current += item.current
-    acc.target += item.target
-    return acc
-  }
-
   hook(sbot.progress, function (fn) {
     var prog = fn()
-    var p = {start: 0, current: 0, target: 0}
-    for(var k in streams)
-      p = progressReduce(p, streams[k].progress())
-    if(p.target)
-      prog.ebt = p
+    var p = follows.progress()
+    if(p.target) prog.ebt = p
     return prog
   })
 
