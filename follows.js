@@ -114,6 +114,7 @@ module.exports = function (dir, clock, status) {
     request: request,
     add: function (id, stream) {
       streams[id] = stream
+      status[id] = status[id] || {}
       store.ensure(id, function () {
         var _clock = store.get(id)
         status[id].req =
@@ -156,4 +157,5 @@ module.exports = function (dir, clock, status) {
     }
   }
 }
+
 
