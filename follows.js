@@ -1,5 +1,17 @@
 'use strict'
 
+/*
+This manages the state across multiple ebt streams,
+the lossy-store instance that remote clocks are stored in.
+it smells a lot like a Java SomethingManager class.
+
+I kinda want to rewrite it in a functional state based style
+like I did for the main epidemic-broadcast-trees module,
+but that code is harder to write (but way easier to test)
+but possibly there is something that I just havn't figured out about that yet.
+
+*/
+
 var toUrlFriendly = require('base64-url').escape
 
 function isEmpty (o) {
