@@ -77,12 +77,11 @@ exports.init = function (sbot, config) {
 
   var ts = Date.now(), start = Date.now()
 
-  function replicate (opts, callback) {
+  function replicate (other, opts, callback) {
     if('function' === typeof opts)
       callback = opts, opts = null
     if(!opts || opts.version !== 2)
       throw new Error('expected ebt.replicate({version: 2})')
-    var other = this.id
 
     return follows.add(other, createStream({
       onChange: Bounce(function () {
@@ -122,7 +121,7 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
       var opts = {version: 2}
-      var a = replicate.call(rpc, opts, function (err) {
+      var a = replicate(rpc.id, opts, function (err) {
         if(!rpc.closed) {
           console.log('EBT failed, fallback to legacy', err)
           rpc._emit('fallback:replicate', err) //trigger legacy replication
@@ -136,7 +135,9 @@ exports.init = function (sbot, config) {
   })
 
   return {
-    replicate: replicate,
+    replicate: function (opts, cb) {
+      replicate(this.id, opts, cb)
+    },
 
     //local only; sets feeds that will be replicated.
     //this is only set for the current session. other plugins
