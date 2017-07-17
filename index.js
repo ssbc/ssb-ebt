@@ -136,7 +136,7 @@ exports.init = function (sbot, config) {
 
   return {
     replicate: function (opts, cb) {
-      replicate(this.id, opts, cb)
+      return replicate(this.id, opts, cb)
     },
 
     //local only; sets feeds that will be replicated.
