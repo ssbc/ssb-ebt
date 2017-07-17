@@ -28,8 +28,6 @@ function isFollowing (state) {
   )
 }
 
-
-
 function shouldReplicate (following, _clock, clock, request) {
 
   var req = {
@@ -146,9 +144,4 @@ module.exports = function (dir, clock, status) {
     }
   }
 }
-
-
-
-
-
 
