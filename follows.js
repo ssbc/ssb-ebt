@@ -82,7 +82,7 @@ module.exports = function (dir, clock, status) {
   var store = {
     ensure: function (key, cb) {
       clock.once(function () {
-        _store.ensure(key, cb)
+        _store.ensure(toUrlFriendly(key), cb)
       })
     },
     get: function (key) {
