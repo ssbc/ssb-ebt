@@ -31,6 +31,10 @@ function track(bot, name) {
   }, 1000).unref()
 }
 
+//SOMETIMES this test fails. I think it's just because
+//some of the peers might be too far from the followed peer.
+//TODO: create a thing that checks they where all actually reachable!
+
 var alice = ssbKeys.generate()
 
   var createSbot = require('scuttlebot')
@@ -145,16 +149,8 @@ var alice = ssbKeys.generate()
               }
             })
           })
-
         },1000).unref()
       })
-
     })
-
   })
-
-
-
-
-
 
