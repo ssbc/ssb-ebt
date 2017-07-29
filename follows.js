@@ -26,6 +26,7 @@ function countKeys (o) {
 }
 
 function progressReduce (acc, item) {
+  if(isNaN(item.start)) throw new Error('must not be NaN')
   acc.start += item.start
   acc.current += item.current
   acc.target += item.target
@@ -127,6 +128,7 @@ module.exports = function (dir, clock, status) {
       for(var k in streams)
         streams[k].onAppend(msg)
     },
+    //called when messages received, write to clock store.
     update: function (id) {
       var stream = streams[id]
       status[id] = status[id] || {}
@@ -157,5 +159,6 @@ module.exports = function (dir, clock, status) {
     }
   }
 }
+
 
 
