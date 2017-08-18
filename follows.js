@@ -1,5 +1,9 @@
 'use strict'
 
+var Store = require('lossy-store')
+var toUrlFriendly = require('base64-url').escape
+
+
 /*
 This manages the state across multiple ebt streams,
 the lossy-store instance that remote clocks are stored in.
@@ -11,8 +15,6 @@ but that code is harder to write (but way easier to test)
 but possibly there is something that I just havn't figured out about that yet.
 
 */
-
-var toUrlFriendly = require('base64-url').escape
 
 function isEmpty (o) {
   for(var k in o) return false
@@ -73,26 +75,11 @@ function shouldReplicate (following, _clock, clock, request) {
   return req
 }
 
-var Store = require('lossy-store')
-var path = require('path')
-
 module.exports = function (dir, clock, status) {
+  var store = Store(dir,
+    null, toUrlFriendly
+  )
 
-  var _store = Store(dir)
-
-  var store = {
-    ensure: function (key, cb) {
-      clock.once(function () {
-        _store.ensure(toUrlFriendly(key), cb)
-      })
-    },
-    get: function (key) {
-      return _store.get(toUrlFriendly(key))
-    },
-    set: function (key, value) {
-      return _store.set(toUrlFriendly(key), value)
-    }
-  }
   var following = {}, streams = {}, self
 
   function request (id, state) {
@@ -120,6 +107,8 @@ module.exports = function (dir, clock, status) {
         var _clock = store.get(id)
         status[id].req =
           shouldReplicate(following, _clock, clock.value, stream.request)
+        //^ this may call stream.request(id, seq)
+        //which will then set 
         stream.next()
       })
       return stream
@@ -129,6 +118,7 @@ module.exports = function (dir, clock, status) {
         streams[k].onAppend(msg)
     },
     //called when messages received, write to clock store.
+    //note, this is debounced, should not be call every message
     update: function (id) {
       var stream = streams[id]
       status[id] = status[id] || {}
@@ -159,6 +149,7 @@ module.exports = function (dir, clock, status) {
     }
   }
 }
+
 
 
 
