@@ -75,10 +75,11 @@ function shouldReplicate (following, _clock, clock, request) {
   return req
 }
 
-module.exports = function (dir, clock, status) {
-  var store = Store(dir,
-    null, toUrlFriendly
-  )
+module.exports = function (store, clock, status) {
+//  var store = Store(dir,
+//    null, toUrlFriendly
+//  )
+
 
   var following = {}, streams = {}, self
 
@@ -149,6 +150,7 @@ module.exports = function (dir, clock, status) {
     }
   }
 }
+
 
 
 

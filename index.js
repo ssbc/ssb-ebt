@@ -7,6 +7,9 @@ var Bounce = require('epidemic-broadcast-trees/bounce')
 var path = require('path')
 var Follows = require('./follows')
 
+var Store = require('lossy-store')
+var toUrlFriendly = require('base64-url').escape
+
 function isEmpty (o) {
   for(var k in o) return false
   return true
@@ -44,10 +47,11 @@ exports.init = function (sbot, config) {
   var status = {}
   var clock = require('./clock')(sbot)
 
+  var dir = config.path ? path.join(config.path, 'ebt') : null
+  var store = Store(dir, null, toUrlFriendly)
   var follows = Follows(
-    config.path ? path.join(config.path, 'ebt') : null,
-    clock,
-    status
+    store,
+    clock, status
   )
 
   //HACK: patch calls to replicate.request into ebt, too.
