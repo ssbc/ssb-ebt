@@ -11,7 +11,7 @@
     "base64-url": "^1.3.3",
     "cont": "^1.0.3",
     "epidemic-broadcast-trees": "^3.0.0",
-    "lossy-store": "^1.2.0",
+    "lossy-store": "^1.2.1",
     "obv": "0.0.1",
     "pull-cont": "^0.1.1",
     "pull-stream": "^3.5.0"
