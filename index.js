@@ -73,7 +73,10 @@ exports.init = function (sbot, config) {
       })
     },
     function append (msg, cb) {
-      sbot.add(msg, function (err) {
+      ;(sbot.queue || sbot.add)(msg, function (err) {
+        if(!err)
+          follows.onAppend(msg)
+//        if(err) throw err
         cb()
       })
     }
@@ -101,6 +104,7 @@ exports.init = function (sbot, config) {
       //request non-send for other streams.
       onSwitch: function (id, seq) {
         //...
+        console.log("SWITCH", id, seq)
       }
     },  function (err) {
       //remember their clock, so we can skip requests next time.
@@ -134,6 +138,7 @@ exports.init = function (sbot, config) {
       var b = rpc.ebt.replicate(opts, function (err) {
         console.log('replication ended:', rpc.id, err && err.stack)
       })
+
       pull(a, b, a)
     }
   })
@@ -142,7 +147,6 @@ exports.init = function (sbot, config) {
     replicate: function (opts, cb) {
       return replicate(this.id, opts, cb)
     },
-
     //local only; sets feeds that will be replicated.
     //this is only set for the current session. other plugins
     //need to manage who is actually running it.
@@ -154,4 +158,5 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
 

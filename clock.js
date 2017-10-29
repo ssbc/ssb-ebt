@@ -4,7 +4,6 @@ var Obv = require('obv')
 module.exports = function (sbot) {
   var clock
   var obv = Obv()
-//  obv.set({})
   sbot.getVectorClock(function (err, _clock) {
     obv.set(clock = _clock)
   })
@@ -20,6 +19,8 @@ module.exports = function (sbot) {
 
   return obv
 }
+
+
 
 
 
