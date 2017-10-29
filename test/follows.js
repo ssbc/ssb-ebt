@@ -112,7 +112,44 @@ tape('request', function (t) {
   t.end()
 })
 
+tape('progress', function (t) {
+  var clock = {}, status = {}
+  var store = {
+    get: function () {},
+    set: function (id, clock) {
+      t.equal(id, 'a')
+      t.deepEqual(clock, {a: 1, c: -1})
+      t.end()
+    },
+    ensure: function (id, cb) { cb() }
+  }
 
+  var f = Follows(store, clock, status)
+
+  f.add('a', {
+    states:{
+    },
+    progress: function () {
+      return {start: 0, current: 1, target: 10}
+    },
+    next: function () {}
+  })
+
+  f.add('b', {
+    states:{
+    },
+    progress: function () {
+      return {start: 0, current: 5, target: 7}
+    },
+    next: function () {}
+  })
+
+  t.deepEqual(f.progress(), {start: 0, current: 6, target: 17})
+
+  t.end()
+
+
+})
 
 
 

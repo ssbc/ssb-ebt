@@ -17,7 +17,7 @@ function randbytes (n) {
   return crypto.randomBytes(n)
 }
 
-
+var PASSED = false
 function track(bot, name) {
   var l = 0, _ts = Date.now(), _l = 0
   bot.post(function (msg) {
@@ -44,7 +44,7 @@ var alice = ssbKeys.generate()
 
   var a_bot = createSbot({
     temp: 'alice',
-    port: 45451, host: 'localhost', timeout: 20001,
+    port: 55451, host: 'localhost', timeout: 20001,
     replicate: {hops: 3, legacy: false},
     keys: alice
   })
@@ -56,7 +56,7 @@ var alice = ssbKeys.generate()
 
   var b_bot = createSbot({
     temp: 'bob',
-    port: 45452, host: 'localhost', timeout: 20001,
+    port: 55452, host: 'localhost', timeout: 20001,
     replicate: {hops: 3, legacy: false},
     keys: ssbKeys.generate()
   })
@@ -70,7 +70,7 @@ var alice = ssbKeys.generate()
   track(a_bot, 'alice')
   track(b_bot, 'bob')
 
-  gen.initialize(a_bot, 500, 4, function (err, peers) {
+  gen.initialize(a_bot, 20, 3, function (err, peers) {
     if(err) throw err
     console.log('initialized')
     //console.log(peers.map(function (e) { return e.id }))
@@ -86,7 +86,7 @@ var alice = ssbKeys.generate()
         random: Math.random(),
         value: randbytes(randint(1024)).toString('base64')
       }
-    }, peers, 10000, function () {
+    }, peers, 200, function () {
       var c = 0
       console.log('set up, replicating')
       ;(function next (i) {
@@ -97,6 +97,7 @@ var alice = ssbKeys.generate()
         b_bot.publish({
           type: 'contact',
           contact: randary(peers).id, //a_bot.id,
+  //        contact: a_bot.id,
           following: true
         }, function (err, msg) {
           if(err) throw err
@@ -105,10 +106,23 @@ var alice = ssbKeys.generate()
         })
       })(50)
 
+      process.on('exit', function () {
+        if(!PASSED) console.log('FAILED')
+        process.exit(1)
+
+      })
+
+//      b_bot.replicate.request(a_bot.id, true)
+//      b_bot.replicate.request(b_bot.id, true)
+//      peers.forEach(function (peer) {
+//        console.log('request:', peer.id)
+//        b_bot.replicate.request(peer.id, true)
+//      })
+//
       b_bot.connect(a_bot.getAddress(), function (err) {
         if(err) throw err
         var int = setInterval(function () {
-          console.log(JSON.stringify(b_bot.status().ebt))
+//          console.log(JSON.stringify(b_bot.status().ebt))
 
           var prog = a_bot.progress()
           assert.ok(prog.indexes)
@@ -138,6 +152,7 @@ var alice = ssbKeys.generate()
 
               console.log('A',count(clock), 'B', count(_clock), 'diff', d)
               if(d === 0) {
+                  PASSED = true
                   var prog = a_bot.progress()
                   assert.ok(prog.indexes)
                   assert.ok(prog.ebt)
@@ -146,6 +161,13 @@ var alice = ssbKeys.generate()
                   clearInterval(int)
                   a_bot.close()
                   b_bot.close()
+                console.log("PASSED")
+              }
+              else {
+                console.log('inconsistent', JSON.stringify(a_bot.status().ebt))
+                console.log(JSON.stringify(
+                  b_bot.ebt._streams(), null, 2
+                ))
               }
             })
           })

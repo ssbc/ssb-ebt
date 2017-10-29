@@ -29,20 +29,23 @@ var charles = ssbKeys.generate()
 var a_bot = createSbot({
   temp: 'random-animals_alice',
   port: 45451, host: 'localhost', timeout: 20001,
-  replicate: {hops: 3, legacy: false}, keys: alice
+  replicate: {legacy: false}, keys: alice,
+  friends: {hops: 10},
 })
 
 var b_bot = createSbot({
   temp: 'random-animals_bob',
   port: 45452, host: 'localhost', timeout: 20001,
-  replicate: {hops: 3, legacy: false},
+  replicate: {legacy: false},
+  friends: {hops: 10},
   keys: bob
 })
 
 var c_bot = createSbot({
   temp: 'random-animals_charles',
   port: 45453, host: 'localhost', timeout: 20001,
-  replicate: {hops: 3, legacy: false},
+  replicate: {legacy: false},
+  friends: {hops: 10},
   keys: charles
 })
 
