@@ -107,9 +107,10 @@ var alice = ssbKeys.generate()
       })(50)
 
       process.on('exit', function () {
-        if(!PASSED) console.log('FAILED')
-        process.exit(1)
-
+        if(!PASSED) {
+          console.log('FAILED')
+          process.exit(1)
+        }
       })
 
 //      b_bot.replicate.request(a_bot.id, true)
