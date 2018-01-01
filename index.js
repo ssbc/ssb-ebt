@@ -99,8 +99,7 @@ exports.init = function (sbot, config) {
       onRequest: function (id, seq) {
         follows.onRequest(id, seq, other)
       },
-      //TODO:
-      //if we switch this stream into main mode,
+      //TODO: if we switch this stream into main mode,
       //request non-send for other streams.
       onSwitch: function (id, seq) {
         //...
@@ -158,5 +157,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 

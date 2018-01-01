@@ -3,7 +3,6 @@
 var Store = require('lossy-store')
 var toUrlFriendly = require('base64-url').escape
 
-
 /*
 This manages the state across multiple ebt streams,
 the lossy-store instance that remote clocks are stored in.
@@ -88,9 +87,21 @@ module.exports = function (store, clock, status) {
     if(following[id] === state) return
     following[id] = state
     //start all current streams following this one.
+    var first = true
     for(var k in streams) {
       if(state !== isFollowing(streams[k].states[id])) {
-        streams[k].request(id, state ? clock.value[id] || 0 : -1)
+        //TODO: request from one random stream, with the others in lazy mode. (DONE)
+        if(!state)
+          streams[k].request(id, -1) //blocking or otherwise not replicating this feed.
+        else if(first) {
+          streams[k].request(id, clock.value[id] || 0)
+          first = false
+        }
+        //note: there isn't a way to express I want this feed, I don't have any, and don't send it to me.
+        //      so I'm just gonna request it from the first connection.
+        else if(clock.value[id]) {
+          streams[k].request(id, ~clock.value[id])
+        }
       }
     }
   }
@@ -98,7 +109,22 @@ module.exports = function (store, clock, status) {
   return self = {
     onRequest: function (id, seq, other) {
       //incase this is one we skipped, but the remote has an update
-      streams[other].request(id, following[id] ? clock.value[id]|0 : -1)
+      //TODO: request from one random stream, with the others in lazy mode. (DONE)
+      var receiving = false
+      for(var k in streams) {
+        if(k !== other && streams[k].state[id].remote.tx)
+          receiving = true
+      }
+      if(!following[id])
+        streams[other].request(id, -1)
+      else if (!receiving)
+        streams[other].request(id, clock.value[id] | 0)
+      else if(clock.value[id])
+        streams[other].request(id, ~clock.value[id])
+      else
+        //if they request a feed that we want but didn't ask them for yet and don't have any of, ask.
+        //this would be a weird edge case, so err on the side of asking for the feed.
+        streams[other].request(id, 0)
     },
     request: request,
     add: function (id, stream) {
@@ -106,6 +132,7 @@ module.exports = function (store, clock, status) {
       status[id] = status[id] || {}
       store.ensure(id, function () {
         var _clock = store.get(id)
+        //check if this is already requested on another stream and do not request in eagre mode twice.
         status[id].req =
           shouldReplicate(following, _clock, clock.value, stream.request)
         //^ this may call stream.request(id, seq)
@@ -150,6 +177,4 @@ module.exports = function (store, clock, status) {
     }
   }
 }
-
-
 
