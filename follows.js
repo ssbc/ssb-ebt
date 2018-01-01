@@ -42,6 +42,8 @@ function isFollowing (state) {
   )
 }
 
+//ops, is called when any stream is connected and it
+//iterates over every stream!
 function shouldReplicate (following, _clock, clock, request) {
 
   var req = {
@@ -112,7 +114,7 @@ module.exports = function (store, clock, status) {
       //TODO: request from one random stream, with the others in lazy mode. (DONE)
       var receiving = false
       for(var k in streams) {
-        if(k !== other && streams[k].state[id].remote.tx)
+        if(k !== other && streams[k].states[id] && streams[k].states[id].remote.tx)
           receiving = true
       }
       if(!following[id])
