@@ -147,9 +147,9 @@ module.exports = function (store, clock, status) {
         status[k].meta = streams[k].meta
       }
       return status
-    }
+    },
+    streams: streams,
+    follows: following
   }
 }
-
-
 

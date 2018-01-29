@@ -147,16 +147,13 @@ exports.init = function (sbot, config) {
     replicate: function (opts, cb) {
       return replicate(this.id, opts, cb)
     },
-    //local only; sets feeds that will be replicated.
-    //this is only set for the current session. other plugins
-    //need to manage who is actually running it.
-    request: function (id, follows) {
-      clock.once(function () {
-        request(id, follows)
-      })
+    _state: function () {
+      var streams = {}
+      for(var k in follows.streams)
+        streams[k] = follows.streams[k].states
+      return {streams: streams, follows: follows.follows}
     },
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
