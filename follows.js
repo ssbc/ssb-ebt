@@ -28,6 +28,7 @@ function countKeys (o) {
 }
 
 function progressReduce (acc, item) {
+  if(!item) return acc
   if(isNaN(item.start)) throw new Error('must not be NaN')
   acc.start += item.start
   acc.current += item.current
@@ -95,10 +96,20 @@ module.exports = function (store, clock, status) {
     }
   }
 
+  var progressCache = {start:0, current:0, target: 0}
+
+  function updateProgressCache() {
+    var p = {start:0, current:0, target: 0}
+    for(var k in streams)
+      progressReduce(p, streams[k].progress())
+    progressCache = p
+  }
+
   return self = {
     onRequest: function (id, seq, other) {
       //incase this is one we skipped, but the remote has an update
       streams[other].request(id, following[id] ? clock.value[id]|0 : -1)
+      updateProgressCache()
     },
     request: request,
     add: function (id, stream) {
@@ -112,11 +123,13 @@ module.exports = function (store, clock, status) {
         //which will then set 
         stream.next()
       })
+      updateProgressCache()
       return stream
     },
     onAppend: function (msg) {
       for(var k in streams)
         streams[k].onAppend(msg)
+      updateProgressCache()
     },
     //called when messages received, write to clock store.
     //note, this is debounced, should not be call every message
@@ -134,12 +147,10 @@ module.exports = function (store, clock, status) {
             _clock[k] = states[k].remote.req
         if(!isEmpty(_clock)) store.set(id, _clock)
       })
+      updateProgressCache()
     },
     progress: function () {
-      var p = {start:0, current:0, target: 0}
-      for(var k in streams)
-        progressReduce(p, streams[k].progress())
-      return p
+      return progressCache
     },
     status: function () {
       for(var k in streams) {
@@ -152,4 +163,5 @@ module.exports = function (store, clock, status) {
     follows: following
   }
 }
+
 
