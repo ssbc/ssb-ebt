@@ -1,5 +1,8 @@
 var cont = require('cont')
 var pull = require('pull-stream')
+var RNG = require('rng')
+var rng = new RNG.MT(0)
+
 var createSbot = require('scuttlebot')
   .use({
     //fake replicate plugin
@@ -27,6 +30,12 @@ a_seed.fill('A')
 var b_seed = new Buffer(32)
 b_seed.fill('B')
 
+function createSeed() {
+  var b = new Buffer(32)
+  for(var i = 0; i < b.length; i++)
+    b[i] = rng.next()
+  return b
+}
 
 var alice = ssbKeys.generate(null, a_seed)
 var bob = ssbKeys.generate(null, b_seed)
@@ -48,8 +57,9 @@ var b_bot = createSbot({
 //increasing n give an error currently...
 var n = 10
 var feeds = [a_bot.createFeed(alice), b_bot.createFeed(bob)]
+
 while(n-->0)
-  feeds.push([a_bot, b_bot][~~(Math.random()*2)].createFeed())
+  feeds.push([a_bot, b_bot][~~(rng.random()*2)].createFeed(ssbKeys.generate(null, createSeed())))
 
 //make sure all the sbots are replicating all the feeds.
 feeds.forEach(function (f) {
@@ -120,7 +130,7 @@ var i = 10
 var int =
 setInterval(function () {
   console.log('post', a_bot.since())
-  feeds[~~(Math.random()*feeds.length)].publish({type:'post', text: new Date().toString()}, function () {})
+  feeds[~~(rng.random()*feeds.length)].publish({type:'post', text: i.toString()}, function () {})
   if(--i) return
   clearInterval(int)
 
@@ -194,11 +204,8 @@ function next () {
         })
       })
     }, 100)
-
   })
 }
-
-
 
 
 
