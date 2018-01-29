@@ -15,7 +15,6 @@ var createSbot = require('scuttlebot')
 
 function Delay (d) {
   d = d || 100
-//  return pull.through()
   return pull.asyncMap(function (data, cb) {
     setTimeout(function () {
       cb(null, data)
@@ -39,7 +38,6 @@ function createSeed() {
 
 var alice = ssbKeys.generate(null, a_seed)
 var bob = ssbKeys.generate(null, b_seed)
-//var charles = ssbKeys.generate(null, 'charles')
 
 var a_bot = createSbot({
   temp: 'random-animals_alice',
@@ -55,12 +53,16 @@ var b_bot = createSbot({
 })
 
 //increasing n give an error currently...
-var n = 10
+var N = 3
+var n = N
 var feeds = [a_bot.createFeed(alice), b_bot.createFeed(bob)]
 
-while(n-->0)
-  feeds.push([a_bot, b_bot][~~(rng.random()*2)].createFeed(ssbKeys.generate(null, createSeed())))
-
+while(n-->0) {
+  var j = ~~(rng.random()*2)
+  var key = ssbKeys.generate(null, createSeed())
+  console.log(j, key.id)
+  feeds.push([a_bot, b_bot][j].createFeed(key))
+}
 //make sure all the sbots are replicating all the feeds.
 feeds.forEach(function (f) {
   a_bot.replicate.request(f.id)
@@ -119,19 +121,18 @@ a_bot.post(consistent('alice'))
 b_bot.post(consistent('bob'))
 
 cont.para(feeds.map(function (f) {
-//  console.log(f)
   return f.publish({type:'post', text: 'hello world'})
 }))(function () {
-
   peers(a_bot, b_bot, 'a', 'b', 10)
 })
 
-var i = 10
-var int =
-setInterval(function () {
-  console.log('post', a_bot.since())
-  feeds[~~(rng.random()*feeds.length)].publish({type:'post', text: i.toString()}, function () {})
+var i = N
+var int = setInterval(function () {
+  var feed = feeds[~~(rng.random()*feeds.length)]
+  feed.publish({type:'post', text: i.toString()}, function () {})
+
   if(--i) return
+
   clearInterval(int)
 
   console.log('Alice', a_bot.since())
@@ -162,10 +163,11 @@ function next () {
     keys: bob
   })
 
-  a_bot.replicate.request(b_bot.id)
-  b_bot.replicate.request(a_bot.id)
-  a_bot.replicate.request(a_bot.id)
-  b_bot.replicate.request(b_bot.id)
+  //make sure all feeds are requested.
+  feeds.forEach(function (f) {
+    a_bot.replicate.request(f.id)
+    b_bot.replicate.request(f.id)
+  })
 
   console.log(
     "LOADED, Bob's Alice:",
@@ -182,9 +184,13 @@ function next () {
 
     a_bot.post(console.log)
     b_bot.post(console.log)
+    var j = 10
 
     var int = setInterval(function () {
-
+      if(!j--) {
+        console.log('FAILED')
+        process.exit(1)
+      }
       a_bot.getVectorClock(function (err, clock) {
         b_bot.getVectorClock(function (err, _clock) {
           for(var k in clock)
