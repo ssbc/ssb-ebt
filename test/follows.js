@@ -1,4 +1,3 @@
-
 var tape = require('tape')
 var Follows = require('../follows')
 
@@ -8,7 +7,7 @@ function mockStream (onAppend, onRequest) {
     onAppend: onAppend.bind(self),
     states: {},
     progress: function () {
-
+      return {start:0, current:0, target: 0}
     },
     meta: {},
     request: onRequest.bind(self),
@@ -62,7 +61,7 @@ tape('update sets the clock requested', function (t) {
       b: {remote: {req: null}},
       c: {remote: {req: -1}}
     },
-    progress: function () {},
+    progress: function () { return {start:0, current:0, target: 0} },
     next: function () {}
   })
 
@@ -100,6 +99,7 @@ tape('request', function (t) {
   t.deepEqual(reqA, {a:0, b:2})
 
   var reqB = {}
+  var a = 0
   var B = mockStream(function (msg) { a++ }, function (id, seq) {
     reqB[id] = seq
   })
