@@ -43,11 +43,18 @@ exports.init = function (sbot, config) {
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
 
+  var dir = config.path ? path.join(config.path, 'ebt') : null
+  var store = Store(dir, null, toUrlFriendly)
 
   var ebt = EBT({
     id: sbot.id,
     getClock: function (id, cb) {
-      cb(null, {})
+      store.ensure(id, function () {
+        cb(null, store.get(id) || {})
+      })
+    },
+    setClock: function (id, clock) {
+      store.set(id, clock)
     },
     getAt: function (pair, cb) {
       sbot.getAtSequence([pair.id, pair.sequence], function (err, data) {
@@ -115,5 +122,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
 
