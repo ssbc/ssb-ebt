@@ -84,12 +84,12 @@ exports.init = function (sbot, config) {
 //    return _status
 //  })
 //
-//  hook(sbot.progress, function (fn) {
-//    var prog = fn()
-//    var p = follows.progress()
-//    if(p.target) prog.ebt = p
-//    return prog
-//  })
+  hook(sbot.progress, function (fn) {
+    var prog = fn()
+    var p = ebt.progress()
+    if(p.target) prog.ebt = p
+    return prog
+  })
 
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
