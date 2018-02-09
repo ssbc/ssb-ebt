@@ -169,15 +169,6 @@ function next () {
     b_bot.replicate.request(f.id)
   })
 
-  console.log(
-    "LOADED, Bob's Alice:",
-    require('fs').readFileSync('/tmp/random-animals_bob/ebt/a', 'utf8')
-  )
-  console.log(
-    "LOADED, Alice's Bob:",
-    require('fs').readFileSync('/tmp/random-animals_alice/ebt/b', 'utf8')
-  )
-
   a_bot.publish({type:'post', content: 'hello bob'}, function () {
 
     peers(a_bot, b_bot, 'a', 'b', 10)
@@ -189,6 +180,9 @@ function next () {
     var int = setInterval(function () {
       if(!j--) {
         console.log('FAILED')
+        console.log(JSON.stringify(a_bot.ebt._state(), null, 2))
+        console.log(JSON.stringify(b_bot.ebt._state(), null, 2))
+
         process.exit(1)
       }
       a_bot.getVectorClock(function (err, clock) {
@@ -212,6 +206,5 @@ function next () {
     }, 100)
   })
 }
-
 
 

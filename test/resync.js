@@ -37,9 +37,11 @@ var alice = ssbKeys.generate()
     .use(require('../'))
     .use(require('ssb-friends'))
 
+  var timeout = 2000
+
   var a_bot = createSbot({
     temp: 'alice',
-    port: 45451, host: 'localhost', timeout: 20001,
+    port: 45451, host: 'localhost', timeout: timeout,
     replicate: {hops: 3, legacy: false},
     keys: alice
   })
@@ -53,7 +55,7 @@ var alice = ssbKeys.generate()
 
   var b_bot = createSbot({
     temp: 'bob',
-    port: 45452, host: 'localhost', timeout: 20001,
+    port: 45452, host: 'localhost', timeout: timeout,
     replicate: {hops: 3, legacy: false},
     keys: bob
   })
@@ -125,6 +127,7 @@ var alice = ssbKeys.generate()
               console.log('A', count(clock), 'B', count(_clock), 'diff', d, 'common', c)
               if(d === 0 && c ) {
                 clearInterval(int)
+                console.log('close...')
                 a_bot.close()
                 b_bot.close()
               }

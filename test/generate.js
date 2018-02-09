@@ -42,9 +42,11 @@ var alice = ssbKeys.generate()
     .use(require('../'))
     .use(require('ssb-friends'))
 
+  var timeout = 2000
+
   var a_bot = createSbot({
     temp: 'alice',
-    port: 55451, host: 'localhost', timeout: 20001,
+    port: 55451, host: 'localhost', timeout: timeout,
     replicate: {hops: 3, legacy: false},
     keys: alice
   })
@@ -56,7 +58,7 @@ var alice = ssbKeys.generate()
 
   var b_bot = createSbot({
     temp: 'bob',
-    port: 55452, host: 'localhost', timeout: 20001,
+    port: 55452, host: 'localhost', timeout: timeout,
     replicate: {hops: 3, legacy: false},
     keys: ssbKeys.generate()
   })
@@ -121,17 +123,20 @@ var alice = ssbKeys.generate()
 //      })
 //
       b_bot.connect(a_bot.getAddress(), function (err) {
+        console.log('A<-->B')
         if(err) throw err
         var int = setInterval(function () {
 //          console.log(JSON.stringify(b_bot.status().ebt))
 
           var prog = a_bot.progress()
+          console.log('assertions')
           assert.ok(prog.indexes)
           assert.ok(prog.ebt)
           assert.ok(prog.ebt.target)
 
           a_bot.getVectorClock(function (err, clock) {
             b_bot.getVectorClock(function (err, _clock) {
+              console.log('clocks', clock, _clock)
               var d = 0, total_a = 0, total_b = 0
               function count (o) {
                 var t = 0, s = 0
@@ -166,14 +171,13 @@ var alice = ssbKeys.generate()
               }
               else {
                 console.log('inconsistent', JSON.stringify(a_bot.status().ebt))
-                console.log(JSON.stringify(
-                  b_bot.ebt._streams(), null, 2
-                ))
               }
             })
           })
-        },1000).unref()
+        },1000)//.unref()
       })
     })
   })
+
+
 
