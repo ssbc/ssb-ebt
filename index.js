@@ -47,6 +47,7 @@ exports.init = function (sbot, config) {
   var store = Store(dir, null, toUrlFriendly)
 
   var ebt = EBT({
+    logging: config.ebt && config.ebt.logging,
     id: sbot.id,
     getClock: function (id, cb) {
       store.ensure(id, function () {
