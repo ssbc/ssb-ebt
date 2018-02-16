@@ -51,7 +51,6 @@ exports.init = function (sbot, config) {
     getClock: function (id, cb) {
       store.ensure(id, function () {
         var clock = store.get(id) || {}
-        console.log("GET CLOCK", id, Object.keys(clock).length)
         cb(null, clock)
       })
     },
@@ -68,15 +67,13 @@ exports.init = function (sbot, config) {
     },
   })
 
-  setInterval(function () {
-    for(var id in ebt.state.peers) {
-      if(ebt.state.peers[id].clock) {
-        store.set(id, ebt.state.peers[id].clock)
-      }
-    }
-  }, 10000)
-
-
+//  setInterval(function () {
+//    for(var id in ebt.state.peers) {
+//      if(ebt.state.peers[id].clock) {
+//        store.set(id, ebt.state.peers[id].clock)
+//      }
+//    }
+//  }, 10000).unref()
 
   sbot.getVectorClock(function (err, clock) {
     ebt.state.clock = clock
@@ -134,6 +131,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
 
