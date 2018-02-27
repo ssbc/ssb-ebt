@@ -77,7 +77,7 @@ exports.init = function (sbot, config) {
 //  }, 10000).unref()
 
   sbot.getVectorClock(function (err, clock) {
-    ebt.state.clock = clock
+    ebt.state.clock = clock || {}
     ebt.update()
   })
 
@@ -110,8 +110,8 @@ exports.init = function (sbot, config) {
 
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
-      var opts = {version: 2}
-      var a = toPull.duplex(ebt.createStream(rpc.id))
+      var opts = {version: 3}
+      var a = toPull.duplex(ebt.createStream(rpc.id, 2))
       var b = rpc.ebt.replicate(opts, function (err) {
         rpc._emit('fallback:replicate', err)
       })
@@ -122,9 +122,9 @@ exports.init = function (sbot, config) {
 
   return {
     replicate: function (opts) {
-      if(opts.version !== 2)
-        throw new Error('expected ebt.replicate({version: 2})')
-      return toPull.duplex(ebt.createStream(this.id))
+      if(opts.version !== 2 && opts.version != 3)
+        throw new Error('expected ebt.replicate({version: 3 or 2})')
+      return toPull.duplex(ebt.createStream(this.id, opts.version))
     },
     _state: function () {
       return ebt.state
@@ -132,4 +132,6 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
+
+
 
