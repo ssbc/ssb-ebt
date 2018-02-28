@@ -111,7 +111,7 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
       var opts = {version: 3}
-      var a = toPull.duplex(ebt.createStream(rpc.id, opts.version))
+      var a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       var b = rpc.ebt.replicate(opts, function (err) {
         rpc._emit('fallback:replicate', err)
       })
