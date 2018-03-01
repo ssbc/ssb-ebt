@@ -29,7 +29,7 @@ exports.version = '1.0.0'
 
 exports.manifest = {
   replicate: 'duplex',
-  _dump: 'source',
+//  _dump: 'source',
   request: 'sync',
 }
 exports.permissions = {
@@ -143,10 +143,10 @@ exports.init = function (sbot, config) {
         throw new Error('expected ebt.replicate({version: 3 or 2})')
       return toPull.duplex(ebt.createStream(this.id, opts.version))
     },
-    _state: function () {
-      return ebt.state
-    },
-    _dump: require('./debug/local')(sbot) //just for performance testing. not public api
+//    _state: function () {
+//      return ebt.state
+//    },
+//    _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
 
