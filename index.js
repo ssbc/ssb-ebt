@@ -1,7 +1,5 @@
 'use strict'
-var Obv = require('obv')
 var pull = require('pull-stream')
-//var pContDuplex = require('pull-cont/duplex')
 var EBT = require('epidemic-broadcast-trees')
 var path = require('path')
 var toPull = require('push-stream-to-pull-stream')
@@ -39,7 +37,6 @@ exports.permissions = {
 }
 
 exports.init = function (sbot, config) {
-  var appended = Obv()
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
 
@@ -152,6 +149,4 @@ exports.init = function (sbot, config) {
     _dump: require('./debug/local')(sbot) //just for performance testing. not public api
   }
 }
-
-
 
