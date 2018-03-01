@@ -117,7 +117,27 @@ exports.init = function (sbot, config) {
       })
 
       pull(a, b, a)
+
+      rpc.on('closed', function () {
+        sbot.emit('replicate:finish', ebt.state.clock)
+      })
     }
+  })
+
+  //wait till next tick, incase ssb-friends hasn't been installed yet.
+  setImmediate(function () {
+    if(sbot.friends)
+      pull(
+        sbot.friends.stream({live: true}),
+        pull.drain(function (contact) {
+          if(!contact) return
+          if(contact.value === false) {
+            ebt.block(contact.from, contact.to, true)
+          }
+          else if(ebt.state.blocks[contact.from] &&ebt.state.blocks[contact.from][contact.to])
+            ebt.block(contact.from, contact.to, false)
+        })
+      )
   })
 
   return {
