@@ -29,7 +29,6 @@ exports.version = '1.0.0'
 
 exports.manifest = {
   replicate: 'duplex',
-//  _dump: 'source',
   request: 'sync',
 }
 exports.permissions = {
@@ -61,17 +60,11 @@ exports.init = function (sbot, config) {
       })
     },
     append: function (msg, cb) {
-      sbot.add(msg, cb)
+      sbot.add(msg, function (err, msg) {
+        cb(err && err.fatal ? err : null, msg)
+      })
     },
   })
-
-//  setInterval(function () {
-//    for(var id in ebt.state.peers) {
-//      if(ebt.state.peers[id].clock) {
-//        store.set(id, ebt.state.peers[id].clock)
-//      }
-//    }
-//  }, 10000).unref()
 
   sbot.getVectorClock(function (err, clock) {
     ebt.state.clock = clock || {}
@@ -142,11 +135,7 @@ exports.init = function (sbot, config) {
       if(opts.version !== 2 && opts.version != 3)
         throw new Error('expected ebt.replicate({version: 3 or 2})')
       return toPull.duplex(ebt.createStream(this.id, opts.version))
-    },
-//    _state: function () {
-//      return ebt.state
-//    },
-//    _dump: require('./debug/local')(sbot) //just for performance testing. not public api
+    }
   }
 }
 
