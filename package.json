@@ -12,7 +12,8 @@
     "epidemic-broadcast-trees": "^6.2.1",
     "lossy-store": "^1.2.3",
     "pull-stream": "^3.5.0",
-    "push-stream-to-pull-stream": "^1.0.0"
+    "push-stream-to-pull-stream": "^1.0.0",
+    "ssb-ref": "^2.9.1"
   },
   "devDependencies": {
     "rng": "^0.2.2",
