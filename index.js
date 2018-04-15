@@ -3,6 +3,7 @@ var pull = require('pull-stream')
 var EBT = require('epidemic-broadcast-trees')
 var path = require('path')
 var toPull = require('push-stream-to-pull-stream')
+var isFeed = require('ssb-ref').isFeed
 
 var Store = require('lossy-store')
 var toUrlFriendly = require('base64-url').escape
@@ -64,6 +65,7 @@ exports.init = function (sbot, config) {
         cb(err && err.fatal ? err : null, msg)
       })
     },
+    isFeed: isFeed,
   })
 
   sbot.getVectorClock(function (err, clock) {
@@ -138,4 +140,5 @@ exports.init = function (sbot, config) {
     }
   }
 }
+
 
