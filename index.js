@@ -31,6 +31,7 @@ exports.version = '1.0.0'
 exports.manifest = {
   replicate: 'duplex',
   request: 'sync',
+  remoteFeedSequence: 'async'
 }
 exports.permissions = {
   anonymous: {allow: ['replicate']},
@@ -132,7 +133,17 @@ exports.init = function (sbot, config) {
       )
   })
 
+  var remoteSequenceCache = {}
   return {
+    remoteFeedSequence: function (cb) {
+      var peers = ebt.state.peers
+      var feedId = sbot.id
+      Object.keys(peers).forEach(function (peer) {
+        remoteSequenceCache[peer] = peers[peer].clock[feedId]
+      })
+
+      cb(null, remoteSequenceCache)
+    },
     replicate: function (opts) {
       if(opts.version !== 2 && opts.version != 3)
         throw new Error('expected ebt.replicate({version: 3 or 2})')
