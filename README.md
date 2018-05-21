@@ -46,7 +46,7 @@ output looks like this:
   "peers": {
     //where each of these peers are up to:
     "@TRE4lNNXrtx3KK9Tgks2so2PjCP6w9tRvsy7wyqiyo4=.ed25519": {
-      "seq": 13293, //the sequence this peer has acknoledged, we definitely know they have this number.
+      "seq": 13293, //the sequence this peer has acknowledged, we definitely know they have this number.
       "replicating": {
         "tx": true,
         "rx": true,
