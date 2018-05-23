@@ -30,8 +30,8 @@ exports.version = '1.0.0'
 
 exports.manifest = {
   replicate: 'duplex',
-  request: 'sync',
-  peerStatus: 'sync'
+  // request: 'sync',
+  peerStatus: 'async'
 }
 exports.permissions = {
   anonymous: {allow: ['replicate']},
@@ -106,6 +106,7 @@ exports.init = function (sbot, config) {
       var opts = {version: 3}
       var a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       var b = rpc.ebt.replicate(opts, function (err) {
+        if (err) console.error('ebt replication error', err)
         rpc._emit('fallback:replicate', err)
       })
 
@@ -140,8 +141,9 @@ exports.init = function (sbot, config) {
       return toPull.duplex(ebt.createStream(this.id, opts.version))
     },
     //get replication status for feeds for this id.
-    peerStatus: function (id) {
+    peerStatus: function (id, cb) {
       id = id || sbot.id
+      if (!ebt.state.clock) console.log('BOOP')
       var data = {
         id: id,
         seq: ebt.state.clock[id],
@@ -149,6 +151,8 @@ exports.init = function (sbot, config) {
       }
       for(var k in ebt.state.peers) {
         var peer = ebt.state.peers[k]
+        if (!peer.clock) continue
+        if (!peer.replicating) continue
         if(peer.clock[id] != null || peer.replicating[id] != null) {
           var rep = peer.replicating[id]
           data.peers[k] = {
@@ -157,7 +161,8 @@ exports.init = function (sbot, config) {
           }
         }
       }
-      return data
+      // return data
+      cb(null, data)
     }
   }
 }
