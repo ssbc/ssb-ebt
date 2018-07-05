@@ -122,13 +122,17 @@ exports.init = function (sbot, config) {
     if(sbot.friends)
       pull(
         sbot.friends.stream({live: true}),
-        pull.drain(function (contact) {
-          if(!contact) return
-          if(contact.value === false) {
-            ebt.block(contact.from, contact.to, true)
+        pull.drain(function (contacts) {
+          if(!contacts) return
+          for (var from in contacts) {
+            var relations = contacts[from]
+            for (var to in relations) {
+              if(relations[to] === false)
+                ebt.block(from, to, true)
+              else if (ebt.state.blocks[from] && ebt.state.blocks[from][to])
+                ebt.block(from, to, false)
+            }
           }
-          else if(ebt.state.blocks[contact.from] &&ebt.state.blocks[contact.from][contact.to])
-            ebt.block(contact.from, contact.to, false)
         })
       )
   })
