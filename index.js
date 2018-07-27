@@ -37,6 +37,14 @@ exports.permissions = {
   anonymous: {allow: ['replicate']},
 }
 
+function checkClock (clock, message) {
+  for(var k in clock)
+    if(!isFeed(k)) {
+      console.error(message, k)
+      delete clock[k]
+    }
+}
+
 exports.init = function (sbot, config) {
   config.replicate = config.replicate || {}
   config.replicate.fallback = true
@@ -50,10 +58,12 @@ exports.init = function (sbot, config) {
     getClock: function (id, cb) {
       store.ensure(id, function () {
         var clock = store.get(id) || {}
+        checkClock(clock, 'non-feed key when loading clock')
         cb(null, clock)
       })
     },
     setClock: function (id, clock) {
+      checkClock(clock, 'non-feed key when saving clock')
       store.set(id, clock)
     },
     getAt: function (pair, cb) {
@@ -82,6 +92,7 @@ exports.init = function (sbot, config) {
 
   //HACK: patch calls to replicate.request into ebt, too.
   hook(sbot.replicate.request, function (fn, args) {
+    if(!isFeed(args[0])) return
     ebt.request(args[0], args[1])
     return fn.apply(this, args)
   })
@@ -133,7 +144,7 @@ exports.init = function (sbot, config) {
         pull.drain(function (contacts) {
           if(!contacts) return
 
-          if (contacts.from) { // live data
+          if (isFeed(contacts.from) && isFeed(contacts.to)) { // live data
             handleBlockUnlock(contacts.from, contacts.to, contacts.value)
           } else { // initial data
             for (var from in contacts) {
