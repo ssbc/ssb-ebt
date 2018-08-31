@@ -102,6 +102,24 @@ exports.init = function (sbot, config) {
   })
 
   sbot.on('rpc:connect', function (rpc, isClient) {
+    if (rpc.id == sbot.id) return
+
+    var withinHops = true
+    if(sbot.friends) {
+      pull(
+        sbot.friends.hopStream(),
+        pull.drain(s => {
+          var hops = s[rpc.id]
+          if (hops == undefined || hops > config.friends.hops) {
+            sbot.emit('log:info', ['SBOT', 'connection outside hops, not ebt replicating: ', hops])
+            withinHops = false
+          } else
+            sbot.emit('log:info', ['SBOT', 'connection inside hops, ebt replicating: ', hops, rpc.id])
+        })
+      )
+    }
+    if (!withinHops) return
+
     if(isClient) {
       var opts = {version: 3}
       var a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
