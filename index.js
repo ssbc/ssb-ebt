@@ -104,13 +104,14 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if (rpc.id == sbot.id) return
 
+    var serverHops = config.friends && config.friends.hops || 3
     var withinHops = true
     if(sbot.friends) {
       pull(
         sbot.friends.hopStream(),
         pull.drain(s => {
           var hops = s[rpc.id]
-          if (hops == undefined || hops > config.friends.hops) {
+          if (hops == undefined || hops > serverHops) {
             sbot.emit('log:info', ['SBOT', 'connection outside hops, not ebt replicating: ', hops])
             withinHops = false
           } else
