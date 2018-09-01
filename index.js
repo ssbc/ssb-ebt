@@ -119,7 +119,11 @@ exports.init = function (sbot, config) {
         })
       )
     }
-    if (!withinHops) return
+
+    if (!withinHops)  {
+      sbot.emit('replicate:finish', ebt.state.clock)
+      return
+    }
 
     if(isClient) {
       var opts = {version: 3}
