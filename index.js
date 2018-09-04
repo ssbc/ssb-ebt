@@ -112,19 +112,24 @@ exports.init = function (sbot, config) {
     return prog
   })
 
+  function onClose () {
+    sbot.emit('replicate:finish', ebt.state.clock)
+  }
+
+
   sbot.on('rpc:connect', function (rpc, isClient) {
     if(isClient) {
       var opts = {version: 3}
       var a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       var b = rpc.ebt.replicate(opts, function (err) {
-        rpc._emit('fallback:replicate', err)
+        if(err) {
+          rpc.removeListener('closed', onClose)
+          rpc._emit('fallback:replicate', err)
+        }
       })
 
       pull(a, b, a)
-
-      rpc.on('closed', function () {
-        sbot.emit('replicate:finish', ebt.state.clock)
-      })
+      rpc.on('closed', onClose)
     }
   })
 
