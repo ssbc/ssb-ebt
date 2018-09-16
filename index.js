@@ -8,41 +8,37 @@ var isFeed = require('ssb-ref').isFeed
 var Store = require('lossy-store')
 var toUrlFriendly = require('base64-url').escape
 
+var ReplicationManager = require('ssb-replication-manager')
+
+function hook (hookable, fn) {
+  if (typeof hookable === 'function' && hookable.hook) { hookable.hook(fn) }
+}
+
 function isEmpty (o) {
-  for(var k in o) return false
+  for (var k in o) return false
   return true
 }
-
-function countKeys (o) {
-  var n = 0
-  for(var k in o) n++
-  return n
-}
-
-function hook(hookable, fn) {
-  if('function' === typeof hookable && hookable.hook)
-    hookable.hook(fn)
-}
-
 exports.name = 'ebt'
 
-exports.version = '1.0.0'
+exports.version = '1.1.0'
 
 exports.manifest = {
   replicate: 'duplex',
+  // Todo: the documented api says request is exported but it's not.
   request: 'sync',
   peerStatus: 'sync'
 }
 exports.permissions = {
-  anonymous: {allow: ['replicate']},
+  anonymous: {allow: ['replicate']}
 }
 
 function checkClock (clock, message) {
-  for(var k in clock)
-    if(!isFeed(k)) {
+  for (var k in clock) {
+    if (!isFeed(k)) {
       console.error(message, k)
       delete clock[k]
     }
+  }
 }
 
 exports.init = function (sbot, config) {
@@ -76,10 +72,39 @@ exports.init = function (sbot, config) {
         cb(err && err.fatal ? err : null, msg)
       })
     },
-    isFeed: isFeed,
+    isFeed: isFeed
+  })
+
+  function getPeerAheadBy (feedId) {
+    var status = peerStatus(feedId)
+    var peers = status.peers
+    var ourSeqForPeer = status.seq
+
+    if (isEmpty(peers)) return 0
+
+    var seqs = Object.keys(peers).map(function (peer) {
+      return peers[peer].seq
+    })
+
+    // Find the largest value that the peer is ahead by.
+    return seqs.reduce(function (acc, seq) {
+      return Math.max(acc, seq - ourSeqForPeer)
+    }, 0)
+  }
+
+  console.log('Init replication manager')
+
+  var replicationManager = ReplicationManager({
+    request: ebt.request,
+    getPeerAheadBy: getPeerAheadBy
+  })
+
+  replicationManager.isReplicationLimited(function (isLimited) {
+    console.log('Replication obs called, Limited mode enabled: ', isLimited)
   })
 
   sbot.getVectorClock(function (err, clock) {
+    // TODO: is this the right thing to do here? I'm guessing we should do _something_ with the error.
     ebt.state.clock = clock || {}
     ebt.update()
   })
@@ -88,27 +113,20 @@ exports.init = function (sbot, config) {
     ebt.onAppend(msg.value)
   })
 
-  var status = {}
-
-  //HACK: patch calls to replicate.request into ebt, too.
+  // HACK: patch calls to replicate.request into ebt, too.
   hook(sbot.replicate.request, function (fn, args) {
-    if(!isFeed(args[0])) return
-    ebt.request(args[0], args[1])
+    if (!isFeed(args[0])) return
+    // Somewhere in the stack is calling request with no second argument, assuming it means start replicating that feed.
+    var isReplicationEnabled = args[1] !== false
+    var priority = args[2] || 0
+    replicationManager.request(args[0], isReplicationEnabled, priority)
     return fn.apply(this, args)
   })
 
-  var ts = Date.now(), start = Date.now()
-
-//  hook(sbot.status, function (fn) {
-//    var _status = fn(), feeds = 0
-//    _status.ebt = ebt.status()
-//    return _status
-//  })
-//
   hook(sbot.progress, function (fn) {
     var prog = fn()
     var p = ebt.progress()
-    if(p.target) prog.ebt = p
+    if (p.target) prog.ebt = p
     return prog
   })
 
@@ -116,13 +134,12 @@ exports.init = function (sbot, config) {
     sbot.emit('replicate:finish', ebt.state.clock)
   }
 
-
   sbot.on('rpc:connect', function (rpc, isClient) {
-    if(isClient) {
+    if (isClient) {
       var opts = {version: 3}
       var a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       var b = rpc.ebt.replicate(opts, function (err) {
-        if(err) {
+        if (err) {
           rpc.removeListener('closed', onClose)
           rpc._emit('fallback:replicate', err)
         }
@@ -133,62 +150,63 @@ exports.init = function (sbot, config) {
     }
   })
 
-  //wait till next tick, incase ssb-friends hasn't been installed yet.
+  // wait till next tick, incase ssb-friends hasn't been installed yet.
   setImmediate(function () {
-    if(sbot.friends) {
-      function handleBlockUnlock(from, to, value)
-      {
-        if (value === false)
-          ebt.block(from, to, true)
-        else if (ebt.state.blocks[from] && ebt.state.blocks[from][to])
-          ebt.block(from, to, false)
+    if (sbot.friends) {
+      function handleBlockUnlock (from, to, value) {
+        if (value === false) { ebt.block(from, to, true) } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) { ebt.block(from, to, false) }
       }
 
       pull(
         sbot.friends.stream({live: true}),
         pull.drain(function (contacts) {
-          if(!contacts) return
+          if (!contacts) return
 
           if (isFeed(contacts.from) && isFeed(contacts.to)) { // live data
             handleBlockUnlock(contacts.from, contacts.to, contacts.value)
           } else { // initial data
             for (var from in contacts) {
               var relations = contacts[from]
-              for (var to in relations)
-                handleBlockUnlock(from, to, relations[to])
+              for (var to in relations) { handleBlockUnlock(from, to, relations[to]) }
             }
           }
         })
       )
     }
   })
+  function peerStatus (id) {
+    id = id || sbot.id
+    var data = {
+      id: id,
+      seq: ebt.state.clock[id],
+      peers: {}
+    }
+    for (var k in ebt.state.peers) {
+      var peer = ebt.state.peers[k]
 
-  return {
-    replicate: function (opts) {
-      if(opts.version !== 2 && opts.version != 3)
-        throw new Error('expected ebt.replicate({version: 3 or 2})')
-      return toPull.duplex(ebt.createStream(this.id, opts.version))
-    },
-    //get replication status for feeds for this id.
-    peerStatus: function (id) {
-      id = id || sbot.id
-      var data = {
-        id: id,
-        seq: ebt.state.clock[id],
-        peers: {},
-      }
-      for(var k in ebt.state.peers) {
-        var peer = ebt.state.peers[k]
-        if(peer.clock[id] != null || peer.replicating[id] != null) {
-          var rep = peer.replicating[id]
-          data.peers[k] = {
-            seq: peer.clock[id],
-            replicating: rep
-          }
+      if (peer && peer.clock && peer.replicating && peer.clock[id] != null && peer.replicating[id] != null) {
+      // if (peer.clock[id] != null || peer.replicating[id] != null) {
+        var rep = peer.replicating[id]
+        data.peers[k] = {
+          seq: peer.clock[id],
+          replicating: rep
         }
       }
-      return data
     }
+    return data
+  }
+  function request (feedId, isReplicationEnabled) {
+    replicationManager.request(feedId, isReplicationEnabled)
+  }
+  return {
+    replicate: function (opts) {
+      if (opts.version !== 2 && opts.version !== 3) { throw new Error('expected ebt.replicate({version: 3 or 2})') }
+      return toPull.duplex(ebt.createStream(this.id, opts.version))
+    },
+    // get replication status for feeds for this id.
+    peerStatus: peerStatus,
+
+    // TODO: request wasn't actually exported in ssb-ebt. Mistake or intentional?
+    request: request
   }
 }
-

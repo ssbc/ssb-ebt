@@ -13,7 +13,8 @@
     "lossy-store": "^1.2.3",
     "pull-stream": "^3.5.0",
     "push-stream-to-pull-stream": "^1.0.0",
-    "ssb-ref": "^2.9.1"
+    "ssb-ref": "^2.9.1",
+    "ssb-replication-manager": "pietgeursen/ssb-replication-manager#703c785e2ebb0e5bf2b0a995012ac1dcc6f342fa"
   },
   "devDependencies": {
     "cont": "^1.0.3",

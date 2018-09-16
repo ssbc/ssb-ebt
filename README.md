@@ -26,13 +26,15 @@ when two peers connect, the peer who initiated the call
 (the client) should call this. It is not intended to
 be called by the user.
 
-### ebt.request (feedId, toReplicate)
+### ebt.request (feedId, enableReplication, [priority])
 
-request that `feedId` be replicated. `toReplicate` is
+request that `feedId` be replicated. `enableReplication` is
 a boolean, replicate feed if true. If set to false,
 replication is immediately stopped.
 
-### ebt.peerStatus (id, cb)
+`priority` (defaults to 0) is an optional number that sets the preferred priority of replication relative to other peers.  `ssb-ebt` may restrict the number of simultaneous connections and this enables a way to select which peers will be connected to first.
+
+### ebt.peerStatus (id)
 
 query the status of replication for id.
 returns a small data structure showing the replication
