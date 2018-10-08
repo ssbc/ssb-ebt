@@ -92,11 +92,15 @@ exports.init = function (sbot, config) {
     }, 0)
   }
 
-  console.log('Init replication manager')
+  var maxNumConnections = (config.ebt && config.ebt.maxNumConnections) || 10
+  var modeChangeThreshold = (config.ebt && config.ebt.modeChangeThreshold) || 100
 
+  console.log(`Init replication manager. maxNumConnections: ${maxNumConnections}, modeChangeThreshold: ${modeChangeThreshold}`)
   var limiter = Limiter({
     request: ebt.request,
-    getPeerAheadBy: getPeerAheadBy
+    getPeerAheadBy: getPeerAheadBy,
+    maxNumConnections: maxNumConnections,
+    modeChangeThreshold: modeChangeThreshold
   })
 
   limiter.isReplicationLimited(function (isLimited) {
