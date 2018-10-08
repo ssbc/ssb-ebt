@@ -130,6 +130,11 @@ exports.init = function (sbot, config) {
     return prog
   })
 
+  hook(sbot.close, function (fn, args) {
+    limiter.stop()
+    return fn.apply(this, args)
+  })
+
   function onClose () {
     sbot.emit('replicate:finish', ebt.state.clock)
   }
