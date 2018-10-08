@@ -71,6 +71,18 @@ output looks like this:
 }
 ```
 
+### ebt.setModeChangeThreshold
+
+Sets the threshold at which the limiter will begin limiting replication. See [ssb-replication-limiter](https://github.com/ssbc/ssb-replication-limiter) for more.
+
+### ebt.setMaxNumConnections
+
+Sets the maximum number of connections allowed when in limited mode. See [ssb-replication-limiter](https://github.com/ssbc/ssb-replication-limiter) for more.
+
+## Config
+
+You can use `ebt.maxNumConnections` and `ebt.modeChangeThreshold` to configure the replication limiter.
+
 ## License
 
 MIT
