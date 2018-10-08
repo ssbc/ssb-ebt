@@ -8,7 +8,7 @@ var isFeed = require('ssb-ref').isFeed
 var Store = require('lossy-store')
 var toUrlFriendly = require('base64-url').escape
 
-var ReplicationManager = require('ssb-replication-manager')
+var Limiter = require('ssb-replication-limiter')
 
 function hook (hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) { hookable.hook(fn) }
@@ -94,12 +94,12 @@ exports.init = function (sbot, config) {
 
   console.log('Init replication manager')
 
-  var replicationManager = ReplicationManager({
+  var limiter = Limiter({
     request: ebt.request,
     getPeerAheadBy: getPeerAheadBy
   })
 
-  replicationManager.isReplicationLimited(function (isLimited) {
+  limiter.isReplicationLimited(function (isLimited) {
     console.log('Replication obs called, Limited mode enabled: ', isLimited)
   })
 
@@ -119,7 +119,7 @@ exports.init = function (sbot, config) {
     // Somewhere in the stack is calling request with no second argument, assuming it means start replicating that feed.
     var isReplicationEnabled = args[1] !== false
     var priority = args[2] || 0
-    replicationManager.request(args[0], isReplicationEnabled, priority)
+    limiter.request(args[0], isReplicationEnabled, priority)
     return fn.apply(this, args)
   })
 
@@ -196,7 +196,7 @@ exports.init = function (sbot, config) {
     return data
   }
   function request (feedId, isReplicationEnabled) {
-    replicationManager.request(feedId, isReplicationEnabled)
+    limiter.request(feedId, isReplicationEnabled)
   }
   return {
     replicate: function (opts) {
