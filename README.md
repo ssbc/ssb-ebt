@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ssbc/ssb-ebt.svg?branch=master)](https://travis-ci.org/ssbc/ssb-ebt)
+
 # ssb-ebt
 
 Adapter for [epidemic-broadcast-trees](https://github.com/dominictarr/epidemic-broadcast-trees)
