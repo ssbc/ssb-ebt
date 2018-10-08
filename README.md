@@ -81,7 +81,7 @@ Sets the maximum number of connections allowed when in limited mode. See [ssb-re
 
 ## Config
 
-You can use `ebt.maxNumConnections` and `ebt.modeChangeThreshold` to configure the replication limiter.
+You can use `ebt.maxNumConnections` and `ebt.modeChangeThreshold` in your config file to configure the replication limiter.
 
 ## License
 
