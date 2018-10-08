@@ -26,7 +26,9 @@ exports.manifest = {
   replicate: 'duplex',
   // Todo: the documented api says request is exported but it's not.
   request: 'sync',
-  peerStatus: 'sync'
+  peerStatus: 'sync',
+  setModeChangeThreshold: 'sync',
+  setMaxNumConnections: 'sync'
 }
 exports.permissions = {
   anonymous: {allow: ['replicate']}
@@ -95,7 +97,7 @@ exports.init = function (sbot, config) {
   var maxNumConnections = (config.ebt && config.ebt.maxNumConnections) || 10
   var modeChangeThreshold = (config.ebt && config.ebt.modeChangeThreshold) || 100
 
-  console.log(`Init replication manager. maxNumConnections: ${maxNumConnections}, modeChangeThreshold: ${modeChangeThreshold}`)
+  console.log(`Init replication limiter. maxNumConnections: ${maxNumConnections}, modeChangeThreshold: ${modeChangeThreshold}`)
   var limiter = Limiter({
     request: ebt.request,
     getPeerAheadBy: getPeerAheadBy,
@@ -117,13 +119,16 @@ exports.init = function (sbot, config) {
     ebt.onAppend(msg.value)
   })
 
+  function request (feedId, isReplicationEnabled, priority) {
+    // Somewhere in the stack is calling request with no second argument, assuming it means start replicating that feed.
+    isReplicationEnabled = isReplicationEnabled !== false
+    priority = priority || 0
+    limiter.request(feedId, isReplicationEnabled, priority)
+  }
   // HACK: patch calls to replicate.request into ebt, too.
   hook(sbot.replicate.request, function (fn, args) {
     if (!isFeed(args[0])) return
-    // Somewhere in the stack is calling request with no second argument, assuming it means start replicating that feed.
-    var isReplicationEnabled = args[1] !== false
-    var priority = args[2] || 0
-    limiter.request(args[0], isReplicationEnabled, priority)
+    request(args[0], args[1], args[2])
     return fn.apply(this, args)
   })
 
@@ -204,9 +209,6 @@ exports.init = function (sbot, config) {
     }
     return data
   }
-  function request (feedId, isReplicationEnabled) {
-    limiter.request(feedId, isReplicationEnabled)
-  }
   return {
     replicate: function (opts) {
       if (opts.version !== 2 && opts.version !== 3) { throw new Error('expected ebt.replicate({version: 3 or 2})') }
@@ -216,6 +218,9 @@ exports.init = function (sbot, config) {
     peerStatus: peerStatus,
 
     // TODO: request wasn't actually exported in ssb-ebt. Mistake or intentional?
-    request: request
+    request: request,
+
+    setModeChangeThreshold: limiter.setModeChangeThreshold,
+    setMaxNumConnections: limiter.setMaxNumConnections
   }
 }
