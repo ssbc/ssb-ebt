@@ -14,7 +14,7 @@
     "pull-stream": "^3.5.0",
     "push-stream-to-pull-stream": "^1.0.0",
     "ssb-ref": "^2.9.1",
-    "ssb-replication-limiter": "^1.0.3"
+    "ssb-replication-limiter": "^1.0.5"
   },
   "devDependencies": {
     "cont": "^1.0.3",
