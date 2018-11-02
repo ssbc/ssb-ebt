@@ -37,10 +37,12 @@ exports.permissions = {
   anonymous: {allow: ['replicate']},
 }
 
-function checkClock (clock, message) {
+//there was a bug that caused some peers
+//to request things that weren't feeds.
+//this is fixed, so just ignore anything that isn't a feed.
+function cleanClock (clock, message) {
   for(var k in clock)
     if(!isFeed(k)) {
-      console.error(message, k)
       delete clock[k]
     }
 }
@@ -58,7 +60,7 @@ exports.init = function (sbot, config) {
     getClock: function (id, cb) {
       store.ensure(id, function () {
         var clock = store.get(id) || {}
-        checkClock(clock, 'non-feed key when loading clock')
+        cleanClock(clock)
         cb(null, clock)
       })
     },
