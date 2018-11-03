@@ -65,7 +65,7 @@ exports.init = function (sbot, config) {
       })
     },
     setClock: function (id, clock) {
-      checkClock(clock, 'non-feed key when saving clock')
+      cleanClock(clock, 'non-feed key when saving clock')
       store.set(id, clock)
     },
     getAt: function (pair, cb) {
