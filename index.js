@@ -31,6 +31,7 @@ exports.version = '1.0.0'
 exports.manifest = {
   replicate: 'duplex',
   request: 'sync',
+  block: 'sync',
   peerStatus: 'sync'
 }
 exports.permissions = {
@@ -190,6 +191,16 @@ exports.init = function (sbot, config) {
         }
       }
       return data
+    },
+
+    // expose ebt.block for ssb-servers that don't have the ssb-friends plugin
+    block: function (from, to, blocking) {
+      if (blocking) {
+        ebt.block(from, to, true)
+      } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
+        // only update unblock if they were already blocked
+        ebt.block(from, to, false)
+      }
     }
   }
 }
