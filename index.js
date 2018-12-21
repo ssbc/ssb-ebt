@@ -39,7 +39,7 @@ exports.permissions = {
 //to request things that weren't feeds.
 //this is fixed, so just ignore anything that isn't a feed.
 function cleanClock (clock, message) {
-  for(var k in clock)
+  for(var k in clock) {
     if(!isFeed(k)) {
       delete clock[k]
     }
