@@ -229,7 +229,7 @@ exports.init = function (sbot, config) {
         // only update unblock if they were already blocked
         ebt.block(from, to, false)
       }
-    }
+    },
 
     // TODO: request wasn't actually exported in ssb-ebt. Mistake or intentional?
     request: request,
