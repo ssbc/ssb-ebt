@@ -27,7 +27,7 @@ exports.manifest = {
   // Todo: the documented api says request is exported but it's not.
   request: 'sync',
   block: 'sync',
-  peerStatus: 'sync'
+  peerStatus: 'sync',
   setModeChangeThreshold: 'sync',
   setMaxNumConnections: 'sync'
 }
