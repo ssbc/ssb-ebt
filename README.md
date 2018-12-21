@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/ssbc/ssb-ebt.svg?branch=master)](https://travis-ci.org/ssbc/ssb-ebt)
+
 # ssb-ebt
 
 Adapter for [epidemic-broadcast-trees](https://github.com/dominictarr/epidemic-broadcast-trees)
@@ -26,13 +28,15 @@ when two peers connect, the peer who initiated the call
 (the client) should call this. It is not intended to
 be called by the user.
 
-### ebt.request (feedId, toReplicate)
+### ebt.request (feedId, enableReplication, [priority])
 
-request that `feedId` be replicated. `toReplicate` is
+request that `feedId` be replicated. `enableReplication` is
 a boolean, replicate feed if true. If set to false,
 replication is immediately stopped.
 
-### ebt.peerStatus (id, cb)
+`priority` (defaults to 0) is an optional number that sets the preferred priority of replication relative to other peers.  `ssb-ebt` may restrict the number of simultaneous connections and this enables a way to select which peers will be connected to first.
+
+### ebt.peerStatus (id)
 
 query the status of replication for id.
 returns a small data structure showing the replication
@@ -66,6 +70,18 @@ output looks like this:
   }
 }
 ```
+
+### ebt.setModeChangeThreshold
+
+Sets the threshold at which the limiter will begin limiting replication. See [ssb-replication-limiter](https://github.com/ssbc/ssb-replication-limiter) for more.
+
+### ebt.setMaxNumConnections
+
+Sets the maximum number of connections allowed when in limited mode. See [ssb-replication-limiter](https://github.com/ssbc/ssb-replication-limiter) for more.
+
+## Config
+
+You can use `ebt.maxNumConnections` and `ebt.modeChangeThreshold` in your config file to configure the replication limiter.
 
 ## License
 
