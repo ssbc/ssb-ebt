@@ -10,14 +10,16 @@ var toUrlFriendly = require('base64-url').escape
 
 var Limiter = require('ssb-replication-limiter')
 
-function hook (hookable, fn) {
-  if (typeof hookable === 'function' && hookable.hook) { hookable.hook(fn) }
-}
-
 function isEmpty (o) {
   for (var k in o) return false
   return true
 }
+
+function hook (hookable, fn) {
+  if (typeof hookable === 'function' && hookable.hook)
+    hookable.hook(fn) 
+}
+
 exports.name = 'ebt'
 
 exports.version = '1.1.0'
@@ -26,18 +28,21 @@ exports.manifest = {
   replicate: 'duplex',
   // Todo: the documented api says request is exported but it's not.
   request: 'sync',
-  peerStatus: 'sync',
   setModeChangeThreshold: 'sync',
-  setMaxNumConnections: 'sync'
+  setMaxNumConnections: 'sync',
+  block: 'sync',
+  peerStatus: 'sync'
 }
 exports.permissions = {
-  anonymous: {allow: ['replicate']}
+  anonymous: {allow: ['replicate']},
 }
 
-function checkClock (clock, message) {
-  for (var k in clock) {
-    if (!isFeed(k)) {
-      console.error(message, k)
+//there was a bug that caused some peers
+//to request things that weren't feeds.
+//this is fixed, so just ignore anything that isn't a feed.
+function cleanClock (clock, message) {
+  for(var k in clock) {
+    if(!isFeed(k)) {
       delete clock[k]
     }
   }
@@ -56,12 +61,12 @@ exports.init = function (sbot, config) {
     getClock: function (id, cb) {
       store.ensure(id, function () {
         var clock = store.get(id) || {}
-        checkClock(clock, 'non-feed key when loading clock')
+        cleanClock(clock)
         cb(null, clock)
       })
     },
     setClock: function (id, clock) {
-      checkClock(clock, 'non-feed key when saving clock')
+      cleanClock(clock, 'non-feed key when saving clock')
       store.set(id, clock)
     },
     getAt: function (pair, cb) {
@@ -74,7 +79,7 @@ exports.init = function (sbot, config) {
         cb(err && err.fatal ? err : null, msg)
       })
     },
-    isFeed: isFeed
+    isFeed: isFeed,
   })
 
   function getPeerAheadBy (feedId) {
@@ -188,19 +193,18 @@ exports.init = function (sbot, config) {
       )
     }
   })
+
   function peerStatus (id) {
     id = id || sbot.id
     var data = {
       id: id,
       seq: ebt.state.clock[id],
-      peers: {}
+      peers: {},
     }
-    for (var k in ebt.state.peers) {
+    for(var k in ebt.state.peers) {
       var peer = ebt.state.peers[k]
-
-      if (peer && peer.clock && peer.replicating && peer.clock[id] != null && peer.replicating[id] != null) {
-      // if (peer.clock[id] != null || peer.replicating[id] != null) {
-        var rep = peer.replicating[id]
+      if(peer.clock[id] != null || peer.replicating[id] != null) {
+        var rep = peer.replicating && peer.replicating[id]
         data.peers[k] = {
           seq: peer.clock[id],
           replicating: rep
@@ -209,6 +213,7 @@ exports.init = function (sbot, config) {
     }
     return data
   }
+
   return {
     replicate: function (opts) {
       if (opts.version !== 2 && opts.version !== 3) { throw new Error('expected ebt.replicate({version: 3 or 2})') }
@@ -221,6 +226,16 @@ exports.init = function (sbot, config) {
     request: request,
 
     setModeChangeThreshold: limiter.setModeChangeThreshold,
-    setMaxNumConnections: limiter.setMaxNumConnections
+    setMaxNumConnections: limiter.setMaxNumConnections,
+
+    // expose ebt.block for ssb-servers that don't have the ssb-friends plugin
+    block: function (from, to, blocking) {
+      if (blocking) {
+        ebt.block(from, to, true)
+      } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
+        // only update unblock if they were already blocked
+        ebt.block(from, to, false)
+      }
+    }
   }
 }
