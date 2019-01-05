@@ -35,7 +35,7 @@ function once (fn) {
 }
 
 var createSsbServer = require('ssb-server')
-  .use(require('ssb-server/plugins/replicate'))
+  .use(require('ssb-replicate'))
   .use(require('ssb-friends'))
   .use(require('..'))
   .use(require('ssb-server/plugins/gossip'))

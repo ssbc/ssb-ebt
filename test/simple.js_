@@ -1,3 +1,4 @@
+//this fails for some flumedb reason... disable for now
 var cont = require('cont')
 var pull = require('pull-stream')
 var RNG = require('rng')

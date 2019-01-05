@@ -13,7 +13,7 @@ var ssbKeys = require('ssb-keys')
 // 3. carol will not give bob any, she will not give him any data from alice.
 
 var createSsbServer = require('ssb-server')
-    .use(require('ssb-server/plugins/replicate'))
+    .use(require('ssb-replicate'))
     .use(require('ssb-friends'))
     .use(require('..'))
 

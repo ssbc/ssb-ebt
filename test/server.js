@@ -12,7 +12,7 @@ var u = require('./util')
 // and get them to follow each other...
 
 var createSsbServer = require('ssb-server')
-  .use(require('ssb-server/plugins/replicate'))
+  .use(require('ssb-replicate'))
   .use(require('..'))
   .use(require('ssb-friends'))
   .use(require('ssb-server/plugins/gossip'))
