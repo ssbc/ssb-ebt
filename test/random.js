@@ -34,11 +34,11 @@ function once (fn) {
   }
 }
 
-var createSsbServer = require('scuttlebot')
-  .use(require('scuttlebot/plugins/replicate'))
+var createSsbServer = require('ssb-server')
+  .use(require('ssb-server/plugins/replicate'))
   .use(require('ssb-friends'))
   .use(require('..'))
-  .use(require('scuttlebot/plugins/gossip'))
+  .use(require('ssb-server/plugins/gossip'))
 
 function generateAnimals (ssbServer, feed, f, n, cb) {
   var a = [feed]
@@ -129,8 +129,8 @@ function latest (ssbServer, cb) {
   var bob   = ssbKeys.generate()
 
 var animalNetwork = createSsbServer({
-  temp: 'test-random-animals',
-  port: 45451, host: 'localhost', timeout: 20001,
+  temp: 'ebt_test-random-animals',
+  port: 45651, host: 'localhost', timeout: 20001,
   replication: {hops: 3, legacy: false}, keys: alice
 })
 
@@ -178,8 +178,8 @@ tape('read all history streams', function (t) {
   }
 
   var dump = createSsbServer({
-    temp: 'test-random-animals_dump',
-//    port: 45453, host: 'localhost', timeout: 20001,
+    temp: 'ebt_test-random-animals_dump',
+//    port: 45653, host: 'localhost', timeout: 20001,
     keys: bob
   })
   var live = 0, listeners = 0
@@ -233,8 +233,8 @@ tape('replicate social network for animals', function (t) {
 
   var start = Date.now()
   var animalFriends = createSsbServer({
-    temp: 'test-random-animals2',
-    port: 45452, host: 'localhost', timeout: 20001,
+    temp: 'ebt_test-random-animals2',
+    port: 45652, host: 'localhost', timeout: 20001,
     replicate: {hops: 3, legacy: false},
     progress: true,
     seeds: [animalNetwork.getAddress()],

@@ -12,8 +12,8 @@ var ssbKeys = require('ssb-keys')
 // 2. alice never tries to connect to bob. (removed from peers)
 // 3. carol will not give bob any, she will not give him any data from alice.
 
-var createSsbServer = require('scuttlebot')
-    .use(require('scuttlebot/plugins/replicate'))
+var createSsbServer = require('ssb-server')
+    .use(require('ssb-server/plugins/replicate'))
     .use(require('ssb-friends'))
     .use(require('..'))
 

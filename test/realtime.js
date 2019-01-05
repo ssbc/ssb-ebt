@@ -6,8 +6,8 @@ var u         = require('./util')
 
 var ssbKeys = require('ssb-keys')
 
-var createSsbServer = require('scuttlebot')
-  .use(require('scuttlebot/plugins/replicate'))
+var createSsbServer = require('ssb-server')
+  .use(require('ssb-server/plugins/replicate'))
   .use(require('..'))
   .use(require('ssb-friends'))
 

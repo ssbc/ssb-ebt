@@ -11,11 +11,11 @@ var u = require('./util')
 // give them all pub servers (on localhost)
 // and get them to follow each other...
 
-var createSsbServer = require('scuttlebot')
-  .use(require('scuttlebot/plugins/replicate'))
+var createSsbServer = require('ssb-server')
+  .use(require('ssb-server/plugins/replicate'))
   .use(require('..'))
   .use(require('ssb-friends'))
-  .use(require('scuttlebot/plugins/gossip'))
+  .use(require('ssb-server/plugins/gossip'))
 
 tape('replicate between 3 peers', function (t) {
 

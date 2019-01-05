@@ -37,8 +37,8 @@ function track(bot, name) {
 
 var alice = ssbKeys.generate()
 
-  var createSbot = require('scuttlebot')
-    .use(require('scuttlebot/plugins/replicate'))
+  var createSbot = require('ssb-server')
+    .use(require('ssb-server/plugins/replicate'))
     .use(require('../'))
     .use(require('ssb-friends'))
 

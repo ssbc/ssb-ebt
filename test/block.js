@@ -4,8 +4,8 @@ var pull = require('pull-stream')
 var ssbKeys = require('ssb-keys')
 var u = require('./util')
 
-var createSsbServer = require('scuttlebot')
-  .use(require('scuttlebot/plugins/replicate'))
+var createSsbServer = require('ssb-server')
+  .use(require('ssb-server/plugins/replicate'))
   .use(require('ssb-friends'))
   .use(require('..'))
 

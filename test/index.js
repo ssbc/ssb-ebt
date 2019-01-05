@@ -1,6 +1,6 @@
 var cont = require('cont')
 var pull = require('pull-stream')
-var createSbot = require('scuttlebot')
+var createSbot = require('ssb-server')
   .use({
     //fake replicate plugin
     name: 'replicate',
