@@ -3,7 +3,7 @@ var pull = require('pull-stream')
 var RNG = require('rng')
 var rng = new RNG.MT(0)
 
-var createSbot = require('scuttlebot')
+var createSbot = require('ssb-server')
   .use({
     //fake replicate plugin
     name: 'replicate',
@@ -139,15 +139,16 @@ var int = setInterval(function () {
   console.log('Bob', b_bot.since())
 
   //and check that all peers are consistent.
+  setTimeout(function () {
+    a_bot.close()
+    b_bot.close()
+  }, 1000)
 
-  a_bot.close()
-  b_bot.close()
-  setTimeout(next, 100)
+//  setTimeout(next, 100)
 }, 500)
 
 
 function next () {
-
   //reload previous databases, from /tmp
   //but without using the temp option, so they are not deleted.
   var a_bot = createSbot({
@@ -198,13 +199,20 @@ function next () {
               return
             }
           clearInterval(int)
+          console.log("CLOCKS", clock, _clock)
           console.log('CONSISTENT', clock)
-          a_bot.close()
-          b_bot.close()
+          setTimeout(function () {
+            a_bot.close(function (err) {
+              b_bot.close(function () {})
+
+            })
+          }, 10000)
         })
       })
     }, 100)
   })
 }
+
+
 
 
