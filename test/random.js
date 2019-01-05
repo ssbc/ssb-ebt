@@ -38,7 +38,7 @@ var createSsbServer = require('ssb-server')
   .use(require('ssb-replicate'))
   .use(require('ssb-friends'))
   .use(require('..'))
-  .use(require('ssb-server/plugins/gossip'))
+  .use(require('ssb-gossip'))
 
 function generateAnimals (ssbServer, feed, f, n, cb) {
   var a = [feed]
@@ -307,11 +307,4 @@ tape('shutdown', function (t) {
   animalNetwork.close(true)
   t.end()
 })
-
-
-
-
-
-
-
 

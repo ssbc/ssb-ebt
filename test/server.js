@@ -15,7 +15,7 @@ var createSsbServer = require('ssb-server')
   .use(require('ssb-replicate'))
   .use(require('..'))
   .use(require('ssb-friends'))
-  .use(require('ssb-server/plugins/gossip'))
+  .use(require('ssb-gossip'))
 
 tape('replicate between 3 peers', function (t) {
 
