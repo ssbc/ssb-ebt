@@ -92,8 +92,7 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
 
       rpc.close(true, function () {
         aliceCancel(); bobCancel()
-        alice.publish(u.block(bob.id))
-        (function (err) {
+        alice.publish(u.block(bob.id), function (err) {
           if(err) throw err
 
           alice.friends.get(null, function (err, g) {
@@ -237,5 +236,6 @@ tape('cleanup!', function (t) {
   alice.close(true); bob.close(true); carol.close(true)
   t.end()
 })
+
 
 

@@ -23,8 +23,8 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
 
   //in the beginning alice and bob follow each other
   cont.para([
-    alice.publish(u.follow(bob.id)),
-    bob  .publish(u.follow(alice.id))
+    cont(alice.publish)(u.follow(bob.id)),
+    cont(bob  .publish)(u.follow(alice.id))
   ]) (function (err) {
     if(err) throw err
 
@@ -51,7 +51,7 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
       //should be the alice's follow(bob) message.
 
       t.equal(op.value.content.contact, bob.id)
-      alice.publish(u.block(bob.id))
+      cont(alice.publish)(u.block(bob.id))
       (function (err) { if(err) throw err })
     }, false)
 

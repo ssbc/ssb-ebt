@@ -29,8 +29,8 @@ tape('replicate between 3 peers', function (t) {
     })
 
   cont.para([
-    alice.publish(u.follow(bob.id)),
-    bob.publish(u.follow(alice.id))
+    cont(alice.publish)(u.follow(bob.id)),
+    cont(bob.publish)(u.follow(alice.id))
   ])(function (err) {
     if(err) throw err
 
