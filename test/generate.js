@@ -75,7 +75,6 @@ var alice = ssbKeys.generate()
   gen.initialize(a_bot, 20, 3, function (err, peers) {
     if(err) throw err
     console.log('initialized')
-    //console.log(peers.map(function (e) { return e.id }))
     gen.messages(function (n) {
       if(Math.random() < 0.3)
         return {
@@ -89,17 +88,16 @@ var alice = ssbKeys.generate()
         value: randbytes(randint(1024)).toString('base64')
       }
     }, peers, 200, function () {
-      var c = 0
+      var c = 0, ready = false
       console.log('set up, replicating')
       ;(function next (i) {
         if(!i) {
-          return
+          return ready = true
         }
 
         b_bot.publish({
           type: 'contact',
-          contact: randary(peers).id, //a_bot.id,
-  //        contact: a_bot.id,
+          contact: randary(peers).id,
           following: true
         }, function (err, msg) {
           if(err) throw err
@@ -115,29 +113,21 @@ var alice = ssbKeys.generate()
         }
       })
 
-//      b_bot.replicate.request(a_bot.id, true)
-//      b_bot.replicate.request(b_bot.id, true)
-//      peers.forEach(function (peer) {
-//        console.log('request:', peer.id)
-//        b_bot.replicate.request(peer.id, true)
-//      })
-//
       b_bot.connect(a_bot.getAddress(), function (err) {
         console.log('A<-->B')
         if(err) throw err
         var int = setInterval(function () {
-//          console.log(JSON.stringify(b_bot.status().ebt))
 
           var prog = a_bot.progress()
           console.log('assertions')
           assert.ok(prog.indexes)
           assert.ok(prog.ebt)
           assert.ok(prog.ebt.target)
+          if(!ready) return
 
           a_bot.getVectorClock(function (err, clock) {
             b_bot.getVectorClock(function (err, _clock) {
-              console.log('clocks', clock, _clock)
-              var d = 0, total_a = 0, total_b = 0
+              var different = 0, total_a = 0, total_b = 0
               function count (o) {
                 var t = 0, s = 0
                 for(var k in o) {
@@ -150,14 +140,14 @@ var alice = ssbKeys.generate()
               for(var k in _clock) {
                 total_a += _clock[k]
                 if(clock[k] !== _clock[k]) {
-                  d += (clock[k] || 0) - _clock[k]
+                  different += (clock[k] || 0) - _clock[k]
                 }
               }
               for(var k in clock)
                 total_b += clock[k]
 
-              console.log('A',count(clock), 'B', count(_clock), 'diff', d)
-              if(d === 0) {
+              console.log('A',count(clock), 'B', count(_clock), 'diff', different)
+              if(different === 0) {
                   PASSED = true
                   var prog = a_bot.progress()
                   assert.ok(prog.indexes)
@@ -174,10 +164,9 @@ var alice = ssbKeys.generate()
               }
             })
           })
-        },1000)//.unref()
+        }, 1000)
       })
     })
   })
-
 
 
