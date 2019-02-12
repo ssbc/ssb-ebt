@@ -136,35 +136,20 @@ exports.init = function (sbot, config) {
     }
   })
 
-  //wait till next tick, incase ssb-friends hasn't been installed yet.
-  setImmediate(function () {
-    if(sbot.friends) {
-      function handleBlockUnlock(from, to, value)
-      {
-        if (value === false)
-          ebt.block(from, to, true)
-        else if (ebt.state.blocks[from] && ebt.state.blocks[from][to])
-          ebt.block(from, to, false)
-      }
-
-      pull(
-        sbot.friends.stream({live: true}),
-        pull.drain(function (contacts) {
-          if(!contacts) return
-
-          if (isFeed(contacts.from) && isFeed(contacts.to)) { // live data
-            handleBlockUnlock(contacts.from, contacts.to, contacts.value)
-          } else { // initial data
-            for (var from in contacts) {
-              var relations = contacts[from]
-              for (var to in relations)
-                handleBlockUnlock(from, to, relations[to])
-            }
-          }
-        })
-      )
+  function block (from, to, blocking) {
+    if (blocking) {
+      ebt.block(from, to, true)
+    } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
+      // only update unblock if they were already blocked
+      ebt.block(from, to, false)
     }
-  })
+  }
+
+  if(sbot.replicate.block)
+    sbot.replicate.block.hook(function (fn, args) {
+      block.apply(this, args)
+      return fn.apply(this, args)
+    })
 
   return {
     replicate: function (opts) {
@@ -194,14 +179,7 @@ exports.init = function (sbot, config) {
     },
 
     // expose ebt.block for ssb-servers that don't have the ssb-friends plugin
-    block: function (from, to, blocking) {
-      if (blocking) {
-        ebt.block(from, to, true)
-      } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
-        // only update unblock if they were already blocked
-        ebt.block(from, to, false)
-      }
-    }
+    block: block
   }
 }
 
