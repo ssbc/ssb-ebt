@@ -1,7 +1,7 @@
 {
   "name": "ssb-ebt",
   "description": "scaleable scuttlebutt replication for ssb",
-  "version": "5.4.0",
+  "version": "5.4.1",
   "homepage": "https://github.com/ssbc/ssb-ebt",
   "repository": {
     "type": "git",
@@ -45,5 +45,3 @@
     ]
   }
 }
-
-
