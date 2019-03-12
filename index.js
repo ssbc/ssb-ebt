@@ -152,7 +152,7 @@ exports.init = function (sbot, config) {
       return fn.apply(this, args)
     })
   else
-    Legacy(sbot)
+    Legacy(sbot, ebt) //remove this on next breaking change
 
   return {
     replicate: function (opts) {

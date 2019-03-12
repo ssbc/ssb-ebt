@@ -1,5 +1,7 @@
 var pull = require('pull-stream')
-module.exports = function (sbot) {
+var isFeed = require('ssb-ref').isFeed
+
+module.exports = function (sbot, ebt) {
   setImmediate(function () {
     if(sbot.friends) {
       function handleBlockUnlock(from, to, value)
@@ -29,3 +31,4 @@ module.exports = function (sbot) {
     }
   })
 }
+
