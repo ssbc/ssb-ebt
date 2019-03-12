@@ -151,6 +151,8 @@ exports.init = function (sbot, config) {
       block.apply(this, args)
       return fn.apply(this, args)
     })
+  else
+    Legacy(sbot)
 
   return {
     replicate: function (opts) {
