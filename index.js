@@ -14,6 +14,10 @@ function isEmpty (o) {
   return true
 }
 
+function isObject (o) {
+  return o && 'object' == typeof o
+}
+
 function countKeys (o) {
   var n = 0
   for(var k in o) n++
@@ -96,8 +100,15 @@ exports.init = function (sbot, config) {
 
   //HACK: patch calls to replicate.request into ebt, too.
   hook(sbot.replicate.request, function (fn, args) {
-    if(!isFeed(args[0])) return
-    ebt.request(args[0], args[1])
+    var id, replicate
+    if(isObject(args[0])) {
+      id = args[0].id
+      replicate = args[0].replicate
+    }
+    id = args[0]
+    replicate = args[1]
+    if(!isFeed(id)) return
+    ebt.request(id replicate)
     return fn.apply(this, args)
   })
 
