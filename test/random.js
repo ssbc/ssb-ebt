@@ -55,11 +55,11 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
       var name   = animal == 'cat' ? cats.random() : dogs.allRandom()
 
       feed.name = name
+      console.log(feed.id)
       feed.add(u.follow(feed.id), cb)
     }, 10),
     pull.drain(null, function (err) {
       if(err) return cb(err)
-
       var posts = []
 
       pull(
@@ -68,7 +68,7 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
 
           var me = a[~~(Math.random()*a.length)]
           var r = Math.random()
-
+          console.log(n, me.id, r)
           //one in 20 messages is a random follow
           if(r < 0.5) {
             var f = a[~~(Math.random()*a.length)]
@@ -103,35 +103,20 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
 
 }
 
-function latest (ssbServer, cb) {
-  ssbServer.friends.hops({hops: 3}, once(function (err, keys) {
-    if(err) return cb(err)
-    var n = Object.keys(keys).length, map = {}
-    console.log('Generated network:')
-    console.log(keys)
-    if(n !== F+1) throw new Error('not enough feeds:'+n+', expected:'+(F+1))
-    
-    for(var k in keys) (function (key) {
-      ssbServer.latestSequence(key, once(function (err, value) {
-        if(err) {
-          console.log(key, err, value)
-          throw err
-        }
-        map[key] = isNumber(value) ? value : value.sequence
-        if(--n) return
-        cb(null, map)
-      }))
-    })(k)
-  }))
-}
-
   var alice = ssbKeys.generate()
   var bob   = ssbKeys.generate()
 
 var animalNetwork = createSsbServer({
   temp: 'ebt_test-random-animals',
   port: 45651, host: 'localhost', timeout: 20001,
-  replication: {hops: 3, legacy: false}, keys: alice
+  replicate: {hops: 3, legacy: false}, keys: alice,
+  gossip: {pub: false}
+})
+
+var live = 0
+animalNetwork.post(function () {
+  if(!(live ++ % 100))
+  console.log(live, live)
 })
 
 pull(
@@ -149,7 +134,7 @@ tape('generate random network', function (t) {
     if(err) throw err
     console.log('replicate GRAPH')
     var c = 0
-    latest(animalNetwork, function (err, _generated) {
+    animalNetwork.getVectorClock(function (err, _generated) {
       if(err) throw err
 
       generated = _generated
@@ -177,52 +162,24 @@ tape('read all history streams', function (t) {
     manifest: animalNetwork.manifest()
   }
 
-  var dump = createSsbServer({
-    temp: 'ebt_test-random-animals_dump',
-//    port: 45653, host: 'localhost', timeout: 20001,
-    keys: bob
-  })
-  var live = 0, listeners = 0
-  var since = {}
-
-  var h = 0
-
-  pull(
-    dump.createLogStream({live: true, keys: false}),
-    pull.drain(function (e) {
-      if(!(live ++ % 100))
-      console.log('live', live)
-    })
-  )
-
   var wants = {}, n = 0, c = 0, start = Date.now()
 
   //test just dumping everything!
   //not through network connection, because createLogStream is not on public api
   pull(
     animalNetwork.createLogStream({keys: false}),
-    pull.through(function (n) {
+    pull.drain(function (n) {
       c++
-    }),
-    dump.createWriteStream(function (err, data) {
-      if(err) throw err
+    }, function () {
       var time = (Date.now() - start)/1000
       console.log("dump all messages via createLogStream")
       console.log('all histories dumped', c, 'messages in', time, 'at rate', c/time)
-      console.log('read back live:', live, 'over', h, 'histories', listeners, 'listeners')
-      pull(
-        dump.createLogStream(),
-        pull.collect(function (err, ary) {
-          if(err) throw err
-          console.log(c)
-          t.equal(ary.length, F+N+2)
-          dump.close()
-          t.end()
-        })
-      )
+      console.log('read back live:', live)
+      t.equal(live, F+N+2)
+      t.equal(c, F+N+2)
+      t.end()
     })
   )
-
 })
 
 tape('replicate social network for animals', function (t) {
@@ -236,6 +193,7 @@ tape('replicate social network for animals', function (t) {
     temp: 'ebt_test-random-animals2',
     port: 45652, host: 'localhost', timeout: 20001,
     replicate: {hops: 3, legacy: false},
+    gossip: {pub: false},
     progress: true,
     seeds: [animalNetwork.getAddress()],
     keys: bob
@@ -253,26 +211,6 @@ tape('replicate social network for animals', function (t) {
   })
 
   var drain
-
-//  pull(
-//    animalFriends.replicate.changes(),
-//    drain = pull.drain(function (prog) {
-//      prog.id = 'animal friends'
-//      var target = F+N+3
-//      process.stdout.write(bar(prog))
-//      if(prog.progress === target) {
-//        console.log("DONE!!!!")
-//        var time = (Date.now() - start) / 1000
-//        console.log('replicated', target, 'messages in', time, 'at rate',target/time)
-//        t.equal(c, 1, 'everything replicated within a single connection')
-//        animalFriends.close(true)
-//        drain.abort()
-//        t.end()
-//      }
-//    })
-//  )
-
-//  require('../lib/progress')(animalFriends.progress)
 
   var int = setInterval(function () {
     var prog = animalFriends.progress()
