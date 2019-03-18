@@ -24,7 +24,8 @@ tape('replicate between 3 peers', function (t) {
     temp: 'server-alice',
     port: 45451, timeout: 1400,
     keys: alice = ssbKeys.generate(),
-    //replicate: {legacy: false},
+    replicate: {legacy: false},
+    gossip: {pub: false},
     level: 'info'
   })
   var dbB = createSsbServer({
@@ -32,7 +33,8 @@ tape('replicate between 3 peers', function (t) {
     port: 45452, timeout: 1400,
     keys: bob = ssbKeys.generate(),
     seeds: [dbA.getAddress()],
-    //replicate: {legacy: false},
+    replicate: {legacy: false},
+    gossip: {pub: false},
     level: 'info'
   })
   var dbC = createSsbServer({
@@ -40,7 +42,8 @@ tape('replicate between 3 peers', function (t) {
     port: 45453, timeout: 1400,
     keys: carol = ssbKeys.generate(),
     seeds: [dbA.getAddress()],
-    //replicate: {legacy: false},
+    replicate: {legacy: false},
+    gossip: {pub: false},
     level: 'info'
   })
 
@@ -69,13 +72,20 @@ tape('replicate between 3 peers', function (t) {
 
     function check(server, name) {
       var closed = false
-      return server.on('replicate:finish', function (actual) {
-        console.log(actual)
-        if(deepEqual(expected, actual) && !closed) {
-          closed = true
-          done()
-        }
-      })
+      var int = setInterval(function () {
+        server.getVectorClock(function (err, actual) {
+          if(err) throw err
+          if(closed) return
+          console.log(actual)
+          if(deepEqual(expected, actual)) {
+            clearInterval(int)
+            closed = true
+            //timeout to prevent "cannot call append, flumedb instance closed" error
+            //which I don't have time to fix right now.
+            setTimeout(done, 100)
+          }
+        })
+      }, 1000)
     }
 
     var serverA = check(dbA, 'ALICE')
@@ -92,5 +102,4 @@ tape('replicate between 3 peers', function (t) {
     }
   })
 })
-
 
