@@ -11,6 +11,15 @@ var createSsbServer = require('ssb-server')
   .use(require('..'))
   .use(require('ssb-friends'))
 
+function createHistoryStream(sbot, opts) {
+  return pull(
+    sbot.createLogStream({keys: false, live: opts.live}),
+    pull.filter(function (msg) {
+      return msg.author == opts.id
+    })
+  )
+}
+
 tape('replicate between 3 peers', function (t) {
 
   var bob = createSsbServer({
@@ -41,7 +50,7 @@ tape('replicate between 3 peers', function (t) {
 
     var ary = []
     pull(
-      bob.createHistoryStream({id: alice.id, seq: 0, keys: false, live: true}),
+      createHistoryStream(bob, {id: alice.id, live: true}),
       pull.drain(function (data) {
         console.log(data)
         ary.push(data);
@@ -52,7 +61,7 @@ tape('replicate between 3 peers', function (t) {
       if(!--l) {
         var _ary = []
           pull(
-            bob.createHistoryStream({id: alice.id, sequence: 0, keys: false}),
+            createHistoryStream(bob, {id: alice.id, live: false}),
             pull.collect(function (err, _ary) {
               t.equal(_ary.length, 12)
               t.deepEqual(ary,_ary)
@@ -71,5 +80,7 @@ tape('replicate between 3 peers', function (t) {
 
   })
 })
+
+
 
 
