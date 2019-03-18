@@ -99,53 +99,34 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
             if(err) throw err
             t.equal(g[alice.id][bob.id], false)
 
-            pull(
-              alice.links({
-                source: alice.id,
-                dest: bob.id,
-                rel: 'contact',
-                values: true
-              }),
-              pull.filter(function (op) {
-                return op.value.content.flagged != null
-              }),
-              pull.collect(function (err, ary) {
+            //since bob is blocked, he should not be able to connect
+            bob.connect(alice.getAddress(), function (err, rpc) {
+              t.ok(err, 'bob is blocked, should fail to connect to alice')
+
+
+              var carolCancel = carol.post(function (msg) {
+                if(msg.author === alice.id) {
+                  if(msg.sequence == 2)
+                    t.end()
+                }
+              })
+
+              //but carol, should, because she is not blocked.
+              carol.connect(alice.getAddress(), function (err, rpc) {
                 if(err) throw err
-                console.log(ary)
-                t.ok(flagged = ary.pop().value.content.flagged, 'alice did block bob')
-
-                //since bob is blocked, he should not be able to connect
-                bob.connect(alice.getAddress(), function (err, rpc) {
-                  t.ok(err, 'bob is blocked, should fail to connect to alice')
-
-
-                  var carolCancel = carol.post(function (msg) {
-                    if(msg.author === alice.id) {
-                      if(msg.sequence == 2)
-                        t.end()
-                    }
-                  })
-
-                  //but carol, should, because she is not blocked.
-                  carol.connect(alice.getAddress(), function (err, rpc) {
+                rpc.on('closed', function () {
+                  console.log('RPC CLOSED')
+                  carolCancel()
+                  //get out of cb...
+                  carol.getVectorClock(function (err, clock) {
                     if(err) throw err
-                    rpc.on('closed', function () {
-                      carolCancel()
-                      pull(
-                        carol.createHistoryStream({id: alice.id, seq: 0, live: false}),
-                        pull.collect(function (err, ary) {
-                          if(err) throw err
-
-                          t.ok(ary.length, 'carol replicated data from alice')
-                          console.log(alice.id, carol.id, err, ary)
-                          t.end()
-                       })
-                      )
-                    })
+                    t.ok(clock[alice.id], 'carol replicated data from alice')
+                    t.end()
                   })
                 })
+                rpc.close()
               })
-            )
+            })
           })
         })
       })
