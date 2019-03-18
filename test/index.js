@@ -12,7 +12,6 @@ var createSbot = require('ssb-server')
 
 function Delay (d) {
   d = d || 100
-//  return pull.through()
   return pull.asyncMap(function (data, cb) {
     setTimeout(function () {
       cb(null, data)
@@ -30,6 +29,7 @@ var a_bot = createSbot({
   temp: 'random-animals_alice',
   port: 45451, host: 'localhost', timeout: 20001,
   replicate: {legacy: false}, keys: alice,
+  gossip: {pub: false},
   friends: {hops: 10},
 })
 
@@ -38,6 +38,7 @@ var b_bot = createSbot({
   port: 45452, host: 'localhost', timeout: 20001,
   replicate: {legacy: false},
   friends: {hops: 10},
+  gossip: {pub: false},
   keys: bob
 })
 
@@ -46,15 +47,11 @@ var c_bot = createSbot({
   port: 45453, host: 'localhost', timeout: 20001,
   replicate: {legacy: false},
   friends: {hops: 10},
+  gossip: {pub: false},
   keys: charles
 })
 
-//increasing n give an error currently...
-var n = 0
-var feeds = [a_bot.createFeed(alice), b_bot.createFeed(bob), c_bot.createFeed(charles)]
-while(n-->0)
-  feeds.push([a_bot, b_bot, c_bot][~~(Math.random()*3)].createFeed())
-
+var feeds = [a_bot, b_bot, c_bot]
 //make sure all the sbots are replicating all the feeds.
 feeds.forEach(function (f) {
   a_bot.replicate.request(f.id)
@@ -69,17 +66,11 @@ function consistent (name) {
   recv[name] = {}
   return function (msg) {
     recv[name][msg.key] = true
-    all[msg.key] = true
-  //  console.log("POST", recv, all)
     var missing = 0, has = 0
     for(var k in all) {
       for(var n in recv) {
-        if(!recv[n][k]) {
-//          console.log('missing:', n, k)
-          missing ++
-        }
-        else
-          has ++
+        if(!recv[n][k]) missing ++
+        else            has ++
       }
     }
 
@@ -94,11 +85,8 @@ b_bot.post(consistent('bob'))
 c_bot.post(consistent('charles'))
 
 cont.para(feeds.map(function (f) {
-//  console.log(f)
   return f.publish({type:'post', text: 'hello world'})
 }))(function () {
-
-//  a_bot.seq(console.log)
 
   function log (name) {
     return pull.through(function (data) {
@@ -149,4 +137,10 @@ setInterval(function () {
     c_bot.close()
   }, 1000)
 }, 500)
+
+
+
+
+
+
 
