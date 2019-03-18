@@ -68,7 +68,7 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
 
           var me = a[~~(Math.random()*a.length)]
           var r = Math.random()
-          console.log(n, me.id, r)
+          if(r < 0.1) console.log(n, me.id, r) //log only 1 in 10, less noise
           //one in 20 messages is a random follow
           if(r < 0.5) {
             var f = a[~~(Math.random()*a.length)]
@@ -245,4 +245,5 @@ tape('shutdown', function (t) {
   animalNetwork.close(true)
   t.end()
 })
+
 
