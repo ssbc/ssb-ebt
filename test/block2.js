@@ -11,12 +11,16 @@ var createSsbServer = require('ssb-server')
 
 var alice = createSsbServer({
     temp: 'test-block-alice', //timeout: 1400,
-    keys: ssbKeys.generate()
+    keys: ssbKeys.generate(),
+    replicate: {legacy: false},
+    gossip: {pub: false},
   })
 
 var bob = createSsbServer({
     temp: 'test-block-bob', //timeout: 600,
-    keys: ssbKeys.generate()
+    keys: ssbKeys.generate(),
+    replicate: {legacy: false},
+    gossip: {pub: false},
   })
 
 tape('alice blocks bob while he is connected, she should disconnect him', function (t) {
