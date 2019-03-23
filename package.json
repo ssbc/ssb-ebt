@@ -25,7 +25,7 @@
     "ssb-friends": "^4.0.0",
     "ssb-generate": "^1.0.1",
     "ssb-gossip": "^1.0.1",
-    "ssb-replicate": "^1.1.0",
+    "ssb-replicate": "^1.2.1",
     "ssb-server": "^13.5.2",
     "ssb-validate": "^4.0.4"
   },
