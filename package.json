@@ -18,8 +18,10 @@
   "devDependencies": {
     "cat-names": "^2.0.0",
     "cont": "^1.0.3",
+    "deep-equal": "^1.0.1",
     "dog-names": "^1.0.2",
     "nyc": "^13.2.0",
+    "pull-paramap": "^1.2.2",
     "rng": "^0.2.2",
     "ssb-client": "^4.5.7",
     "ssb-friends": "^4.0.0",
