@@ -149,6 +149,11 @@ exports.init = function (sbot, config) {
   })
 
   function block (from, to, blocking) {
+    if(isObject(from)) {
+      to = from.to
+      blocking = from.blocking
+      from = from.from
+    }
     if (blocking) {
       ebt.block(from, to, true)
     } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
