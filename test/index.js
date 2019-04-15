@@ -85,7 +85,9 @@ b_bot.post(consistent('bob'))
 c_bot.post(consistent('charles'))
 
 cont.para(feeds.map(function (f) {
-  return f.publish({type:'post', text: 'hello world'})
+  return function (cb) {
+    return f.publish({type:'post', text: 'hello world'}, cb)
+  }
 }))(function () {
 
   function log (name) {
@@ -137,10 +139,4 @@ setInterval(function () {
     c_bot.close()
   }, 1000)
 }, 500)
-
-
-
-
-
-
 
