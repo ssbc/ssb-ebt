@@ -69,7 +69,6 @@ tape('replicate between 3 peers', function (t) {
 
     var expected = {}
     expected[alice.id] = expected[bob.id] = expected[carol.id] = 3
-
     function check(server, name) {
       var closed = false
       var int = setInterval(function () {
@@ -80,9 +79,7 @@ tape('replicate between 3 peers', function (t) {
           if(deepEqual(expected, actual)) {
             clearInterval(int)
             closed = true
-            //timeout to prevent "cannot call append, flumedb instance closed" error
-            //which I don't have time to fix right now.
-            setTimeout(done, 100)
+            done()
           }
         })
       }, 1000)
@@ -92,7 +89,7 @@ tape('replicate between 3 peers', function (t) {
     var serverB = check(dbB, 'BOB')
     var serverC = check(dbC, 'CAROL')
 
-    var n = 2
+    var n = 3
 
     function done () {
       if(--n) return
@@ -102,4 +99,3 @@ tape('replicate between 3 peers', function (t) {
     }
   })
 })
-
