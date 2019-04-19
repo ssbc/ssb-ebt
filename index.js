@@ -105,8 +105,10 @@ exports.init = function (sbot, config) {
       id = args[0].id
       replicate = args[0].replicate
     }
-    id = args[0]
-    replicate = args[1]
+    else {
+      id = args[0]
+      replicate = args[1]
+    }
     if(!isFeed(id)) return
     ebt.request(id, replicate)
     return fn.apply(this, args)
