@@ -19,6 +19,12 @@ that replicates 100k messages in under a minute.
 
 ## api
 
+### ebt.block (from, to, blocking)
+
+blocks a peer and disallows them from connecting.
+They are also removed from peers, so there is no connecting to them.
+Also disallows peers to pass on data to them. 
+
 ### ebt.replicate (opts)
 
 creates a duplex replication stream to the remote peer.
@@ -70,4 +76,3 @@ output looks like this:
 ## License
 
 MIT
-
