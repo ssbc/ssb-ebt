@@ -1,6 +1,4 @@
 var gen = require('ssb-generate')
-var pull = require('pull-stream')
-var paramap = require('pull-paramap')
 var crypto = require('crypto')
 var ssbKeys = require('ssb-keys')
 
@@ -18,7 +16,7 @@ function randbytes (n) {
 
 
 function track(bot, name) {
-  var l = 0, _ts = Date.now(), _l = 0
+  var l = 0, _l = 0
   bot.post(function (msg) {
     l++
   })
@@ -46,7 +44,7 @@ var alice = ssbKeys.generate()
     keys: alice
   })
 
-  bob = ssbKeys.generate()
+  const bob = ssbKeys.generate()
 
 
   console.log('address?', a_bot.getAddress())
@@ -93,7 +91,6 @@ var alice = ssbKeys.generate()
         value: randbytes(randint(1024)).toString('base64')
       }
     }, peers, 1000, function () {
-      var c = 0
       console.log('done, replicating')
       b_bot.connect(a_bot.getAddress(), function (err) {
         if(err) throw err
@@ -102,7 +99,7 @@ var alice = ssbKeys.generate()
 
           a_bot.getVectorClock(function (err, clock) {
             b_bot.getVectorClock(function (err, _clock) {
-              var d = 0, total_a = 0, total_b = 0
+              var d = 0
               function count (o) {
                 var t = 0, s = 0
                 for(var k in o) {
@@ -113,16 +110,12 @@ var alice = ssbKeys.generate()
               }
               var c = 0
               for(var k in _clock) {
-                total_a += _clock[k]
                 if(clock[k] !== _clock[k]) {
                   d += (clock[k] || 0) - _clock[k]
                 }
                 else
                   c++
               }
-              for(var k in clock)
-                total_b += clock[k]
-
 
               console.log('A', count(clock), 'B', count(_clock), 'diff', d, 'common', c)
               if(d === 0 && c ) {
@@ -136,8 +129,5 @@ var alice = ssbKeys.generate()
 
         },1000).unref()
       })
-
     })
-
   })
-

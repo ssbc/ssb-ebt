@@ -1,15 +1,8 @@
 var pull = require('pull-stream')
 var EBT = require('epidemic-broadcast-trees')
-var v = require('ssb-validate')
 var Bounce = require('epidemic-broadcast-trees/bounce')
 function createStream (onDone, cb) {
-  var state = {
-    queue: {push: function () {} }, //fake array
-    feeds: {},
-    error: null
-  }
   console.log('messages/second, messages total, time elapsed')
-  var ts = Date.now(), start = Date.now(), count = 0, _count = 0
   var stream
   var createStream = EBT(
     function get (id, seq, cb) {

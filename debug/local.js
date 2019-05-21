@@ -29,7 +29,6 @@ module.exports = function (sbot) {
           })
         }
 
-        var s = Date.now()
         for(var k in clock) {
           waiting ++
           o[k] = {ready: false, reading: true, seq: 1}
@@ -38,7 +37,7 @@ module.exports = function (sbot) {
 
         callback(null, function (abort, cb) {
           //find the oldest ready thing
-          ;(function more () {
+          (function more () {
             if(!ready.length) return next = more //this should only happen at the end
 
             ready.sort(function (a, b) {
@@ -60,25 +59,3 @@ module.exports = function (sbot) {
     })
   }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
