@@ -1,5 +1,3 @@
-var cont = require('cont')
-var pull = require('pull-stream')
 var createSbot = require('ssb-server')
   .use({
     //fake replicate plugin
@@ -24,7 +22,7 @@ var a_bot = createSbot({
 require('tape')( function (t) {
 
   t.throws(function () {
-    var a_rep = a_bot.ebt.replicate.call(bob, {version: 1})
+    a_bot.ebt.replicate.call(bob, {version: 1})
   })
 
   a_bot.close()

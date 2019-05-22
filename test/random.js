@@ -1,4 +1,3 @@
-
 var pull      = require('pull-stream')
 var paramap   = require('pull-paramap')
 var ssbKeys   = require('ssb-keys')
@@ -10,29 +9,6 @@ var cats = require('cat-names')
 var dogs = require('dog-names')
 
 var generated = {}, F=100,N=10000
-
-//build a random network, with n members.
-function bar (prog) {
-  var r = prog.progress/prog.total
-  var s = '\r', M = 50
-  for(var i = 0; i < M; i++)
-    s += i < M*r ? '*' : '.'
-
-  return s + ' '+prog.progress+'/'+prog.total+'  '//+':'+prog.feeds
-}
-
-function isNumber (n) {
-  return typeof n === 'number'
-}
-
-function once (fn) {
-  var called = false
-  return function () {
-    if(called) throw new Error('called twice!')
-    called = true
-    fn.apply(this, arguments)
-  }
-}
 
 var createSsbServer = require('ssb-server')
   .use(require('ssb-replicate'))
@@ -133,7 +109,6 @@ tape('generate random network', function (t) {
   generateAnimals(animalNetwork, {add: animalNetwork.publish, id: animalNetwork.id}, F, N, function (err) {
     if(err) throw err
     console.log('replicate GRAPH')
-    var c = 0
     animalNetwork.getVectorClock(function (err, _generated) {
       if(err) throw err
 
@@ -155,14 +130,7 @@ tape('generate random network', function (t) {
 })
 
 tape('read all history streams', function (t) {
-
-  var opts = {
-    host: 'localhost', port: 45451,
-    key: alice.id,
-    manifest: animalNetwork.manifest()
-  }
-
-  var wants = {}, n = 0, c = 0, start = Date.now()
+  var c = 0, start = Date.now()
 
   //test just dumping everything!
   //not through network connection, because createLogStream is not on public api
@@ -210,8 +178,6 @@ tape('replicate social network for animals', function (t) {
     })
   })
 
-  var drain
-
   var int = setInterval(function () {
     var prog = animalFriends.progress()
     if(prog.ebt && prog.ebt.current === prog.ebt.target) {
@@ -245,5 +211,3 @@ tape('shutdown', function (t) {
   animalNetwork.close(true)
   t.end()
 })
-
-

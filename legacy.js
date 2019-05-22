@@ -2,16 +2,15 @@ var pull = require('pull-stream')
 var isFeed = require('ssb-ref').isFeed
 
 module.exports = function (sbot, ebt) {
+  function handleBlockUnlock(from, to, value) {
+    if (value === false)
+      ebt.block(from, to, true)
+    else if (ebt.state.blocks[from] && ebt.state.blocks[from][to])
+      ebt.block(from, to, false)
+  }
+
   setImmediate(function () {
     if(sbot.friends) {
-      function handleBlockUnlock(from, to, value)
-      {
-        if (value === false)
-          ebt.block(from, to, true)
-        else if (ebt.state.blocks[from] && ebt.state.blocks[from][to])
-          ebt.block(from, to, false)
-      }
-
       pull(
         sbot.friends.stream({live: true}),
         pull.drain(function (contacts) {

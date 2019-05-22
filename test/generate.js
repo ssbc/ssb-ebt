@@ -1,6 +1,4 @@
 var gen = require('ssb-generate')
-var pull = require('pull-stream')
-var paramap = require('pull-paramap')
 var crypto = require('crypto')
 var ssbKeys = require('ssb-keys')
 var assert = require('assert')
@@ -19,7 +17,7 @@ function randbytes (n) {
 
 var PASSED = false
 function track(bot, name) {
-  var l = 0, _ts = Date.now(), _l = 0
+  var l = 0, _l = 0
   bot.post(function (msg) {
     l++
   })
@@ -88,7 +86,7 @@ var alice = ssbKeys.generate()
         value: randbytes(randint(1024)).toString('base64')
       }
     }, peers, 200, function () {
-      var c = 0, ready = false
+      var ready = false
       console.log('set up, replicating')
       ;(function next (i) {
         if(!i) {
@@ -127,7 +125,7 @@ var alice = ssbKeys.generate()
 
           a_bot.getVectorClock(function (err, clock) {
             b_bot.getVectorClock(function (err, _clock) {
-              var different = 0, total_a = 0, total_b = 0
+              var different = 0
               function count (o) {
                 var t = 0, s = 0
                 for(var k in o) {
@@ -138,13 +136,10 @@ var alice = ssbKeys.generate()
               }
 
               for(var k in _clock) {
-                total_a += _clock[k]
                 if(clock[k] !== _clock[k]) {
                   different += (clock[k] || 0) - _clock[k]
                 }
               }
-              for(var k in clock)
-                total_b += clock[k]
 
               console.log('A',count(clock), 'B', count(_clock), 'diff', different)
               if(different === 0) {
@@ -168,5 +163,3 @@ var alice = ssbKeys.generate()
       })
     })
   })
-
-

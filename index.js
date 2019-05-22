@@ -9,19 +9,8 @@ var Legacy = require('./legacy')
 var Store = require('lossy-store')
 var toUrlFriendly = require('base64-url').escape
 
-function isEmpty (o) {
-  for(var k in o) return false
-  return true
-}
-
 function isObject (o) {
   return o && 'object' == typeof o
-}
-
-function countKeys (o) {
-  var n = 0
-  for(var k in o) n++
-  return n
 }
 
 function hook(hookable, fn) {
@@ -96,8 +85,6 @@ exports.init = function (sbot, config) {
     ebt.onAppend(msg.value)
   })
 
-  var status = {}
-
   //HACK: patch calls to replicate.request into ebt, too.
   hook(sbot.replicate.request, function (fn, args) {
     var id, replicate
@@ -113,8 +100,6 @@ exports.init = function (sbot, config) {
     ebt.request(id, replicate)
     return fn.apply(this, args)
   })
-
-  var ts = Date.now(), start = Date.now()
 
 //  hook(sbot.status, function (fn) {
 //    var _status = fn(), feeds = 0
