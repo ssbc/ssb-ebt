@@ -40,7 +40,7 @@ replication is immediately stopped.
 
 ### ebt.peerStatus (id, cb)
 
-query the status of replication for id.
+query the status of replication for a given feed id.
 returns a small data structure showing the replication
 state for all peers we are currently connected to.
 
