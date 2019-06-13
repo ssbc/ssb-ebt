@@ -1,5 +1,4 @@
 var cont      = require('cont')
-var deepEqual = require('deep-equal')
 var tape      = require('tape')
 var pull      = require('pull-stream')
 var u         = require('./util')
@@ -47,9 +46,7 @@ tape('replicate between 3 peers', function (t) {
   ])(function (err) {
     if(err) throw err
 
-    var rpc
     alice.connect(bob.getAddress(), function (_, _rpc) {
-      rpc = _rpc
     })
 
     var ary = []
@@ -63,7 +60,6 @@ tape('replicate between 3 peers', function (t) {
     var l = 12
     setTimeout(function next () {
       if(!--l) {
-        var _ary = []
           pull(
             createHistoryStream(bob, {id: alice.id, live: false}),
             pull.collect(function (err, _ary) {

@@ -29,7 +29,7 @@ var a_bot = createSbot({
 require('tape')( function (t) {
 
   t.throws(function () {
-    var a_rep = a_bot.ebt.replicate.call(bob, {version: 1})
+    a_bot.ebt.replicate.call(bob, {version: 1})
   })
 
   a_bot.close()

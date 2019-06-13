@@ -1,6 +1,5 @@
 var cont    = require('cont')
 var tape    = require('tape')
-var pull    = require('pull-stream')
 var u       = require('./util')
 var ssbKeys = require('ssb-keys')
 var crypto  = require('crypto')
@@ -48,8 +47,6 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
   ]) (function (err) {
     if(err) throw err
 
-    var n = 3, rpc
-
     bob.connect(carol.getAddress(), function (err, rpc) {
       if(err) throw err
     })
@@ -66,7 +63,7 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
     })
 
     var once = false
-    var bobCancel = bob.post(function (op) {
+    bob.post(function (op) {
       console.log('BOB RECV', op, bob.id)
       if(once) throw new Error('should only be called once')
       once = true
@@ -74,8 +71,9 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
 
       t.equal(op.value.author, alice.id)
       t.equal(op.value.content.contact, bob.id)
-      cont(alice.publish)(u.block(bob.id))
-      (function (err) { if(err) throw err })
+      cont(alice.publish)(u.block(bob.id))(function (err) {
+        if(err) throw err
+      })
     }, false)
   })
 })
