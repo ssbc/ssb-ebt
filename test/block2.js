@@ -3,11 +3,15 @@ var tape = require('tape')
 var pull = require('pull-stream')
 var ssbKeys = require('ssb-keys')
 var u = require('./util')
+var crypto = require('crypto')
 
-var createSsbServer = require('ssb-server')
-    .use(require('ssb-replicate'))
-    .use(require('ssb-friends'))
-    .use(require('..'))
+var createSsbServer = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
+  .use(require('ssb-replicate'))
+  .use(require('ssb-friends'))
+  .use(require('..'))
 
 var alice = createSsbServer({
     temp: 'test-block-alice', //timeout: 1400,
@@ -61,8 +65,3 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
 
   })
 })
-
-
-
-
-

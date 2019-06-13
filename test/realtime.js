@@ -3,10 +3,14 @@ var deepEqual = require('deep-equal')
 var tape      = require('tape')
 var pull      = require('pull-stream')
 var u         = require('./util')
+var crypto    = require('crypto')
 
 var ssbKeys = require('ssb-keys')
 
-var createSsbServer = require('ssb-server')
+var createSsbServer = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
   .use(require('ssb-replicate'))
   .use(require('..'))
   .use(require('ssb-friends'))
@@ -80,7 +84,3 @@ tape('replicate between 3 peers', function (t) {
 
   })
 })
-
-
-
-

@@ -3,6 +3,7 @@ var tape    = require('tape')
 var pull    = require('pull-stream')
 var u       = require('./util')
 var ssbKeys = require('ssb-keys')
+var crypto  = require('crypto')
 
 // alice, bob, and carol all follow each other,
 // but then bob offends alice, and she blocks him.
@@ -12,10 +13,13 @@ var ssbKeys = require('ssb-keys')
 // 2. alice never tries to connect to bob. (removed from peers)
 // 3. carol will not give bob any, she will not give him any data from alice.
 
-var createSsbServer = require('ssb-server')
-    .use(require('ssb-replicate'))
-    .use(require('ssb-friends'))
-    .use(require('..'))
+var createSsbServer = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
+  .use(require('ssb-replicate'))
+  .use(require('ssb-friends'))
+  .use(require('..'))
 
 var alice = createSsbServer({
     temp: 'test-block-alice', timeout: 1000,
@@ -75,4 +79,3 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
     }, false)
   })
 })
-

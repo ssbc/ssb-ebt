@@ -32,10 +32,13 @@ function track(bot, name) {
 
 var alice = ssbKeys.generate()
 
-  var createSbot = require('ssb-server')
-    .use(require('ssb-replicate'))
-    .use(require('../'))
-    .use(require('ssb-friends'))
+  var createSbot = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
+  .use(require('ssb-replicate'))
+  .use(require('../'))
+  .use(require('ssb-friends'))
 
   var timeout = 2000
 
@@ -140,4 +143,3 @@ var alice = ssbKeys.generate()
     })
 
   })
-

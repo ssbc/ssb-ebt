@@ -37,10 +37,13 @@ function track(bot, name) {
 
 var alice = ssbKeys.generate()
 
-  var createSbot = require('ssb-server')
-    .use(require('ssb-replicate'))
-    .use(require('../'))
-    .use(require('ssb-friends'))
+  var createSbot = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
+  .use(require('ssb-replicate'))
+  .use(require('../'))
+  .use(require('ssb-friends'))
 
   var timeout = 2000
 
@@ -94,10 +97,11 @@ var alice = ssbKeys.generate()
         if(!i) {
           return ready = true
         }
-
+        var other = randary(peers).id
+        console.log("b_bot.publish", {follow: other})
         b_bot.publish({
           type: 'contact',
-          contact: randary(peers).id,
+          contact: other,
           following: true
         }, function (err, msg) {
           if(err) throw err
@@ -119,14 +123,16 @@ var alice = ssbKeys.generate()
         var int = setInterval(function () {
 
           var prog = a_bot.progress()
-          console.log('assertions')
+          console.log('assertions', ready)
           assert.ok(prog.indexes)
           assert.ok(prog.ebt)
           assert.ok(prog.ebt.target)
           if(!ready) return
 
+          console.log("GET VECTOR CLOCK", a_bot.status())
           a_bot.getVectorClock(function (err, clock) {
             b_bot.getVectorClock(function (err, _clock) {
+              console.log(clock, _clock)
               var different = 0, total_a = 0, total_b = 0
               function count (o) {
                 var t = 0, s = 0
@@ -168,5 +174,7 @@ var alice = ssbKeys.generate()
       })
     })
   })
+
+
 
 

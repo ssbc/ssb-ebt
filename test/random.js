@@ -3,6 +3,7 @@ var pull      = require('pull-stream')
 var paramap   = require('pull-paramap')
 var ssbKeys   = require('ssb-keys')
 var u         = require('./util')
+var crypto    = require('crypto')
 
 var tape      = require('tape')
 
@@ -34,7 +35,10 @@ function once (fn) {
   }
 }
 
-var createSsbServer = require('ssb-server')
+var createSsbServer = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
   .use(require('ssb-replicate'))
   .use(require('ssb-friends'))
   .use(require('..'))
@@ -245,5 +249,3 @@ tape('shutdown', function (t) {
   animalNetwork.close(true)
   t.end()
 })
-
-

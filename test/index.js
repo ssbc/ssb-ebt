@@ -1,6 +1,11 @@
-var cont = require('cont')
-var pull = require('pull-stream')
-var createSbot = require('ssb-server')
+var cont   = require('cont')
+var pull   = require('pull-stream')
+var crypto = require('crypto')
+
+  var createSbot = require('secret-stack')({
+    caps: {shs: crypto.randomBytes(32).toString('base64')}
+  })
+  .use(require('ssb-db'))
   .use({
     //fake replicate plugin
     name: 'replicate',
@@ -139,4 +144,3 @@ setInterval(function () {
     c_bot.close()
   }, 1000)
 }, 500)
-
