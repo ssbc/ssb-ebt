@@ -121,7 +121,7 @@ exports.init = function (sbot, config) {
 //    _status.ebt = ebt.status()
 //    return _status
 //  })
-//
+
   hook(sbot.progress, function (fn) {
     var prog = fn()
     var p = ebt.progress()
@@ -162,6 +162,9 @@ exports.init = function (sbot, config) {
       // only update unblock if they were already blocked
       ebt.block(from, to, false)
     }
+    //if we blocked them, but happen to be connected, disconnect immediately.
+    if(blocking && sbot.id == from && ebt.state.peers[to])
+      sbot.gossip && sbot.gossip.disconnect(to, function () {})
   }
 
   if(sbot.replicate.block)
@@ -203,4 +206,3 @@ exports.init = function (sbot, config) {
     block: block
   }
 }
-
