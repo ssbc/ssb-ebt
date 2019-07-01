@@ -16,10 +16,10 @@
     "ssb-ref": "^2.9.1"
   },
   "devDependencies": {
-    "cat-names": "^2.0.0",
+    "cat-names": "^3.0.0",
     "cont": "^1.0.3",
     "deep-equal": "^1.0.1",
-    "dog-names": "^1.0.2",
+    "dog-names": "^2.0.0",
     "nyc": "^13.2.0",
     "pull-paramap": "^1.2.2",
     "rng": "^0.2.2",
