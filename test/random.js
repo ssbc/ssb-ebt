@@ -11,7 +11,6 @@ var dogs = require('dog-names')
 
 var generated = {}, F=100,N=10000
 
-<<<<<<< HEAD
 //build a random network, with n members.
 function bar (prog) {
   var r = prog.progress/prog.total
@@ -39,9 +38,6 @@ var createSsbServer = require('secret-stack')({
     caps: {shs: crypto.randomBytes(32).toString('base64')}
   })
   .use(require('ssb-db'))
-=======
-var createSsbServer = require('ssb-server')
->>>>>>> 349c662be4af3ae420ab8293d08f603a052ccd6a
   .use(require('ssb-replicate'))
   .use(require('ssb-friends'))
   .use(require('..'))
