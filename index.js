@@ -85,21 +85,23 @@ exports.init = function (sbot, config) {
     ebt.onAppend(msg.value)
   })
 
-  //HACK: patch calls to replicate.request into ebt, too.
-  hook(sbot.replicate.request, function (fn, args) {
-    var id, replicate
-    if(isObject(args[0])) {
-      id = args[0].id
-      replicate = args[0].replicate
-    }
-    else {
-      id = args[0]
-      replicate = args[1]
-    }
-    if(!isFeed(id)) return
-    ebt.request(id, replicate)
-    return fn.apply(this, args)
-  })
+  if (sbot.replicate) {
+    //HACK: patch calls to replicate.request into ebt, too.
+    hook(sbot.replicate.request, function (fn, args) {
+      var id, replicate
+      if(isObject(args[0])) {
+        id = args[0].id
+        replicate = args[0].replicate
+      }
+      else {
+        id = args[0]
+        replicate = args[1]
+      }
+      if(!isFeed(id)) return
+      ebt.request(id, replicate)
+      return fn.apply(this, args)
+    })
+  }
 
 //  hook(sbot.status, function (fn) {
 //    var _status = fn(), feeds = 0
@@ -152,7 +154,7 @@ exports.init = function (sbot, config) {
       sbot.gossip && sbot.gossip.disconnect(to, function () {})
   }
 
-  if(sbot.replicate.block)
+  if(sbot.replicate && sbot.replicate.block)
     sbot.replicate.block.hook(function (fn, args) {
       block.apply(this, args)
       return fn.apply(this, args)
@@ -187,6 +189,7 @@ exports.init = function (sbot, config) {
       return data
     },
 
+    request: ebt.request,
     // expose ebt.block for ssb-servers that don't have the ssb-friends plugin
     block: block
   }
