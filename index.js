@@ -120,7 +120,6 @@ exports.init = function (sbot, config) {
 
 
   sbot.on('rpc:connect', function (rpc, isClient) {
-    if(isClient) {
       var opts = {version: 3}
       var a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       var b = rpc.ebt.replicate(opts, function (err) {
@@ -132,7 +131,6 @@ exports.init = function (sbot, config) {
 
       pull(a, b, a)
       rpc.on('closed', onClose)
-    }
   })
 
   function block (from, to, blocking) {
