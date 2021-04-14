@@ -148,8 +148,10 @@ exports.init = function (sbot, config) {
       ebt.block(from, to, false)
     }
     //if we blocked them, but happen to be connected, disconnect immediately.
-    if(blocking && sbot.id == from && ebt.state.peers[to])
-      sbot.gossip && sbot.gossip.disconnect(to, function () {})
+    if(blocking && sbot.id == from && ebt.state.peers[to]) {
+      if (sbot.conn) sbot.conn.disconnect(to, function () {})
+      else if (sbot.gossip) sbot.gossip.disconnect(to, function () {})
+    }
   }
 
   if(sbot.replicate.block)
