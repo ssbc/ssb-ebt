@@ -50,7 +50,9 @@ module.exports = function (sbot) {
 
             const msg = ready.shift()
             o[msg.author].ready = null
-            if (o[msg.author].seq <= clock[msg.author]) { get(msg.author) } else {
+            if (o[msg.author].seq <= clock[msg.author]) {
+              get(msg.author)
+            } else {
               console.log(done++, clock[msg.author])
               if (done === waiting) {
                 const errOrEnd = true
