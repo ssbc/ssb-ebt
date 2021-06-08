@@ -1,100 +1,107 @@
-var cont   = require('cont')
-var pull   = require('pull-stream')
-var crypto = require('crypto')
+const cont = require('cont')
+const pull = require('pull-stream')
+const crypto = require('crypto')
+const ssbKeys = require('ssb-keys')
+const SecretStack = require('secret-stack')
 
-  var createSbot = require('secret-stack')({
-    caps: {shs: crypto.randomBytes(32).toString('base64')}
-  })
+const createSbot = SecretStack({
+  caps: { shs: crypto.randomBytes(32).toString('base64') }
+})
   .use(require('ssb-db'))
   .use({
-    //fake replicate plugin
+    // fake replicate plugin
     name: 'replicate',
     init: function () {
-      return {request: function () {}}
+      return { request: function () {} }
     }
   })
-  .use(require('../')) //EBT
+  .use(require('../')) // EBT
 
 function Delay (d) {
   d = d || 100
   return pull.asyncMap(function (data, cb) {
     setTimeout(function () {
       cb(null, data)
-    }, ~~(d + Math.random()*d))
+    }, ~~(d + Math.random() * d))
   })
 }
 
-var ssbKeys   = require('ssb-keys')
+const alice = ssbKeys.generate()
+const bob = ssbKeys.generate()
+const charles = ssbKeys.generate()
 
-var alice = ssbKeys.generate()
-var bob = ssbKeys.generate()
-var charles = ssbKeys.generate()
-
-var a_bot = createSbot({
+const botA = createSbot({
   temp: 'random-animals_alice',
-  port: 45451, host: 'localhost', timeout: 20001,
-  replicate: {legacy: false}, keys: alice,
-  gossip: {pub: false},
-  friends: {hops: 10},
+  port: 45451,
+  host: 'localhost',
+  timeout: 20001,
+  replicate: { legacy: false },
+  keys: alice,
+  gossip: { pub: false },
+  friends: { hops: 10 }
 })
 
-var b_bot = createSbot({
+const botB = createSbot({
   temp: 'random-animals_bob',
-  port: 45452, host: 'localhost', timeout: 20001,
-  replicate: {legacy: false},
-  friends: {hops: 10},
-  gossip: {pub: false},
+  port: 45452,
+  host: 'localhost',
+  timeout: 20001,
+  replicate: { legacy: false },
+  friends: { hops: 10 },
+  gossip: { pub: false },
   keys: bob
 })
 
-var c_bot = createSbot({
+const botC = createSbot({
   temp: 'random-animals_charles',
-  port: 45453, host: 'localhost', timeout: 20001,
-  replicate: {legacy: false},
-  friends: {hops: 10},
-  gossip: {pub: false},
+  port: 45453,
+  host: 'localhost',
+  timeout: 20001,
+  replicate: { legacy: false },
+  friends: { hops: 10 },
+  gossip: { pub: false },
   keys: charles
 })
 
-var feeds = [a_bot, b_bot, c_bot]
-//make sure all the sbots are replicating all the feeds.
+const feeds = [botA, botB, botC]
+// make sure all the sbots are replicating all the feeds.
 feeds.forEach(function (f) {
-  a_bot.replicate.request(f.id)
-  b_bot.replicate.request(f.id)
-  c_bot.replicate.request(f.id)
+  botA.replicate.request(f.id)
+  botB.replicate.request(f.id)
+  botC.replicate.request(f.id)
 })
 
-var all = {}, recv = {}
+const all = {}
+const recv = {}
 
 function consistent (name) {
-  if(!name) throw new Error('name must be provided')
+  if (!name) throw new Error('name must be provided')
   recv[name] = {}
   return function (msg) {
     recv[name][msg.key] = true
-    var missing = 0, has = 0
-    for(var k in all) {
-      for(var n in recv) {
-        if(!recv[n][k]) missing ++
-        else            has ++
+    let missing = 0
+    let has = 0
+    for (const k in all) {
+      for (const n in recv) {
+        if (!recv[n][k]) missing++
+        else has++
       }
     }
 
-    console.log('missing/has' ,missing, has)
-    if(!missing)
-      console.log('CONSISTENT!!!')
+    console.log('missing/has', missing, has)
+    if (!missing) { console.log('CONSISTENT!!!') }
   }
 }
 
-a_bot.post(consistent('alice'))
-b_bot.post(consistent('bob'))
-c_bot.post(consistent('charles'))
+botA.post(consistent('alice'))
+botB.post(consistent('bob'))
+botC.post(consistent('charles'))
 
 cont.para(feeds.map(function (f) {
   return function (cb) {
-    return f.publish({type:'post', text: 'hello world'}, cb)
+    return f.publish({ type: 'post', text: 'hello world' }, cb)
   }
 }))(function () {
-
   function log (name) {
     return pull.through(function (data) {
       console.log(name, data)
@@ -102,45 +109,43 @@ cont.para(feeds.map(function (f) {
   }
 
   function peers (a, b, name1, name2, d) {
-    var a_rep = a.ebt.replicate.call({id: name2}, {version: 2})
-    var b_rep = b.ebt.replicate.call({id: name1}, {version: 2})
+    const repA = a.ebt.replicate.call({ id: name2 }, { version: 2 })
+    const repB = b.ebt.replicate.call({ id: name1 }, { version: 2 })
 
     pull(
-      a_rep,
+      repA,
       Delay(d),
-      log(name1+'->'+name2),
-      b_rep,
+      log(name1 + '->' + name2),
+      repB,
       Delay(d),
-      log(name2+'->'+name1),
-      a_rep
+      log(name2 + '->' + name1),
+      repA
     )
   }
 
-  peers(a_bot, b_bot, 'a', 'b', 10)
-  peers(a_bot, c_bot, 'a', 'c', 10)
-  peers(c_bot, b_bot, 'c', 'b', 7)
-
+  peers(botA, botB, 'a', 'b', 10)
+  peers(botA, botC, 'a', 'c', 10)
+  peers(botC, botB, 'c', 'b', 7)
 })
 
-var i = 10
-var int =
-setInterval(function () {
-  console.log('post', a_bot.since())
-  var N = ~~(Math.random()*feeds.length)
-  console.log("APPEND", N)
-  feeds[N].publish({type:'post', text: new Date().toString()}, function () {})
-  if(--i) return
+let i = 10
+const int = setInterval(function () {
+  console.log('post', botA.since())
+  const N = ~~(Math.random() * feeds.length)
+  console.log('APPEND', N)
+  feeds[N].publish({ type: 'post', text: new Date().toString() }, () => {})
+  if (--i) return
   clearInterval(int)
 
-  console.log('Alice', a_bot.since())
-  console.log('Bob', b_bot.since())
-  console.log('Charles', c_bot.since())
+  console.log('Alice', botA.since())
+  console.log('Bob', botB.since())
+  console.log('Charles', botC.since())
 
-  //and check that all peers are consistent.
+  // and check that all peers are consistent.
   setTimeout(function () {
     console.log('close')
-    a_bot.close()
-    b_bot.close()
-    c_bot.close()
+    botA.close()
+    botB.close()
+    botC.close()
   }, 1000)
 }, 500)

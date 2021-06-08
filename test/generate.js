@@ -1,10 +1,19 @@
-var gen = require('ssb-generate')
-var crypto = require('crypto')
-var ssbKeys = require('ssb-keys')
-var assert = require('assert')
+const gen = require('ssb-generate')
+const assert = require('assert')
+const crypto = require('crypto')
+const ssbKeys = require('ssb-keys')
+const SecretStack = require('secret-stack')
+
+const createSbot = SecretStack({
+  caps: { shs: crypto.randomBytes(32).toString('base64') }
+})
+  .use(require('ssb-db'))
+  .use(require('ssb-replicate'))
+  .use(require('../'))
+  .use(require('ssb-friends'))
 
 function randint (n) {
-  return ~~(Math.random()*n)
+  return ~~(Math.random() * n)
 }
 
 function randary (a) {
@@ -15,156 +24,154 @@ function randbytes (n) {
   return crypto.randomBytes(n)
 }
 
-var PASSED = false
-function track(bot, name) {
-  var l = 0, _l = 0
+let PASSED = false
+function track (bot, name) {
+  let l = 0
+  let _l = 0
   bot.post(function (msg) {
     l++
   })
   setInterval(function () {
-    if(_l != l) {
+    if (_l !== l) {
       console.log(name, l, l - _l, bot.progress())
       _l = l
     }
   }, 1000).unref()
 }
 
-//SOMETIMES this test fails. I think it's just because
-//some of the peers might be too far from the followed peer.
-//TODO: create a thing that checks they where all actually reachable!
+// SOMETIMES this test fails. I think it's just because
+// some of the peers might be too far from the followed peer.
+// TODO: create a thing that checks they where all actually reachable!
 
-var alice = ssbKeys.generate()
+const alice = ssbKeys.generate()
 
-  var createSbot = require('secret-stack')({
-    caps: {shs: crypto.randomBytes(32).toString('base64')}
-  })
-  .use(require('ssb-db'))
-  .use(require('ssb-replicate'))
-  .use(require('../'))
-  .use(require('ssb-friends'))
+const timeout = 2000
 
-  var timeout = 2000
+const botA = createSbot({
+  temp: 'alice',
+  port: 55451,
+  host: 'localhost',
+  timeout: timeout,
+  replicate: { hops: 3, legacy: false },
+  keys: alice
+})
 
-  var a_bot = createSbot({
-    temp: 'alice',
-    port: 55451, host: 'localhost', timeout: timeout,
-    replicate: {hops: 3, legacy: false},
-    keys: alice
-  })
+console.log('address?', botA.getAddress())
+if (!botA.getAddress()) { throw new Error('a_bot has not address?') }
 
+const botB = createSbot({
+  temp: 'bob',
+  port: 55452,
+  host: 'localhost',
+  timeout: timeout,
+  replicate: { hops: 3, legacy: false },
+  keys: ssbKeys.generate()
+})
 
-  console.log('address?', a_bot.getAddress())
-  if(!a_bot.getAddress())
-    throw new Error('a_bot has not address?')
+botA.publish({
+  type: 'contact',
+  contact: botB.id,
+  following: true
+}, function () {})
 
-  var b_bot = createSbot({
-    temp: 'bob',
-    port: 55452, host: 'localhost', timeout: timeout,
-    replicate: {hops: 3, legacy: false},
-    keys: ssbKeys.generate()
-  })
+track(botA, 'alice')
+track(botB, 'bob')
 
-  a_bot.publish({
-    type:'contact',
-    contact: b_bot.id,
-    following: true
-  }, function () {})
-
-  track(a_bot, 'alice')
-  track(b_bot, 'bob')
-
-  gen.initialize(a_bot, 20, 3, function (err, peers) {
-    if(err) throw err
-    console.log('initialized')
-    gen.messages(function (n) {
-      if(Math.random() < 0.3)
-        return {
-          type: 'contact', contact: randary(peers).id,
-          following: true
-        }
+gen.initialize(botA, 20, 3, function (err, peers) {
+  if (err) throw err
+  console.log('initialized')
+  gen.messages(function (n) {
+    if (Math.random() < 0.3) {
       return {
-        type: 'test',
-        ts: Date.now(),
-        random: Math.random(),
-        value: randbytes(randint(1024)).toString('base64')
+        type: 'contact',
+        contact: randary(peers).id,
+        following: true
       }
-    }, peers, 200, function () {
-      var ready = false
-      console.log('set up, replicating')
-      ;(function next (i) {
-        if(!i) {
-          return ready = true
-        }
-        var other = randary(peers).id
-        console.log("b_bot.publish", {follow: other})
-        b_bot.publish({
-          type: 'contact',
-          contact: other,
-          following: true
-        }, function (err, msg) {
-          if(err) throw err
-          next(i - 1)
-
-        })
-      })(50)
-
-      process.on('exit', function () {
-        if(!PASSED) {
-          console.log('FAILED')
-          process.exit(1)
-        }
+    }
+    return {
+      type: 'test',
+      ts: Date.now(),
+      random: Math.random(),
+      value: randbytes(randint(1024)).toString('base64')
+    }
+  }, peers, 200, function () {
+    let ready = false
+    console.log('set up, replicating')
+    ;(function next (i) {
+      if (!i) {
+        ready = true
+        return
+      }
+      const other = randary(peers).id
+      console.log('b_bot.publish', { follow: other })
+      botB.publish({
+        type: 'contact',
+        contact: other,
+        following: true
+      }, function (err, msg) {
+        if (err) throw err
+        next(i - 1)
       })
+    })(50)
 
-      b_bot.connect(a_bot.getAddress(), function (err) {
-        console.log('A<-->B')
-        if(err) throw err
-        var int = setInterval(function () {
+    process.on('exit', function () {
+      if (!PASSED) {
+        console.log('FAILED')
+        process.exit(1)
+      }
+    })
 
-          var prog = a_bot.progress()
-          console.log('assertions', ready)
-          assert.ok(prog.indexes)
-          assert.ok(prog.ebt)
-          assert.ok(prog.ebt.target)
-          if(!ready) return
+    botB.connect(botA.getAddress(), function (err) {
+      console.log('A<-->B')
+      if (err) throw err
+      const int = setInterval(function () {
+        const prog = botA.progress()
+        console.log('assertions', ready)
+        assert.ok(prog.indexes)
+        assert.ok(prog.ebt)
+        assert.ok(prog.ebt.target)
+        if (!ready) return
 
-          console.log("GET VECTOR CLOCK", a_bot.status())
-          a_bot.getVectorClock(function (err, clock) {
-            b_bot.getVectorClock(function (err, _clock) {
-              var different = 0, total_a = 0, total_b = 0
-              function count (o) {
-                var t = 0, s = 0
-                for(var k in o) {
-                  t++
-                  s += o[k]
-                }
-                return {total: t, sum: s}
+        console.log('GET VECTOR CLOCK', botA.status())
+        botA.getVectorClock(function (err, clock) {
+          if (err) throw err
+          botB.getVectorClock(function (err, _clock) {
+            if (err) throw err
+            let different = 0
+            function count (o) {
+              let t = 0
+              let s = 0
+              for (const k in o) {
+                t++
+                s += o[k]
               }
+              return { total: t, sum: s }
+            }
 
-              for(var k in _clock) {
-                if(clock[k] !== _clock[k]) {
-                  different += (clock[k] || 0) - _clock[k]
-                }
+            for (const k in _clock) {
+              if (clock[k] !== _clock[k]) {
+                different += (clock[k] || 0) - _clock[k]
               }
+            }
 
-              console.log('A',count(clock), 'B', count(_clock), 'diff', different)
-              if(different === 0) {
-                  PASSED = true
-                  var prog = a_bot.progress()
-                  assert.ok(prog.indexes)
-                  assert.ok(prog.ebt)
-                  assert.ok(prog.ebt.target)
-                  assert.equal(prog.ebt.current, prog.ebt.target)
-                  clearInterval(int)
-                  a_bot.close()
-                  b_bot.close()
-                console.log("PASSED")
-              }
-              else {
-                console.log('inconsistent', JSON.stringify(a_bot.status().ebt))
-              }
-            })
+            console.log('A', count(clock), 'B', count(_clock), 'diff', different)
+            if (different === 0) {
+              PASSED = true
+              const prog = botA.progress()
+              assert.ok(prog.indexes)
+              assert.ok(prog.ebt)
+              assert.ok(prog.ebt.target)
+              assert.strictEqual(prog.ebt.current, prog.ebt.target)
+              clearInterval(int)
+              botA.close()
+              botB.close()
+              console.log('PASSED')
+            } else {
+              console.log('inconsistent', JSON.stringify(botA.status().ebt))
+            }
           })
-        }, 1000)
-      })
+        })
+      }, 1000)
     })
   })
+})

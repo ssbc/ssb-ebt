@@ -1,37 +1,38 @@
-var cont   = require('cont')
-var pull   = require('pull-stream')
-var crypto = require('crypto')
+const tape = require('tape')
+const crypto = require('crypto')
+const ssbKeys = require('ssb-keys')
+const SecretStack = require('secret-stack')
 
-var createSbot = require('secret-stack')({
-    caps: {shs: crypto.randomBytes(32).toString('base64')}
-  })
+const createSbot = SecretStack({
+  caps: { shs: crypto.randomBytes(32).toString('base64') }
+})
   .use(require('ssb-db'))
   .use({
-    //fake replicate plugin
+    // fake replicate plugin
     name: 'replicate',
     init: function () {
-      return {request: function () {}}
+      return { request: function () {} }
     }
   })
-  .use(require('../')) //EBT
+  .use(require('../')) // EBT
 
-var ssbKeys   = require('ssb-keys')
+const alice = ssbKeys.generate()
+const bob = ssbKeys.generate()
 
-var alice = ssbKeys.generate()
-var bob = ssbKeys.generate()
-
-var a_bot = createSbot({
+const botA = createSbot({
   temp: 'random-animals',
-  port: 45451, host: 'localhost', timeout: 20001,
-  replicate: {hops: 3, legacy: false}, keys: alice
+  port: 45451,
+  host: 'localhost',
+  timeout: 20001,
+  replicate: { hops: 3, legacy: false },
+  keys: alice
 })
 
-require('tape')( function (t) {
-
+tape(function (t) {
   t.throws(function () {
-    a_bot.ebt.replicate.call(bob, {version: 1})
+    botA.ebt.replicate.call(bob, { version: 1 })
   })
 
-  a_bot.close()
+  botA.close()
   t.end()
 })
