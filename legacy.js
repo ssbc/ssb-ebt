@@ -3,7 +3,11 @@ const isFeed = require('ssb-ref').isFeed
 
 module.exports = function (sbot, ebt) {
   function handleBlockUnlock (from, to, value) {
-    if (value === false) { ebt.block(from, to, true) } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) { ebt.block(from, to, false) }
+    if (value === false) {
+      ebt.block(from, to, true)
+    } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
+      ebt.block(from, to, false)
+    }
   }
 
   setImmediate(function () {
