@@ -32,9 +32,11 @@
     "ssb-generate": "^1.0.1",
     "ssb-gossip": "^1.0.1",
     "ssb-replicate": "^1.2.1",
-    "ssb-validate": "^4.0.4"
+    "ssb-validate": "^4.0.4",
+    "standardx": "^7.0.0"
   },
   "scripts": {
+    "lint": "standardx --fix '**/*.js'",
     "test": "set -e; for t in test/*.js; do echo \"#Test: $t\"; node $t; done",
     "coverage": "nyc --reporter=lcov npm test"
   },

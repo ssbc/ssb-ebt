@@ -1,18 +1,18 @@
-var cont      = require('cont')
-var deepEqual = require('deep-equal')
-var tape      = require('tape')
-var ssbKeys   = require('ssb-keys')
-var crypto    = require('crypto')
-
-var u = require('./util')
+const tape = require('tape')
+const cont = require('cont')
+const deepEqual = require('deep-equal')
+const crypto = require('crypto')
+const ssbKeys = require('ssb-keys')
+const SecretStack = require('secret-stack')
+const u = require('./util')
 
 // create 3 servers
 // give them all pub servers (on localhost)
 // and get them to follow each other...
 
-var createSsbServer = require('secret-stack')({
-    caps: {shs: crypto.randomBytes(32).toString('base64')}
-  })
+const createSsbServer = SecretStack({
+  caps: { shs: crypto.randomBytes(32).toString('base64') }
+})
   .use(require('ssb-db'))
   .use(require('ssb-replicate'))
   .use(require('..'))
@@ -20,38 +20,40 @@ var createSsbServer = require('secret-stack')({
   .use(require('ssb-gossip'))
 
 tape('replicate between 3 peers', function (t) {
-
-  var alice, bob, carol
-  var dbA = createSsbServer({
+  let alice, bob, carol
+  const dbA = createSsbServer({
     temp: 'server-alice',
-    port: 45451, timeout: 1400,
+    port: 45451,
+    timeout: 1400,
     keys: alice = ssbKeys.generate(),
-    replicate: {legacy: false},
-    gossip: {pub: false},
+    replicate: { legacy: false },
+    gossip: { pub: false },
     level: 'info'
   })
-  var dbB = createSsbServer({
+  const dbB = createSsbServer({
     temp: 'server-bob',
-    port: 45452, timeout: 1400,
+    port: 45452,
+    timeout: 1400,
     keys: bob = ssbKeys.generate(),
     seeds: [dbA.getAddress()],
-    replicate: {legacy: false},
-    gossip: {pub: false},
+    replicate: { legacy: false },
+    gossip: { pub: false },
     level: 'info'
   })
-  var dbC = createSsbServer({
+  const dbC = createSsbServer({
     temp: 'server-carol',
-    port: 45453, timeout: 1400,
+    port: 45453,
+    timeout: 1400,
     keys: carol = ssbKeys.generate(),
     seeds: [dbA.getAddress()],
-    replicate: {legacy: false},
-    gossip: {pub: false},
+    replicate: { legacy: false },
+    gossip: { pub: false },
     level: 'info'
   })
 
-  var apub = cont(dbA.publish)
-  var bpub = cont(dbB.publish)
-  var cpub = cont(dbC.publish)
+  const apub = cont(dbA.publish)
+  const bpub = cont(dbB.publish)
+  const cpub = cont(dbC.publish)
 
   cont.para([
     apub(u.pub(dbA.getAddress())),
@@ -66,19 +68,19 @@ tape('replicate between 3 peers', function (t) {
 
     cpub(u.follow(alice.id)),
     cpub(u.follow(bob.id))
-  ]) (function (err, ary) {
-    if(err) throw err
+  ])(function (err, ary) {
+    if (err) throw err
 
-    var expected = {}
+    const expected = {}
     expected[alice.id] = expected[bob.id] = expected[carol.id] = 3
-    function check(server, name) {
-      var closed = false
-      var int = setInterval(function () {
+    function check (server, name) {
+      let closed = false
+      const int = setInterval(function () {
         server.getVectorClock(function (err, actual) {
-          if(err) throw err
-          if(closed) return
+          if (err) throw err
+          if (closed) return
           console.log(actual)
-          if(deepEqual(expected, actual)) {
+          if (deepEqual(expected, actual)) {
             clearInterval(int)
             closed = true
             done()
@@ -91,11 +93,13 @@ tape('replicate between 3 peers', function (t) {
     check(dbB, 'BOB')
     check(dbC, 'CAROL')
 
-    var n = 3
+    let n = 3
 
     function done () {
-      if(--n) return
-      dbA.close(true); dbB.close(true); dbC.close(true)
+      if (--n) return
+      dbA.close(true)
+      dbB.close(true)
+      dbC.close(true)
       t.ok(true)
       t.end()
     }
