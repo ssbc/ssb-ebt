@@ -79,7 +79,7 @@ tape('replicate between 3 peers', function (t) {
         server.getVectorClock(function (err, actual) {
           if (err) throw err
           if (closed) return
-          console.log(actual)
+          u.log(actual)
           if (deepEqual(expected, actual)) {
             clearInterval(int)
             closed = true

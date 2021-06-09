@@ -23,6 +23,10 @@ exports.pub = function (address) {
   }
 }
 
+exports.log = function (...args) {
+  if (process.env.TEST_VERBOSE) console.log(...args)
+}
+
 exports.file = function (hash) {
   return {
     type: 'file',

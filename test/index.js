@@ -1,8 +1,10 @@
+const tape = require('tape')
 const cont = require('cont')
 const pull = require('pull-stream')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
+const u = require('./util')
 
 const createSbot = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
@@ -88,8 +90,8 @@ function consistent (name) {
       }
     }
 
-    console.log('missing/has', missing, has)
-    if (!missing) { console.log('CONSISTENT!!!') }
+    u.log('missing/has', missing, has)
+    if (!missing) { u.log('CONSISTENT!!!') }
   }
 }
 
@@ -104,7 +106,7 @@ cont.para(feeds.map(function (f) {
 }))(function () {
   function log (name) {
     return pull.through(function (data) {
-      console.log(name, data)
+      u.log(name, data)
     })
   }
 
@@ -128,24 +130,38 @@ cont.para(feeds.map(function (f) {
   peers(botC, botB, 'c', 'b', 7)
 })
 
+let passed = false
 let i = 10
 const int = setInterval(function () {
-  console.log('post', botA.since())
+  u.log('post', botA.since())
   const N = ~~(Math.random() * feeds.length)
-  console.log('APPEND', N)
+  u.log('APPEND', N)
   feeds[N].publish({ type: 'post', text: new Date().toString() }, () => {})
   if (--i) return
   clearInterval(int)
 
-  console.log('Alice', botA.since())
-  console.log('Bob', botB.since())
-  console.log('Charles', botC.since())
+  u.log('Alice', botA.since())
+  u.log('Bob', botB.since())
+  u.log('Charles', botC.since())
 
   // and check that all peers are consistent.
   setTimeout(function () {
-    console.log('close')
+    u.log('close')
     botA.close()
     botB.close()
     botC.close()
+    passed = true
   }, 1000)
 }, 500)
+
+// TODO refactor this entirely file, it should be using tape
+
+tape('TODO name this test', function (t) {
+  t.timeoutAfter(10e3)
+  let int = setInterval(() => {
+    if (passed) {
+      clearInterval(int)
+      t.end()
+    }
+  }, 500)
+})

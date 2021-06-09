@@ -40,6 +40,7 @@ const carol = createSsbServer({
 })
 
 tape('alice blocks bob while he is connected, she should disconnect him', function (t) {
+  t.plan(3)
   // in the beginning alice and bob follow each other
   cont.para([
     cont(alice.publish)(u.follow(bob.id)),
@@ -67,7 +68,7 @@ tape('alice blocks bob while he is connected, she should disconnect him', functi
 
     let once = false
     bob.post(function (op) {
-      console.log('BOB RECV', op, bob.id)
+      u.log('BOB RECV', op, bob.id)
       if (once) throw new Error('should only be called once')
       once = true
       // should be the alice's follow(bob) message.

@@ -50,7 +50,7 @@ tape('replicate between 3 peers', function (t) {
     pull(
       createHistoryStream(bob, { id: alice.id, live: true }),
       pull.drain(function (data) {
-        console.log(data)
+        u.log(data)
         ary.push(data)
       })
     )
@@ -72,7 +72,7 @@ tape('replicate between 3 peers', function (t) {
         alice.publish({ type: 'test', value: new Date() },
           function (err, msg) {
             if (err) throw err
-            console.log('added', msg.key, msg.value.sequence)
+            u.log('added', msg.key, msg.value.sequence)
             setTimeout(next, 200)
           })
       }

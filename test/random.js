@@ -26,7 +26,7 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
 
   while (f-- > 0) { a.push(ssbServer.createFeed()) }
 
-  console.log('generate NAMES')
+  u.log('generate NAMES')
 
   pull(
     pull.values(a),
@@ -35,7 +35,7 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
       const name = animal === 'cat' ? cats.random() : dogs.allRandom()
 
       feed.name = name
-      console.log(feed.id)
+      u.log(feed.id)
       feed.add(u.follow(feed.id), cb)
     }, 10),
     pull.drain(null, function (err) {
@@ -47,7 +47,7 @@ function generateAnimals (ssbServer, feed, f, n, cb) {
         paramap(function (n, cb) {
           const me = a[~~(Math.random() * a.length)]
           const r = Math.random()
-          if (r < 0.1) console.log(n, me.id, r) // log only 1 in 10, less noise
+          if (r < 0.1) u.log(n, me.id, r) // log only 1 in 10, less noise
           // one in 20 messages is a random follow
           if (r < 0.5) {
             const f = a[~~(Math.random() * a.length)]
@@ -96,7 +96,7 @@ const animalNetwork = createSsbServer({
 let live = 0
 animalNetwork.post(function () {
   if (!(live++ % 100)) {
-    console.log(live, live)
+    u.log(live, live)
   }
 })
 
@@ -104,7 +104,7 @@ pull(
   animalNetwork.replicate.changes(),
   pull.drain(function (prog) {
     prog.id = 'animal network'
-    console.log(prog)
+    u.log(prog)
   })
 )
 
@@ -112,7 +112,7 @@ tape('generate random network', function (t) {
   const start = Date.now()
   generateAnimals(animalNetwork, { add: animalNetwork.publish, id: animalNetwork.id }, F, N, function (err) {
     if (err) throw err
-    console.log('replicate GRAPH')
+    u.log('replicate GRAPH')
     animalNetwork.getVectorClock(function (err, _generated) {
       if (err) throw err
 
@@ -125,8 +125,8 @@ tape('generate random network', function (t) {
       }
 
       const time = (Date.now() - start) / 1000
-      console.log('generated', total, 'messages in', time, 'at rate:', total / time)
-      console.log('over', feeds, 'feeds')
+      u.log('generated', total, 'messages in', time, 'at rate:', total / time)
+      u.log('over', feeds, 'feeds')
       t.equal(total, N + 1 + F + 1)
       t.equal(feeds, F + 1)
       t.end()
@@ -146,9 +146,9 @@ tape('read all history streams', function (t) {
       c++
     }, function () {
       const time = (Date.now() - start) / 1000
-      console.log('dump all messages via createLogStream')
-      console.log('all histories dumped', c, 'messages in', time, 'at rate', c / time)
-      console.log('read back live:', live)
+      u.log('dump all messages via createLogStream')
+      u.log('all histories dumped', c, 'messages in', time, 'at rate', c / time)
+      u.log('read back live:', live)
       t.equal(live, F + N + 2)
       t.equal(c, F + N + 2)
       t.end()
@@ -178,9 +178,9 @@ tape('replicate social network for animals', function (t) {
   animalFriends.on('rpc:connect', function (rpc) {
     connections++
     c++
-    console.log('CONNECT', connections)
+    u.log('CONNECT', connections)
     rpc.on('closed', function () {
-      console.log('DISCONNECT', --connections)
+      u.log('DISCONNECT', --connections)
     })
   })
 
@@ -189,7 +189,7 @@ tape('replicate social network for animals', function (t) {
     if (prog.ebt && prog.ebt.current === prog.ebt.target) {
       const target = F + N + 3
       const time = (Date.now() - start) / 1000
-      console.log('replicated', target, 'messages in', time, 'at rate', target / time)
+      u.log('replicated', target, 'messages in', time, 'at rate', target / time)
       clearInterval(int)
       t.equal(c, 1, 'everything replicated within a single connection')
       animalFriends.close(true)

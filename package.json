@@ -23,21 +23,23 @@
     "nyc": "^13.2.0",
     "pull-paramap": "^1.2.2",
     "rng": "^0.2.2",
-    "tape": "^5.2.1",
     "secret-stack": "^6.1.2",
-    "ssb-keys": "8.0.2",
     "ssb-client": "^4.7.7",
     "ssb-db": "^19.2.0",
-    "ssb-friends": "^4.0.0",
+    "ssb-friends": "4.3.0",
     "ssb-generate": "^1.0.1",
     "ssb-gossip": "^1.0.1",
+    "ssb-keys": "8.0.2",
     "ssb-replicate": "^1.2.1",
     "ssb-validate": "^4.0.4",
-    "standardx": "^7.0.0"
+    "standardx": "^7.0.0",
+    "tap-spec": "^5.0.0",
+    "tape": "^5.2.1"
   },
   "scripts": {
     "lint": "standardx --fix '**/*.js'",
-    "test": "set -e; for t in test/*.js; do echo \"#Test: $t\"; node $t; done",
+    "test": "set -e; for t in test/*.js; do echo \"#Test: $t\"; tape $t | tap-spec; done",
+    "test-verbose": "TEST_VERBOSE=1 npm test",
     "coverage": "nyc --reporter=lcov npm test"
   },
   "author": "'Dominic Tarr' <dominic.tarr@gmail.com> (http://dominictarr.com)",
