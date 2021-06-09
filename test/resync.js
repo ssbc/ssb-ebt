@@ -1,7 +1,8 @@
+const tape = require('tape')
 const gen = require('ssb-generate')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
-const u = require('./util')
+const u = require('./misc/util')
 
 const createSbot = require('secret-stack')({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
@@ -74,6 +75,7 @@ track(botA, 'alice')
 track(botB, 'bob')
 
 //  b_bot.post(console.log)
+let passed = false
 
 gen.initialize(botA, 50, 4, function (err, peers) {
   if (err) throw err
@@ -123,13 +125,16 @@ gen.initialize(botA, 50, 4, function (err, peers) {
             for (const k in _clock) {
               if (clock[k] !== _clock[k]) {
                 d += (clock[k] || 0) - _clock[k]
-              } else { c++ }
+              } else {
+                c++
+              }
             }
 
             u.log('A', count(clock), 'B', count(_clock), 'diff', d, 'common', c)
             if (d === 0 && c) {
               clearInterval(int)
               u.log('close...')
+              passed = true
               botA.close()
               botB.close()
             }
@@ -138,4 +143,16 @@ gen.initialize(botA, 50, 4, function (err, peers) {
       }, 1000).unref()
     })
   })
+})
+
+// TODO refactor this entirely file, it should be using tape
+
+tape('TODO name this test', function (t) {
+  t.timeoutAfter(50e3)
+  let int = setInterval(() => {
+    if (passed) {
+      clearInterval(int)
+      t.end()
+    }
+  }, 500)
 })
