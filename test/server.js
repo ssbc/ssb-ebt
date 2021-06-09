@@ -4,7 +4,7 @@ const deepEqual = require('deep-equal')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
-const u = require('./util')
+const u = require('./misc/util')
 
 // create 3 servers
 // give them all pub servers (on localhost)

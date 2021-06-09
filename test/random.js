@@ -6,7 +6,7 @@ const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
 const cats = require('cat-names')
 const dogs = require('dog-names')
-const u = require('./util')
+const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }

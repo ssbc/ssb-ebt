@@ -3,7 +3,7 @@ const cont = require('cont')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
-const u = require('./util')
+const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }

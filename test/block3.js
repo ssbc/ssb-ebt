@@ -3,7 +3,7 @@ const cont = require('cont')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
-const u = require('./util')
+const u = require('./misc/util')
 
 // alice, bob, and carol all follow each other,
 // but then bob offends alice, and she blocks him.
