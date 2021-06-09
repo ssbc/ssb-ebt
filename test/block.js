@@ -62,6 +62,8 @@ names[bob.id] = 'bob'
 names[carol.id] = 'carol'
 
 tape('alice blocks bob, and bob cannot connect to alice', function (t) {
+  t.plan(7)
+
   // in the beginning alice and bob follow each other
   cont.para([
     cont(alice.publish)(u.follow(bob.id)),
@@ -97,7 +99,7 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
     function next () {
       if (--n) return
 
-      rpc.close(true, function () {
+      rpc.close(true, () => {
         aliceCancel()
         bobCancel()
         alice.publish(u.block(bob.id), function (err) {
@@ -113,7 +115,9 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
 
               const carolCancel = carol.post(function (msg) {
                 if (msg.author === alice.id) {
-                  if (msg.sequence === 2) { t.end() }
+                  if (msg.sequence === 2) {
+                    t.end()
+                  }
                 }
               })
 
@@ -121,7 +125,7 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
               carol.connect(alice.getAddress(), function (err, rpc) {
                 if (err) throw err
                 rpc.on('closed', function () {
-                  console.log('RPC CLOSED')
+                  u.log('RPC CLOSED')
                   carolCancel()
                   // get out of cb...
                   carol.getVectorClock(function (err, clock) {
@@ -130,7 +134,7 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
                     t.end()
                   })
                 })
-                rpc.close()
+                rpc.close(() => {})
               })
             })
           })
@@ -141,6 +145,7 @@ tape('alice blocks bob, and bob cannot connect to alice', function (t) {
 })
 
 tape('carol does not let bob replicate with alice', function (t) {
+  t.plan(1)
   // first, carol should have already replicated with alice.
   // emits this event when did not allow bob to get this data.
   bob.once('replicate:finish', function (vclock) {
@@ -156,14 +161,14 @@ tape('carol does not let bob replicate with alice', function (t) {
 })
 
 tape('alice does not replicate messages from bob, but carol does', function (t) {
-  console.log('**********************************************************')
+  u.log('**********************************************************')
   let friends = 0
-  carol.friends.get(console.log)
+  carol.friends.get(u.log)
   pull(
     carol.friends.createFriendStream({ meta: true, live: true }),
     pull.drain(function (v) {
       friends++
-      console.log('************', v)
+      u.log('************', v)
     })
   )
 

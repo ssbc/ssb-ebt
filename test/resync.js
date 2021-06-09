@@ -1,6 +1,7 @@
 const gen = require('ssb-generate')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
+const u = require('./util')
 
 const createSbot = require('secret-stack')({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
@@ -30,7 +31,7 @@ function track (bot, name) {
   })
   setInterval(function () {
     if (_l !== l) {
-      console.log(name, l, l - _l)
+      u.log(name, l, l - _l)
       _l = l
     }
   }, 1000).unref()
@@ -51,7 +52,7 @@ const botA = createSbot({
 
 const bob = ssbKeys.generate()
 
-console.log('address?', botA.getAddress())
+u.log('address?', botA.getAddress())
 if (!botA.getAddress()) { throw new Error('a_bot has not address?') }
 
 const botB = createSbot({
@@ -81,7 +82,7 @@ gen.initialize(botA, 50, 4, function (err, peers) {
   // because bob's database corrupted (but had key backup)
   peers.push(botA.createFeed(bob))
 
-  console.log('initialized')
+  u.log('initialized')
   // console.log(peers.map(function (e) { return e.id }))
   gen.messages(function (n) {
     if (Math.random() < 0.3) {
@@ -98,11 +99,11 @@ gen.initialize(botA, 50, 4, function (err, peers) {
       value: randbytes(randint(1024)).toString('base64')
     }
   }, peers, 1000, function () {
-    console.log('done, replicating')
+    u.log('done, replicating')
     botB.connect(botA.getAddress(), function (err) {
       if (err) throw err
       const int = setInterval(function () {
-        console.log(JSON.stringify(botB.status().ebt))
+        u.log(JSON.stringify(botB.status().ebt))
 
         botA.getVectorClock(function (err, clock) {
           if (err) throw err
@@ -125,10 +126,10 @@ gen.initialize(botA, 50, 4, function (err, peers) {
               } else { c++ }
             }
 
-            console.log('A', count(clock), 'B', count(_clock), 'diff', d, 'common', c)
+            u.log('A', count(clock), 'B', count(_clock), 'diff', d, 'common', c)
             if (d === 0 && c) {
               clearInterval(int)
-              console.log('close...')
+              u.log('close...')
               botA.close()
               botB.close()
             }

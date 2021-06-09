@@ -28,11 +28,12 @@ const botA = createSbot({
   keys: alice
 })
 
-tape(function (t) {
-  t.throws(function () {
-    botA.ebt.replicate.call(bob, { version: 1 })
-  })
+tape('legacy', function (t) {
+  setTimeout(() => {
+    t.throws(function () {
+      botA.ebt.replicate.call(bob, { version: 1 })
+    })
 
-  botA.close()
-  t.end()
+    botA.close(t.end)
+  }, 100)
 })
