@@ -17,7 +17,6 @@ const createSsbServer = SecretStack({
   .use(require('ssb-replicate'))
   .use(require('..'))
   .use(require('ssb-friends'))
-  .use(require('ssb-gossip'))
 
 tape('replicate between 3 peers', function (t) {
   let alice, bob, carol
@@ -27,7 +26,6 @@ tape('replicate between 3 peers', function (t) {
     timeout: 1400,
     keys: alice = ssbKeys.generate(),
     replicate: { legacy: false },
-    gossip: { pub: false },
     level: 'info'
   })
   const dbB = createSsbServer({
@@ -35,9 +33,7 @@ tape('replicate between 3 peers', function (t) {
     port: 45452,
     timeout: 1400,
     keys: bob = ssbKeys.generate(),
-    seeds: [dbA.getAddress()],
     replicate: { legacy: false },
-    gossip: { pub: false },
     level: 'info'
   })
   const dbC = createSsbServer({
@@ -45,63 +41,92 @@ tape('replicate between 3 peers', function (t) {
     port: 45453,
     timeout: 1400,
     keys: carol = ssbKeys.generate(),
-    seeds: [dbA.getAddress()],
     replicate: { legacy: false },
-    gossip: { pub: false },
     level: 'info'
   })
 
-  const apub = cont(dbA.publish)
-  const bpub = cont(dbB.publish)
-  const cpub = cont(dbC.publish)
+  // Wait for all bots to be ready
+  setTimeout(() => {
+    let connectionBA;
+    let connectionBC;
+    let connectionCA;
+    dbB.connect(dbA.getAddress(), (err, rpc) => {
+      if (err) t.fail(err)
+      connectionBA = rpc
+    })
+    dbB.connect(dbC.getAddress(), (err, rpc) => {
+      if (err) t.fail(err)
+      connectionBC = rpc
+    })
+    dbC.connect(dbA.getAddress(), (err, rpc) => {
+      if (err) t.fail(err)
+      connectionCA = rpc
+    })
 
-  cont.para([
-    apub(u.pub(dbA.getAddress())),
-    bpub(u.pub(dbB.getAddress())),
-    cpub(u.pub(dbC.getAddress())),
+    const apub = cont(dbA.publish)
+    const bpub = cont(dbB.publish)
+    const cpub = cont(dbC.publish)
 
-    apub(u.follow(bob.id)),
-    apub(u.follow(carol.id)),
+    cont.para([
+      apub(u.pub(dbA.getAddress())),
+      bpub(u.pub(dbB.getAddress())),
+      cpub(u.pub(dbC.getAddress())),
 
-    bpub(u.follow(alice.id)),
-    bpub(u.follow(carol.id)),
+      apub(u.follow(bob.id)),
+      apub(u.follow(carol.id)),
 
-    cpub(u.follow(alice.id)),
-    cpub(u.follow(bob.id))
-  ])(function (err, ary) {
-    if (err) throw err
+      bpub(u.follow(alice.id)),
+      bpub(u.follow(carol.id)),
 
-    const expected = {}
-    expected[alice.id] = expected[bob.id] = expected[carol.id] = 3
-    function check (server, name) {
-      let closed = false
-      const int = setInterval(function () {
-        server.getVectorClock(function (err, actual) {
-          if (err) throw err
-          if (closed) return
-          u.log(actual)
-          if (deepEqual(expected, actual)) {
-            clearInterval(int)
-            closed = true
-            done()
-          }
+      cpub(u.follow(alice.id)),
+      cpub(u.follow(bob.id))
+    ])(function (err, ary) {
+      if (err) t.fail(err)
+
+      const expected = {
+        [alice.id]: 3,
+        [bob.id]: 3,
+        [carol.id]: 3,
+      }
+      function check (server, name) {
+        let closed = false
+        const int = setInterval(function () {
+          server.getVectorClock(function (err, actual) {
+            if (err) t.fail(err)
+            if (closed) return
+            u.log(name, actual)
+            if (deepEqual(expected, actual)) {
+              clearInterval(int)
+              closed = true
+              done()
+            }
+          })
+        }, 1000)
+      }
+
+      check(dbA, 'ALICE')
+      check(dbB, 'BOB')
+      check(dbC, 'CAROL')
+
+      let n = 3
+
+      function done () {
+        if (--n) return
+        connectionBA.close(true, () => {
+          connectionBC.close(true, () => {
+            connectionCA.close(true, () => {
+              dbA.close(true, () => {
+                dbB.close(true, () => {
+                  dbC.close(true, () => {
+                    t.ok(true)
+                    t.end()
+                  })
+                })
+              })
+            })
+          })
         })
-      }, 1000)
-    }
-
-    check(dbA, 'ALICE')
-    check(dbB, 'BOB')
-    check(dbC, 'CAROL')
-
-    let n = 3
-
-    function done () {
-      if (--n) return
-      dbA.close(true)
-      dbB.close(true)
-      dbC.close(true)
-      t.ok(true)
-      t.end()
-    }
-  })
+      }
+    })
+  }, 500);
 })

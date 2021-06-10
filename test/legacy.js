@@ -29,11 +29,14 @@ const botA = createSbot({
 })
 
 tape('legacy', function (t) {
+  t.plan(1);
+
+  // Wait for botA to be ready, so that it *can* be closed
   setTimeout(() => {
     t.throws(function () {
       botA.ebt.replicate.call(bob, { version: 1 })
     })
 
     botA.close(t.end)
-  }, 100)
+  }, 500)
 })
