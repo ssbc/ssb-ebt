@@ -22,21 +22,18 @@ tape('replicate between 3 peers', function (t) {
   let alice, bob, carol
   const dbA = createSsbServer({
     temp: 'server-alice',
-    timeout: 1400,
     keys: alice = ssbKeys.generate(),
     replicate: { legacy: false },
     level: 'info'
   })
   const dbB = createSsbServer({
     temp: 'server-bob',
-    timeout: 1400,
     keys: bob = ssbKeys.generate(),
     replicate: { legacy: false },
     level: 'info'
   })
   const dbC = createSsbServer({
     temp: 'server-carol',
-    timeout: 1400,
     keys: carol = ssbKeys.generate(),
     replicate: { legacy: false },
     level: 'info'
@@ -44,22 +41,6 @@ tape('replicate between 3 peers', function (t) {
 
   // Wait for all bots to be ready
   setTimeout(() => {
-    let connectionBA;
-    let connectionBC;
-    let connectionCA;
-    dbB.connect(dbA.getAddress(), (err, rpc) => {
-      if (err) t.fail(err)
-      connectionBA = rpc
-    })
-    dbB.connect(dbC.getAddress(), (err, rpc) => {
-      if (err) t.fail(err)
-      connectionBC = rpc
-    })
-    dbC.connect(dbA.getAddress(), (err, rpc) => {
-      if (err) t.fail(err)
-      connectionCA = rpc
-    })
-
     const apub = cont(dbA.publish)
     const bpub = cont(dbB.publish)
     const cpub = cont(dbC.publish)
@@ -79,6 +60,22 @@ tape('replicate between 3 peers', function (t) {
       cpub(u.follow(bob.id))
     ])(function (err, ary) {
       if (err) t.fail(err)
+
+      let connectionBA;
+      let connectionBC;
+      let connectionCA;
+      dbB.connect(dbA.getAddress(), (err, rpc) => {
+        if (err) t.fail(err)
+        connectionBA = rpc
+      })
+      dbB.connect(dbC.getAddress(), (err, rpc) => {
+        if (err) t.fail(err)
+        connectionBC = rpc
+      })
+      dbC.connect(dbA.getAddress(), (err, rpc) => {
+        if (err) t.fail(err)
+        connectionCA = rpc
+      })
 
       const expected = {
         [alice.id]: 3,
