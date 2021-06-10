@@ -22,7 +22,6 @@ tape('replicate between 3 peers', function (t) {
   let alice, bob, carol
   const dbA = createSsbServer({
     temp: 'server-alice',
-    port: 45451,
     timeout: 1400,
     keys: alice = ssbKeys.generate(),
     replicate: { legacy: false },
@@ -30,7 +29,6 @@ tape('replicate between 3 peers', function (t) {
   })
   const dbB = createSsbServer({
     temp: 'server-bob',
-    port: 45452,
     timeout: 1400,
     keys: bob = ssbKeys.generate(),
     replicate: { legacy: false },
@@ -38,7 +36,6 @@ tape('replicate between 3 peers', function (t) {
   })
   const dbC = createSsbServer({
     temp: 'server-carol',
-    port: 45453,
     timeout: 1400,
     keys: carol = ssbKeys.generate(),
     replicate: { legacy: false },
