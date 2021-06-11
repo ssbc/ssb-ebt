@@ -183,6 +183,7 @@ exports.init = function (sbot, config) {
           const rep = peer.replicating && peer.replicating[id]
           data.peers[k] = {
             seq: peer.clock[id],
+            ts: peer.ts,
             replicating: rep
           }
         }
