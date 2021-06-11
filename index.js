@@ -114,6 +114,7 @@ exports.init = function (sbot, config) {
   })
 
   function onClose () {
+    // TODO: remove this, no one seems to depend on it
     sbot.emit('replicate:finish', ebt.state.clock)
   }
 
@@ -147,6 +148,8 @@ exports.init = function (sbot, config) {
     }
     // if we blocked them, but happen to be connected, disconnect immediately.
     if (blocking && sbot.id === from && ebt.state.peers[to]) {
+      // TODO: conn.disconnect might not work because we're passing a Feed ID
+      // while it expects a multiserver address
       if (sbot.conn) sbot.conn.disconnect(to, function () {})
       else if (sbot.gossip) sbot.gossip.disconnect(to, function () {})
     }
@@ -162,35 +165,37 @@ exports.init = function (sbot, config) {
     Legacy(sbot, ebt)
   }
 
-  return {
-    replicate: function (opts) {
-      if (opts.version !== 2 && opts.version !== 3) {
-        throw new Error('expected ebt.replicate({version: 3 or 2})')
-      }
-      return toPull.duplex(ebt.createStream(this.id, opts.version, false))
-    },
-    // get replication status for feeds for this id.
-    peerStatus: function (id) {
-      id = id || sbot.id
-      const data = {
-        id: id,
-        seq: ebt.state.clock[id],
-        peers: {}
-      }
-      for (const k in ebt.state.peers) {
-        const peer = ebt.state.peers[k]
-        if (peer.clock[id] != null || peer.replicating[id] != null) {
-          const rep = peer.replicating && peer.replicating[id]
-          data.peers[k] = {
-            seq: peer.clock[id],
-            replicating: rep
-          }
+  function replicate (opts) {
+    if (opts.version !== 2 && opts.version !== 3) {
+      throw new Error('expected ebt.replicate({version: 3 or 2})')
+    }
+    return toPull.duplex(ebt.createStream(this.id, opts.version, false))
+  }
+
+  // get replication status for feeds for this id.
+  function peerStatus (id) {
+    id = id || sbot.id
+    const data = {
+      id: id,
+      seq: ebt.state.clock[id],
+      peers: {}
+    }
+    for (const k in ebt.state.peers) {
+      const peer = ebt.state.peers[k]
+      if (peer.clock[id] !== null || peer.replicating[id] !== null) {
+        const rep = peer.replicating && peer.replicating[id]
+        data.peers[k] = {
+          seq: peer.clock[id],
+          replicating: rep
         }
       }
-      return data
-    },
+    }
+    return data
+  }
 
-    // expose ebt.block for ssb-servers that don't have the ssb-friends plugin
-    block: block
+  return {
+    replicate,
+    peerStatus,
+    block,
   }
 }
