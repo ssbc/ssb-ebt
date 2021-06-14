@@ -111,17 +111,18 @@ tape('alice blocks bob, and bob cannot connect to alice', async (t) => {
   t.end()
 })
 
-tape('carol does not let bob replicate with alice', async (t) => {
+tape('carol does replicate alice\'s data with bob', async (t) => {
   t.plan(1)
   // first, carol should have already replicated with alice.
   // emits this event when did not allow bob to get this data.
-  await Promise.all([
-    pify(bob.connect)(carol.getAddress()),
-    sleep(REPLICATION_TIMEOUT),
-  ])
+  const rpcBobToCarol = await pify(bob.connect)(carol.getAddress())
+  await sleep(REPLICATION_TIMEOUT)
+
+  await pify(rpcBobToCarol.close)(true)
 
   const clock = await pify(bob.getVectorClock)()
   t.equal(clock[alice.id], 1)
+
   t.end()
 })
 
