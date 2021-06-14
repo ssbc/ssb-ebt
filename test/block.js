@@ -1,9 +1,9 @@
 const tape = require('tape')
 const pull = require('pull-stream')
-const cont = require('cont')
 const crypto = require('crypto')
-const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
@@ -14,14 +14,6 @@ const createSsbServer = SecretStack({
   .use(require('ssb-friends'))
   .use(require('..'))
 
-function once (fn) {
-  let called = 0
-  return function () {
-    if (called++) throw new Error('called :' + called + ' times!')
-    return fn.apply(this, arguments)
-  }
-}
-
 // alice, bob, and carol all follow each other,
 // but then bob offends alice, and she blocks him.
 // this means that:
@@ -30,140 +22,115 @@ function once (fn) {
 // 2. alice never tries to connect to bob. (removed from peers)
 // 3. carol will not give bob any, she will not give him any data from alice.
 
-function seed (name) {
-  return crypto.createHash('sha256').update(name).digest()
-}
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSsbServer({
   temp: 'test-block-alice',
-  timeout: 1400,
-  keys: ssbKeys.generate(null, seed('alice')),
+  timeout: CONNECTION_TIMEOUT,
+  keys: u.keysFor('alice'),
   replicate: { legacy: false }
 })
 
 const bob = createSsbServer({
   temp: 'test-block-bob',
-  timeout: 600,
-  keys: ssbKeys.generate(null, seed('bob')),
+  timeout: CONNECTION_TIMEOUT,
+  keys: u.keysFor('bob'),
   replicate: { legacy: false }
 })
 
 const carol = createSsbServer({
   temp: 'test-block-carol',
-  timeout: 600,
-  keys: ssbKeys.generate(null, seed('carol')),
+  timeout: CONNECTION_TIMEOUT,
+  keys: u.keysFor('carol'),
   replicate: { legacy: false }
-
 })
 
-const names = {}
-names[alice.id] = 'alice'
-names[bob.id] = 'bob'
-names[carol.id] = 'carol'
-
-tape('alice blocks bob, and bob cannot connect to alice', function (t) {
-  t.plan(7)
+tape('alice blocks bob, and bob cannot connect to alice', async (t) => {
+  t.plan(8)
 
   // in the beginning alice and bob follow each other
-  cont.para([
-    cont(alice.publish)(u.follow(bob.id)),
-    cont(bob.publish)(u.follow(alice.id)),
-    cont(carol.publish)(u.follow(alice.id))
-  ])(function (err) {
-    if (err) throw err
-    let n = 3
-    let rpc
+  // carol follows alice
+  await Promise.all([
+    pify(alice.publish)(u.follow(bob.id)),
+    pify(bob.publish)(u.follow(alice.id)),
+    pify(carol.publish)(u.follow(alice.id))
+  ])
 
-    bob.connect(alice.getAddress(), function (err, _rpc) {
-      if (err) throw err
-      // replication will begin immediately.
-      rpc = _rpc
-      next()
-    })
+  const [rpcBobToAlice, msgAtBob, msgAtAlice] = await Promise.all([
+    // replication will begin immediately.
+    pify(bob.connect)(alice.getAddress()),
 
     // get the next messages that are replicated to alice and bob,
     // and check that these are the correct follow messages.
-    const bobCancel = bob.post(once(function (op) {
-      // should be the alice's follow(bob) message.
-      t.equal(op.value.author, alice.id, 'bob expected message from alice')
-      t.equal(op.value.content.contact, bob.id, 'bob expected message to be about bob')
-      next()
-    }), false)
+    u.readOnceFromDB(bob),
+    u.readOnceFromDB(alice),
+  ])
 
-    const aliceCancel = alice.post(once(function (op) {
-      // should be the bob's follow(alice) message.
-      t.equal(op.value.author, bob.id, 'alice expected to receive a message from bob')
-      t.equal(op.value.content.contact, alice.id, 'alice expected received message to be about alice')
-      next()
-    }), false)
-    function next () {
-      if (--n) return
+  // should be the alice's follow(bob) message.
+  t.equal(msgAtBob.value.author, alice.id, 'bob received message from alice')
+  t.equal(msgAtBob.value.content.contact, bob.id, 'received message is about bob')
 
-      rpc.close(true, () => {
-        aliceCancel()
-        bobCancel()
-        alice.publish(u.block(bob.id), function (err) {
-          if (err) throw err
+  // should be the bob's follow(alice) message.
+  t.equal(msgAtAlice.value.author, bob.id, 'alice received message from bob')
+  t.equal(msgAtAlice.value.content.contact, alice.id, 'received message is about alice')
 
-          alice.friends.get(null, function (err, g) {
-            if (err) throw err
-            t.equal(g[alice.id][bob.id], false)
+  // disconnect bob from alice
+  await pify(rpcBobToAlice.close)(true)
 
-            // since bob is blocked, he should not be able to connect
-            bob.connect(alice.getAddress(), function (err, rpc) {
-              t.ok(err, 'bob is blocked, should fail to connect to alice')
+  // alice blocks bob
+  await pify(alice.publish)(u.block(bob.id))
+  t.pass('alice published a block on bob')
 
-              const carolCancel = carol.post(function (msg) {
-                if (msg.author === alice.id) {
-                  if (msg.sequence === 2) {
-                    t.end()
-                  }
-                }
-              })
+  // get alice's follow graph
+  const g = await pify(alice.friends.get)(null)
+  t.equal(g[alice.id][bob.id], false, 'alice indicates she blocks bob')
 
-              // but carol, should, because she is not blocked.
-              carol.connect(alice.getAddress(), function (err, rpc) {
-                if (err) throw err
-                rpc.on('closed', function () {
-                  u.log('RPC CLOSED')
-                  carolCancel()
-                  // get out of cb...
-                  carol.getVectorClock(function (err, clock) {
-                    if (err) throw err
-                    t.ok(clock[alice.id], 'carol replicated data from alice')
-                    t.end()
-                  })
-                })
-                rpc.close(() => {})
-              })
-            })
-          })
-        })
-      })
-    }
-  })
+  // since bob is blocked, he should not be able to connect to alice
+  try {
+    await pify(bob.connect)(alice.getAddress())
+    t.fail('bob.connect succeeded but it should have failed')
+  } catch (err) {
+    t.match(
+      err.message,
+      /server hung up/,
+      'bob is blocked, should fail to connect to alice'
+    )
+  }
+
+  // but carol is allowed to connect, because she is not blocked
+  const rpcCarolToAlice = await pify(carol.connect)(alice.getAddress())
+  await sleep(REPLICATION_TIMEOUT)
+
+  await pify(rpcCarolToAlice.close)(true)
+
+  // carol has replicated with alice
+  const clock = await pify(carol.getVectorClock)()
+  t.equal(clock[alice.id], 2, 'carol replicated everything from alice')
+
+  t.end()
 })
 
-tape('carol does not let bob replicate with alice', function (t) {
+tape('carol does not let bob replicate with alice', async (t) => {
   t.plan(1)
   // first, carol should have already replicated with alice.
   // emits this event when did not allow bob to get this data.
-  bob.once('replicate:finish', function (vclock) {
-    t.equal(vclock[alice.id], 1)
-    // t.end()
-  })
-  bob.connect(carol.getAddress(), function (err, rpc) {
-    if (err) throw err
-    rpc.on('closed', function () {
-      t.end()
-    })
-  })
+  await Promise.all([
+    pify(bob.connect)(carol.getAddress()),
+    sleep(REPLICATION_TIMEOUT),
+  ])
+
+  const clock = await pify(bob.getVectorClock)()
+  t.equal(clock[alice.id], 1)
+  t.end()
 })
 
-tape('alice does not replicate messages from bob, but carol does', function (t) {
+tape('alice does not replicate messages from bob, but carol does', async (t) => {
   u.log('**********************************************************')
+
   let friends = 0
   carol.friends.get(u.log)
+
   pull(
     carol.friends.createFriendStream({ meta: true, live: true }),
     pull.drain(function (v) {
@@ -172,56 +139,57 @@ tape('alice does not replicate messages from bob, but carol does', function (t) 
     })
   )
 
-  cont.para([
-    cont(alice.publish)(u.follow(carol.id)),
-    cont(bob.publish)({ type: 'post', text: 'hello' }),
-    cont(carol.publish)(u.follow(bob.id))
-  ])(function (err, r) {
-    t.error(err)
-    const recv = { alice: 0, carol: 0 }
-    carol.post(function (msg) {
-      recv.carol++
-      // will receive one message from bob and carol
-    }, false)
+  await Promise.all([
+    pify(alice.publish)(u.follow(carol.id)),
+    pify(bob.publish)({ type: 'post', text: 'hello' }),
+    pify(carol.publish)(u.follow(bob.id))
+  ])
 
-    alice.post(function (msg) {
-      recv.alice++
-      // alice will only receive the message from carol, but not bob.
-      t.equal(msg.value.author, carol.id)
-    }, false)
+  const recv = { alice: 0, carol: 0 }
 
-    carol.friends.get(function (err, g) {
-      t.error(err)
-      t.ok(g[carol.id][bob.id])
-    })
+  // carol will receive one message from bob and carol
+  carol.post((msg) => recv.carol++, false)
 
-    let n = 2
-    carol.connect(alice.getAddress(), cb)
-    carol.connect(bob.getAddress(), cb)
+  // alice will only receive the message from carol, but not bob.
+  alice.post((msg) => {
+    recv.alice++
+    t.equal(msg.value.author, carol.id)
+  }, false)
 
-    function cb (err, rpc) {
-      if (err) throw err
-      rpc.on('closed', next)
-    }
-    function next () {
-      if (--n) return
-      pull(
-        carol.createLogStream(),
-        pull.collect(function (err, ary) {
-          if (err) throw err
-          carol.getVectorClock(function (err, vclock) {
-            t.error(err)
-            t.equals(vclock[alice.id], 3)
-            t.equals(vclock[bob.id], 2)
-            t.equals(vclock[carol.id], 2)
+  const g = await pify(carol.friends.get)()
+  t.ok(g[carol.id][bob.id])
 
-            t.equal(friends, 3, "carol's createFriendStream has 3 peers")
-            t.end()
-          })
-        })
-      )
-    }
+  const [rpcCarolToAlice, rpcCarolToBob] = await Promise.all([
+    pify(carol.connect)(alice.getAddress()),
+    pify(carol.connect)(bob.getAddress()),
+  ])
+
+  await sleep(REPLICATION_TIMEOUT)
+
+  await pify(rpcCarolToAlice.close)(true)
+  await pify(rpcCarolToBob.close)(true)
+
+  // Drain Carol's full log
+  await new Promise((resolve, reject) => {
+    pull(
+      carol.createLogStream(),
+      pull.collect(function (err, ary) {
+        if (err) reject(err)
+        else resolve(ary)
+      }),
+    )
   })
+
+  const vclock = await pify(carol.getVectorClock)()
+  t.equals(vclock[alice.id], 3)
+  t.equals(vclock[bob.id], 2)
+  t.equals(vclock[carol.id], 2)
+
+  t.equals(recv.alice, 2)
+  t.equals(recv.carol, 3)
+
+  t.equal(friends, 3, "carol's createFriendStream has 3 peers")
+  t.end()
 })
 
 // TODO test that bob is disconnected from alice if he is connected
@@ -230,9 +198,11 @@ tape('alice does not replicate messages from bob, but carol does', function (t) 
 // TODO test that blocks work in realtime. if alice blocks him
 //      when he is already connected to alice's friend.
 
-tape('cleanup!', function (t) {
-  alice.close(true)
-  bob.close(true)
-  carol.close(true)
+tape('teardown', async (t) => {
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+    pify(carol.close)(true),
+  ])
   t.end()
 })

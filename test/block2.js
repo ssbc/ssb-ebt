@@ -1,8 +1,9 @@
 const tape = require('tape')
-const cont = require('cont')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
@@ -13,52 +14,55 @@ const createSsbServer = SecretStack({
   .use(require('ssb-friends'))
   .use(require('..'))
 
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
+
 const alice = createSsbServer({
-  temp: 'test-block-alice', // timeout: 1400,
+  temp: 'test-block-alice',
+  timeout: CONNECTION_TIMEOUT,
   keys: ssbKeys.generate(),
   replicate: { legacy: false },
   gossip: { pub: false }
 })
 
 const bob = createSsbServer({
-  temp: 'test-block-bob', // timeout: 600,
+  temp: 'test-block-bob',
+  timeout: CONNECTION_TIMEOUT,
   keys: ssbKeys.generate(),
   replicate: { legacy: false },
   gossip: { pub: false }
 })
 
-tape('alice blocks bob while he is connected, she should disconnect him', function (t) {
+tape('alice blocks bob while he is connected, she should disconnect him', async (t) => {
   // in the beginning alice and bob follow each other
-  cont.para([
-    cont(alice.publish)(u.follow(bob.id)),
-    cont(bob.publish)(u.follow(alice.id))
-  ])(function (err) {
-    if (err) throw err
+  await Promise.all([
+    pify(alice.publish)(u.follow(bob.id)),
+    pify(bob.publish)(u.follow(alice.id))
+  ])
 
-    bob.connect(alice.getAddress(), function (err, rpc) {
-      if (err) throw err
-      // replication will begin immediately.
-    })
+  const [, msgAtBob] = await Promise.all([
+    // replication will begin immediately.
+    pify(bob.connect)(alice.getAddress()),
+    u.readOnceFromDB(bob),
+  ])
 
-    bob.on('replicate:finish', function (vclock) {
-      u.log(vclock)
-      t.equal(vclock[alice.id], 1)
-      alice.close()
-      bob.close()
-      t.end()
-    })
+  // should be the alice's follow(bob) message.
+  u.log('BOB RECV', msgAtBob)
+  t.equal(msgAtBob.value.author, alice.id, 'bob got message from alice')
+  t.equal(msgAtBob.value.content.contact, bob.id, 'message received is about bob')
+  t.equal(msgAtBob.value.content.following, true, 'message received is a follow')
 
-    let once = false
-    bob.post(function (op) {
-      u.log('BOB RECV', op)
-      if (once) throw new Error('should only be called once')
-      once = true
-      // should be the alice's follow(bob) message.
+  await pify(alice.publish)(u.block(bob.id))
 
-      t.equal(op.value.content.contact, bob.id)
-      cont(alice.publish)(u.block(bob.id))(function (err) {
-        if (err) throw err
-      })
-    }, false)
-  })
+  await sleep(REPLICATION_TIMEOUT)
+
+  const vclock = await pify(bob.getVectorClock)()
+  u.log(vclock)
+  t.equal(vclock[alice.id], 1, 'bob replicated at most seq 1 from alice')
+
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+  ])
+  t.end()
 })

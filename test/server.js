@@ -1,9 +1,9 @@
 const tape = require('tape')
-const cont = require('cont')
-const deepEqual = require('deep-equal')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 // create 3 servers
@@ -18,109 +18,91 @@ const createSsbServer = SecretStack({
   .use(require('..'))
   .use(require('ssb-friends'))
 
-tape('replicate between 3 peers', function (t) {
-  let alice, bob, carol
-  const dbA = createSsbServer({
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
+
+tape('replicate between 3 peers', async (t) => {
+  t.plan(3)
+
+  const alice = createSsbServer({
     temp: 'server-alice',
-    keys: alice = ssbKeys.generate(),
+    keys: ssbKeys.generate(),
+    timeout: CONNECTION_TIMEOUT,
     replicate: { legacy: false },
     level: 'info'
   })
-  const dbB = createSsbServer({
+  const bob = createSsbServer({
     temp: 'server-bob',
-    keys: bob = ssbKeys.generate(),
+    keys: ssbKeys.generate(),
+    timeout: CONNECTION_TIMEOUT,
     replicate: { legacy: false },
     level: 'info'
   })
-  const dbC = createSsbServer({
+  const carol = createSsbServer({
     temp: 'server-carol',
-    keys: carol = ssbKeys.generate(),
+    keys: ssbKeys.generate(),
+    timeout: CONNECTION_TIMEOUT,
     replicate: { legacy: false },
     level: 'info'
   })
 
   // Wait for all bots to be ready
-  setTimeout(() => {
-    const apub = cont(dbA.publish)
-    const bpub = cont(dbB.publish)
-    const cpub = cont(dbC.publish)
+  await sleep(500)
 
-    cont.para([
-      apub(u.pub(dbA.getAddress())),
-      bpub(u.pub(dbB.getAddress())),
-      cpub(u.pub(dbC.getAddress())),
+  await Promise.all([
+    // All peers publish "pub" of themselves
+    pify(alice.publish)(u.pub(alice.getAddress())),
+    pify(bob.publish)(u.pub(bob.getAddress())),
+    pify(carol.publish)(u.pub(carol.getAddress())),
 
-      apub(u.follow(bob.id)),
-      apub(u.follow(carol.id)),
+    // alice follows bob & carol
+    pify(alice.publish)(u.follow(bob.id)),
+    pify(alice.publish)(u.follow(carol.id)),
 
-      bpub(u.follow(alice.id)),
-      bpub(u.follow(carol.id)),
+    // bob follows alice & carol
+    pify(bob.publish)(u.follow(alice.id)),
+    pify(bob.publish)(u.follow(carol.id)),
 
-      cpub(u.follow(alice.id)),
-      cpub(u.follow(bob.id))
-    ])(function (err, ary) {
-      if (err) t.fail(err)
+    // carol follows alice & bob
+    pify(carol.publish)(u.follow(alice.id)),
+    pify(carol.publish)(u.follow(bob.id)),
+  ])
 
-      let connectionBA;
-      let connectionBC;
-      let connectionCA;
-      dbB.connect(dbA.getAddress(), (err, rpc) => {
-        if (err) t.fail(err)
-        connectionBA = rpc
-      })
-      dbB.connect(dbC.getAddress(), (err, rpc) => {
-        if (err) t.fail(err)
-        connectionBC = rpc
-      })
-      dbC.connect(dbA.getAddress(), (err, rpc) => {
-        if (err) t.fail(err)
-        connectionCA = rpc
-      })
+  const [connectionBA, connectionBC, connectionCA] = await Promise.all([
+    pify(bob.connect)(alice.getAddress()),
+    pify(bob.connect)(carol.getAddress()),
+    pify(carol.connect)(alice.getAddress()),
+  ])
 
-      const expected = {
-        [alice.id]: 3,
-        [bob.id]: 3,
-        [carol.id]: 3,
-      }
-      function check (server, name) {
-        let closed = false
-        const int = setInterval(function () {
-          server.getVectorClock(function (err, actual) {
-            if (err) t.fail(err)
-            if (closed) return
-            u.log(name, actual)
-            if (deepEqual(expected, actual)) {
-              clearInterval(int)
-              closed = true
-              done()
-            }
-          })
-        }, 1000)
-      }
+  const expectedClock = {
+    [alice.id]: 3,
+    [bob.id]: 3,
+    [carol.id]: 3,
+  }
 
-      check(dbA, 'ALICE')
-      check(dbB, 'BOB')
-      check(dbC, 'CAROL')
+  await sleep(REPLICATION_TIMEOUT)
 
-      let n = 3
+  const [clockAlice, clockBob, clockCarol] = await Promise.all([
+    pify(alice.getVectorClock)(),
+    pify(bob.getVectorClock)(),
+    pify(carol.getVectorClock)(),
+  ])
 
-      function done () {
-        if (--n) return
-        connectionBA.close(true, () => {
-          connectionBC.close(true, () => {
-            connectionCA.close(true, () => {
-              dbA.close(true, () => {
-                dbB.close(true, () => {
-                  dbC.close(true, () => {
-                    t.ok(true)
-                    t.end()
-                  })
-                })
-              })
-            })
-          })
-        })
-      }
-    })
-  }, 500);
+  t.deepEqual(clockAlice, expectedClock, 'alice\'s clock is correct')
+  t.deepEqual(clockBob, expectedClock, 'bob\'s clock is correct')
+  t.deepEqual(clockCarol, expectedClock, 'carol\'s clock is correct')
+
+  await Promise.all([
+    pify(connectionBA.close)(true),
+    pify(connectionBC.close)(true),
+    pify(connectionCA.close)(true),
+  ])
+
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+    pify(carol.close)(true)
+  ])
+
+  t.end()
 })

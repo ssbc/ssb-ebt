@@ -1,8 +1,8 @@
 const tape = require('tape')
-const cont = require('cont')
-const pull = require('pull-stream')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const SecretStack = require('secret-stack')
 const u = require('./misc/util')
 
@@ -19,149 +19,118 @@ const createSbot = SecretStack({
   })
   .use(require('../')) // EBT
 
-function Delay (d) {
-  d = d || 100
-  return pull.asyncMap(function (data, cb) {
-    setTimeout(function () {
-      cb(null, data)
-    }, ~~(d + Math.random() * d))
-  })
-}
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-const alice = ssbKeys.generate()
-const bob = ssbKeys.generate()
-const charles = ssbKeys.generate()
-
-const botA = createSbot({
+const alice = createSbot({
   temp: 'random-animals_alice',
   port: 45451,
   host: 'localhost',
-  timeout: 20001,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { legacy: false },
-  keys: alice,
+  keys: ssbKeys.generate(),
   gossip: { pub: false },
   friends: { hops: 10 }
 })
 
-const botB = createSbot({
+const bob = createSbot({
   temp: 'random-animals_bob',
   port: 45452,
   host: 'localhost',
-  timeout: 20001,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { legacy: false },
   friends: { hops: 10 },
   gossip: { pub: false },
-  keys: bob
+  keys: ssbKeys.generate()
 })
 
-const botC = createSbot({
+const charles = createSbot({
   temp: 'random-animals_charles',
   port: 45453,
   host: 'localhost',
-  timeout: 20001,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { legacy: false },
   friends: { hops: 10 },
   gossip: { pub: false },
-  keys: charles
+  keys: ssbKeys.generate()
 })
 
-const feeds = [botA, botB, botC]
-// make sure all the sbots are replicating all the feeds.
-feeds.forEach(function (f) {
-  botA.replicate.request(f.id)
-  botB.replicate.request(f.id)
-  botC.replicate.request(f.id)
-})
-
-const all = {}
-const recv = {}
-
-function consistent (name) {
-  if (!name) throw new Error('name must be provided')
-  recv[name] = {}
-  return function (msg) {
-    recv[name][msg.key] = true
-    let missing = 0
-    let has = 0
-    for (const k in all) {
-      for (const n in recv) {
-        if (!recv[n][k]) missing++
-        else has++
-      }
-    }
-
-    u.log('missing/has', missing, has)
-    if (!missing) { u.log('CONSISTENT!!!') }
-  }
+const names = {
+  [alice.id]: 'alice',
+  [bob.id]: 'bob',
+  [charles.id]: 'charles',
 }
 
-botA.post(consistent('alice'))
-botB.post(consistent('bob'))
-botC.post(consistent('charles'))
+tape('three peers replicate everything between each other', async (t) => {
+  t.plan(6)
 
-cont.para(feeds.map(function (f) {
-  return function (cb) {
-    return f.publish({ type: 'post', text: 'hello world' }, cb)
+  const bots = [alice, bob, charles]
+
+  // make sure all the sbots are replicating all the feeds.
+  for (const bot of bots) {
+    alice.replicate.request(bot.id)
+    bob.replicate.request(bot.id)
+    charles.replicate.request(bot.id)
   }
-}))(function () {
-  function log (name) {
-    return pull.through(function (data) {
-      u.log(name, data)
-    })
-  }
+  t.pass('all peers are set to replicate each other')
 
-  function peers (a, b, name1, name2, d) {
-    const repA = a.ebt.replicate.call({ id: name2 }, { version: 2 })
-    const repB = b.ebt.replicate.call({ id: name1 }, { version: 2 })
-
-    pull(
-      repA,
-      Delay(d),
-      log(name1 + '->' + name2),
-      repB,
-      Delay(d),
-      log(name2 + '->' + name1),
-      repA
-    )
+  const allMsgKeys = new Set()
+  const recv = {
+    alice: new Set(),
+    bob: new Set(),
+    charles: new Set(),
   }
 
-  peers(botA, botB, 'a', 'b', 10)
-  peers(botA, botC, 'a', 'c', 10)
-  peers(botC, botB, 'c', 'b', 7)
-})
-
-let passed = false
-let i = 10
-const int = setInterval(function () {
-  u.log('post', botA.since())
-  const N = ~~(Math.random() * feeds.length)
-  u.log('APPEND', N)
-  feeds[N].publish({ type: 'post', text: new Date().toString() }, () => {})
-  if (--i) return
-  clearInterval(int)
-
-  u.log('Alice', botA.since())
-  u.log('Bob', botB.since())
-  u.log('Charles', botC.since())
-
-  // and check that all peers are consistent.
-  setTimeout(function () {
-    u.log('close')
-    botA.close()
-    botB.close()
-    botC.close()
-    passed = true
-  }, 1000)
-}, 500)
-
-// TODO refactor this entirely file, it should be using tape
-
-tape('TODO name this test', function (t) {
-  t.timeoutAfter(10e3)
-  let int = setInterval(() => {
-    if (passed) {
-      clearInterval(int)
-      t.end()
+  function consistent (name) {
+    if (!name) throw new Error('name must be provided')
+    return function (msg) {
+      u.log(name, 'received', msg.value.content, 'by', names[msg.value.author])
+      allMsgKeys.add(msg.key)
+      recv[name].add(msg.key)
     }
-  }, 500)
+  }
+
+  alice.post(consistent('alice'))
+  bob.post(consistent('bob'))
+  charles.post(consistent('charles'))
+
+  await Promise.all([
+    pify(alice.publish)({ type: 'post', text: 'hello world' }),
+    pify(bob.publish)({ type: 'post', text: 'hello world' }),
+    pify(charles.publish)({ type: 'post', text: 'hello world' }),
+  ])
+  t.pass('all peers have posted "hello world"')
+
+  await Promise.all([
+    pify(alice.connect)(bob.getAddress()),
+    pify(alice.connect)(charles.getAddress()),
+    pify(charles.connect)(bob.getAddress()),
+  ])
+  t.pass('the three peers are connected to each other as a triangle')
+
+  const AMOUNT = 10;
+  for (let i = 0; i < AMOUNT; i++) {
+    const j = ~~(Math.random() * bots.length)
+    u.log('publish a new post by ' + names[bots[j].id])
+    await pify(bots[j].publish)({ type: 'post', text: '' + i })
+  }
+  t.pass(`${AMOUNT} random messages were posted`)
+
+  await sleep(REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  for (const msgKey of allMsgKeys) {
+    if (!recv.alice.has(msgKey)) t.fail('alice is missing msg ' + msgKey)
+    if (!recv.bob.has(msgKey)) t.fail('bob is missing msg ' + msgKey)
+    if (!recv.charles.has(msgKey)) t.fail('charles is missing msg ' + msgKey)
+  }
+  t.pass('all peers have all messages')
+
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+    pify(charles.close)(true),
+  ]);
+  t.end()
+  return
 })

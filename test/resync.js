@@ -2,6 +2,8 @@ const tape = require('tape')
 const gen = require('ssb-generate')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 const createSbot = require('secret-stack')({
@@ -12,147 +14,90 @@ const createSbot = require('secret-stack')({
   .use(require('../'))
   .use(require('ssb-friends'))
 
-function randint (n) {
-  return ~~(Math.random() * n)
-}
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-function randary (a) {
-  return a[randint(a.length)]
-}
-
-function randbytes (n) {
-  return crypto.randomBytes(n)
-}
-
-function track (bot, name) {
-  let l = 0
-  let _l = 0
-  bot.post(function (msg) {
-    l++
-  })
-  setInterval(function () {
-    if (_l !== l) {
-      u.log(name, l, l - _l)
-      _l = l
-    }
-  }, 1000).unref()
-}
-
-const alice = ssbKeys.generate()
-
-const timeout = 2000
-
-const botA = createSbot({
+const alice = createSbot({
   temp: 'alice',
-  port: 45451,
-  host: 'localhost',
-  timeout: timeout,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
-  keys: alice
+  keys: ssbKeys.generate()
 })
 
-const bob = ssbKeys.generate()
-
-u.log('address?', botA.getAddress())
-if (!botA.getAddress()) { throw new Error('a_bot has not address?') }
-
-const botB = createSbot({
+const bob = createSbot({
   temp: 'bob',
-  port: 45452,
-  host: 'localhost',
-  timeout: timeout,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
-  keys: bob
+  keys: ssbKeys.generate()
 })
 
-botA.publish({
-  type: 'contact',
-  contact: botB.id,
-  following: true
-}, function () {})
+u.trackProgress(alice, 'alice')
+u.trackProgress(bob, 'bob')
 
-track(botA, 'alice')
-track(botB, 'bob')
+tape('peer can recover and resync its content from a friend', async (t) => {
+  t.plan(6)
+  t.ok(alice.getAddress(), 'alice has an address')
 
-//  b_bot.post(console.log)
-let passed = false
+  await pify(alice.publish)({
+    type: 'contact',
+    contact: bob.id,
+    following: true,
+  })
+  t.pass('alice publishes: follow bob')
 
-gen.initialize(botA, 50, 4, function (err, peers) {
-  if (err) throw err
+  // alice has data from some random peers
+  const peers = await pify(gen.initialize)(alice, 50, 4)
 
   // in this test, bob's feed is on alice,
   // because bob's database corrupted (but had key backup)
-  peers.push(botA.createFeed(bob))
+  peers.push(alice.createFeed(bob.keys))
+  t.pass('alice has bob\'s content')
 
-  u.log('initialized')
-  // console.log(peers.map(function (e) { return e.id }))
-  gen.messages(function (n) {
-    if (Math.random() < 0.3) {
-      return {
-        type: 'contact',
-        contact: randary(peers).id,
-        following: true
+  await pify(gen.messages)(
+    function (n) {
+      if (Math.random() < 0.3) {
+        return {
+          type: 'contact',
+          contact: u.randary(peers).id,
+          following: true,
+        }
       }
+      return {
+        type: 'test',
+        ts: Date.now(),
+        random: Math.random(),
+        value: u.randbytes(u.randint(1024)).toString('base64'),
+      }
+    },
+    peers,
+    1000,
+  )
+  t.pass('done generating msgs')
+
+  await pify(bob.connect)(alice.getAddress())
+
+  await sleep(REPLICATION_TIMEOUT)
+
+  const clockAlice = await pify(alice.getVectorClock)()
+  const clockBob = await pify(bob.getVectorClock)()
+
+  let diff = 0
+  let commonCount = 0
+  for (const k in clockBob) {
+    if (clockAlice[k] !== clockBob[k]) {
+      diff += (clockAlice[k] || 0) - clockBob[k]
+    } else {
+      commonCount++
     }
-    return {
-      type: 'test',
-      ts: Date.now(),
-      random: Math.random(),
-      value: randbytes(randint(1024)).toString('base64')
-    }
-  }, peers, 1000, function () {
-    u.log('done, replicating')
-    botB.connect(botA.getAddress(), function (err) {
-      if (err) throw err
-      const int = setInterval(function () {
-        u.log(JSON.stringify(botB.status().ebt))
+  }
 
-        botA.getVectorClock(function (err, clock) {
-          if (err) throw err
-          botB.getVectorClock(function (err, _clock) {
-            if (err) throw err
-            let d = 0
-            function count (o) {
-              let t = 0
-              let s = 0
-              for (const k in o) {
-                t++
-                s += o[k]
-              }
-              return { total: t, sum: s }
-            }
-            let c = 0
-            for (const k in _clock) {
-              if (clock[k] !== _clock[k]) {
-                d += (clock[k] || 0) - _clock[k]
-              } else {
-                c++
-              }
-            }
+  u.log('A', u.countClock(clockAlice), 'B', u.countClock(clockBob), 'diff', diff, 'common', commonCount)
+  t.equals(diff, 0, 'no diff between alice and bob')
+  t.equals(commonCount > 0, true, 'bob has some content')
 
-            u.log('A', count(clock), 'B', count(_clock), 'diff', d, 'common', c)
-            if (d === 0 && c) {
-              clearInterval(int)
-              u.log('close...')
-              passed = true
-              botA.close()
-              botB.close()
-            }
-          })
-        })
-      }, 1000).unref()
-    })
-  })
-})
-
-// TODO refactor this entirely file, it should be using tape
-
-tape('TODO name this test', function (t) {
-  t.timeoutAfter(50e3)
-  let int = setInterval(() => {
-    if (passed) {
-      clearInterval(int)
-      t.end()
-    }
-  }, 500)
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+  ])
+  t.end()
 })

@@ -1,6 +1,8 @@
 const tape = require('tape')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const SecretStack = require('secret-stack')
 
 const createSbot = SecretStack({
@@ -16,27 +18,27 @@ const createSbot = SecretStack({
   })
   .use(require('../')) // EBT
 
-const alice = ssbKeys.generate()
-const bob = ssbKeys.generate()
+const bobKeys = ssbKeys.generate()
 
-const botA = createSbot({
+const alice = createSbot({
   temp: 'random-animals',
   port: 45451,
   host: 'localhost',
   timeout: 20001,
   replicate: { hops: 3, legacy: false },
-  keys: alice
+  keys: ssbKeys.generate()
 })
 
-tape('legacy', function (t) {
+tape('legacy (version 1) is unsupported', async (t) => {
   t.plan(1);
 
-  // Wait for botA to be ready, so that it *can* be closed
-  setTimeout(() => {
-    t.throws(function () {
-      botA.ebt.replicate.call(bob, { version: 1 })
-    })
+  // Wait for alice to be ready, so that it *can* be closed
+  await sleep(500)
 
-    botA.close(t.end)
-  }, 500)
+  t.throws(function () {
+    alice.ebt.replicate.call(bobKeys, { version: 1 })
+  })
+
+  await pify(alice.close)(true)
+  t.end()
 })

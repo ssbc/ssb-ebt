@@ -1,8 +1,9 @@
 const tape = require('tape')
 const gen = require('ssb-generate')
-const assert = require('assert')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const SecretStack = require('secret-stack')
 const u = require('./misc/util')
 
@@ -14,169 +15,115 @@ const createSbot = SecretStack({
   .use(require('../'))
   .use(require('ssb-friends'))
 
-function randint (n) {
-  return ~~(Math.random() * n)
-}
-
-function randary (a) {
-  return a[randint(a.length)]
-}
-
-function randbytes (n) {
-  return crypto.randomBytes(n)
-}
-
-function track (bot, name) {
-  let l = 0
-  let _l = 0
-  bot.post(function (msg) {
-    l++
-  })
-  setInterval(function () {
-    if (_l !== l) {
-      u.log(name, l, l - _l, bot.progress())
-      _l = l
-    }
-  }, 1000).unref()
-}
-
 // SOMETIMES this test fails. I think it's just because
 // some of the peers might be too far from the followed peer.
 // TODO: create a thing that checks they where all actually reachable!
 
-const alice = ssbKeys.generate()
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-const timeout = 2000
-
-const botA = createSbot({
+const alice = createSbot({
   temp: 'alice',
   port: 55451,
   host: 'localhost',
-  timeout: timeout,
-  replicate: { hops: 3, legacy: false },
-  keys: alice
-})
-
-u.log('address?', botA.getAddress())
-if (!botA.getAddress()) {
-  throw new Error('a_bot has not address?')
-}
-
-const botB = createSbot({
-  temp: 'bob',
-  port: 55452,
-  host: 'localhost',
-  timeout: timeout,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
   keys: ssbKeys.generate()
 })
 
-botA.publish({
-  type: 'contact',
-  contact: botB.id,
-  following: true
-}, function () {})
+const bob = createSbot({
+  temp: 'bob',
+  port: 55452,
+  host: 'localhost',
+  timeout: CONNECTION_TIMEOUT,
+  replicate: { hops: 3, legacy: false },
+  keys: ssbKeys.generate()
+})
 
-track(botA, 'alice')
-track(botB, 'bob')
+tape('generates feeds and tests EBT replication', async (t) => {
+  t.ok(alice.getAddress(), 'alice has an address')
 
-tape('generates feeds and tests EBT replication', function (t) {
-  gen.initialize(botA, 20, 3, function (err, peers) {
-    if (err) throw err
-    u.log('initialized')
-    gen.messages(
-      function (n) {
-        if (Math.random() < 0.3) {
-          return {
-            type: 'contact',
-            contact: randary(peers).id,
-            following: true,
-          }
-        }
-        return {
-          type: 'test',
-          ts: Date.now(),
-          random: Math.random(),
-          value: randbytes(randint(1024)).toString('base64'),
-        }
-      },
-      peers,
-      200,
-      function () {
-        let ready = false
-        u.log('set up, replicating')
-        ;(function next(i) {
-          if (!i) {
-            ready = true
-            return
-          }
-          const other = randary(peers).id
-          u.log('b_bot.publish', { follow: other })
-          botB.publish(
-            {
-              type: 'contact',
-              contact: other,
-              following: true,
-            },
-            function (err, msg) {
-              if (err) throw err
-              next(i - 1)
-            },
-          )
-        })(50)
-
-        botB.connect(botA.getAddress(), function (err) {
-          u.log('A<-->B')
-          if (err) throw err
-          const int = setInterval(function () {
-            const prog = botA.progress()
-            u.log('assertions', ready)
-            assert.ok(prog.indexes)
-            assert.ok(prog.ebt)
-            assert.ok(prog.ebt.target)
-            if (!ready) return
-
-            u.log('GET VECTOR CLOCK', botA.status())
-            botA.getVectorClock(function (err, clock) {
-              if (err) throw err
-              botB.getVectorClock(function (err, _clock) {
-                if (err) throw err
-                let different = 0
-                function count(o) {
-                  let t = 0
-                  let s = 0
-                  for (const k in o) {
-                    t++
-                    s += o[k]
-                  }
-                  return { total: t, sum: s }
-                }
-
-                for (const k in _clock) {
-                  if (clock[k] !== _clock[k]) {
-                    different += (clock[k] || 0) - _clock[k]
-                  }
-                }
-
-                u.log('A', count(clock), 'B', count(_clock), 'diff', different)
-                if (different === 0) {
-                  const prog = botA.progress()
-                  assert.ok(prog.indexes)
-                  assert.ok(prog.ebt)
-                  assert.ok(prog.ebt.target)
-                  assert.strictEqual(prog.ebt.current, prog.ebt.target)
-                  clearInterval(int)
-                  botA.close()
-                  botB.close()
-                  t.end()
-                } else {
-                  t.fail('inconsistent: ' + JSON.stringify(botA.status().ebt))
-                }
-              })
-            })
-          }, 1000)
-        })
-      },
-    )
+  await pify(alice.publish)({
+    type: 'contact',
+    contact: bob.id,
+    following: true,
   })
+  t.pass('alice publishes: follow bob')
+
+  u.trackProgress(alice, 'alice')
+  u.trackProgress(bob, 'bob')
+
+  const peers = await pify(gen.initialize)(alice, 20, 3)
+
+  t.pass('initialize ssb-generate')
+
+  await pify(gen.messages)(
+    function (n) {
+      if (Math.random() < 0.3) {
+        return {
+          type: 'contact',
+          contact: u.randary(peers).id,
+          following: true,
+        }
+      }
+      return {
+        type: 'test',
+        ts: Date.now(),
+        random: Math.random(),
+        value: u.randbytes(u.randint(1024)).toString('base64'),
+      }
+    },
+    peers,
+    200,
+  )
+  t.pass('generate 200 random messages, approx 30% are follows')
+
+  for (let i = 0; i < 50; i++) {
+    const other = u.randary(peers).id
+    u.log('bob.publish', { follow: other })
+    await pify(bob.publish)({
+      type: 'contact',
+      contact: other,
+      following: true
+    })
+  }
+  t.pass('generate 50 follow messages from bob')
+
+  await pify(bob.connect)(alice.getAddress())
+
+  t.pass('bob is connected to alice')
+
+  await sleep(REPLICATION_TIMEOUT)
+
+  u.log('GET VECTOR CLOCK', alice.status())
+
+  const clockAlice = await pify(alice.getVectorClock)()
+  const clockBob = await pify(bob.getVectorClock)()
+
+  let diff = 0
+
+  for (const k in clockBob) {
+    if (clockAlice[k] !== clockBob[k]) {
+      diff += (clockAlice[k] || 0) - clockBob[k]
+    }
+  }
+
+  u.log('A', u.countClock(clockAlice), 'B', u.countClock(clockBob), 'diff', diff)
+
+  if (diff === 0) {
+    t.pass('the clocks between alice and bob match')
+    const prog = alice.progress()
+    t.ok(prog.indexes, 'alice indexes are okay')
+    t.ok(prog.ebt, 'alice ebt is okay')
+    t.ok(prog.ebt.target, 'alice ebt.target is okay')
+    t.strictEqual(prog.ebt.current, prog.ebt.target, 'alice ebt finished')
+
+    await Promise.all([
+      pify(alice.close)(true),
+      pify(bob.close)(true),
+    ])
+    t.end()
+  } else {
+    t.fail('inconsistent: ' + JSON.stringify(alice.status().ebt))
+  }
 })

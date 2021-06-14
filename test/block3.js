@@ -1,7 +1,8 @@
 const tape = require('tape')
-const cont = require('cont')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const SecretStack = require('secret-stack')
 const u = require('./misc/util')
 
@@ -21,63 +22,64 @@ const createSsbServer = SecretStack({
   .use(require('ssb-friends'))
   .use(require('..'))
 
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
+
 const alice = createSsbServer({
   temp: 'test-block-alice',
-  timeout: 1000,
-  keys: ssbKeys.generate()
+  timeout: CONNECTION_TIMEOUT,
+  keys: ssbKeys.generate(),
+  replicate: { legacy: false },
 })
 
 const bob = createSsbServer({
   temp: 'test-block-bob',
-  timeout: 1000,
-  keys: ssbKeys.generate()
+  timeout: CONNECTION_TIMEOUT,
+  keys: ssbKeys.generate(),
+  replicate: { legacy: false },
 })
 
 const carol = createSsbServer({
   temp: 'test-block-carol',
-  timeout: 1000,
-  keys: ssbKeys.generate()
+  timeout: CONNECTION_TIMEOUT,
+  keys: ssbKeys.generate(),
+  replicate: { legacy: false },
 })
 
-tape('alice blocks bob while he is connected, she should disconnect him', function (t) {
+tape('alice blocks bob while he is connected, she should disconnect him', async (t) => {
   t.plan(3)
+
   // in the beginning alice and bob follow each other
-  cont.para([
-    cont(alice.publish)(u.follow(bob.id)),
-    cont(bob.publish)(u.follow(alice.id)),
-    cont(carol.publish)(u.follow(alice.id))
-  ])(function (err) {
-    if (err) throw err
+  await Promise.all([
+    pify(alice.publish)(u.follow(bob.id)),
+    pify(bob.publish)(u.follow(alice.id)),
+    pify(carol.publish)(u.follow(alice.id))
+  ])
 
-    bob.connect(carol.getAddress(), function (err, rpc) {
-      if (err) throw err
-    })
+  await Promise.all([
+    pify(bob.connect)(carol.getAddress()),
+    pify(carol.connect)(alice.getAddress()),
+  ])
 
-    carol.connect(alice.getAddress(), function (err, rpc) {
-      if (err) throw err
-    })
+  const msgAtBob = await u.readOnceFromDB(bob)
+  u.log('BOB RECV', msgAtBob, bob.id)
 
-    bob.on('replicate:finish', function (vclock) {
-      // I don't care which messages bob doesn't have of alice's
-      t.ok(vclock[alice.id] < 2 || vclock[alice.id] == null, 'bob does not receive the message where alice blocked him')
-      alice.close()
-      bob.close()
-      carol.close()
-      t.end()
-    })
+  // should be the alice's follow(bob) message.
+  t.equal(msgAtBob.value.author, alice.id)
+  t.equal(msgAtBob.value.content.contact, bob.id)
+  await pify(alice.publish)(u.block(bob.id))
 
-    let once = false
-    bob.post(function (op) {
-      u.log('BOB RECV', op, bob.id)
-      if (once) throw new Error('should only be called once')
-      once = true
-      // should be the alice's follow(bob) message.
+  await sleep(REPLICATION_TIMEOUT)
 
-      t.equal(op.value.author, alice.id)
-      t.equal(op.value.content.contact, bob.id)
-      cont(alice.publish)(u.block(bob.id))(function (err) {
-        if (err) throw err
-      })
-    }, false)
-  })
+  const vclock = await pify(bob.getVectorClock)()
+  // I don't care which messages bob doesn't have of alice's
+  t.ok(vclock[alice.id] < 2 || vclock[alice.id] == null, 'bob does not receive the message where alice blocked him')
+
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+    pify(carol.close)(true),
+  ])
+
+  t.end()
 })
