@@ -20,7 +20,6 @@
     "dog-names": "^2.0.0",
     "nyc": "^13.2.0",
     "promisify-4loc": "^1.0.0",
-    "promisify-tuple": "^1.2.0",
     "pull-paramap": "^1.2.2",
     "rng": "^0.2.2",
     "secret-stack": "^6.1.2",
