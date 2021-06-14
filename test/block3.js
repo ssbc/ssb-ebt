@@ -22,7 +22,7 @@ const createSsbServer = SecretStack({
   .use(require('ssb-friends'))
   .use(require('..'))
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSsbServer({

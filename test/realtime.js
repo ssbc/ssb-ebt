@@ -22,7 +22,7 @@ function createHistoryStream (sbot, opts) {
   )
 }
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 tape('replicate between 2 peers', async (t) => {

@@ -72,14 +72,14 @@ exports.countClock = function (obj) {
   return { total, sum }
 }
 
-exports.randint = function (n) {
-  return ~~(Math.random() * n)
+exports.randint = function (max) {
+  return ~~(Math.random() * max)
 }
 
-exports.randary = function (a) {
-  return a[exports.randint(a.length)]
+exports.randary = function (ary) {
+  return ary[exports.randint(ary.length)]
 }
 
-exports.randbytes = function (n) {
-  return crypto.randomBytes(n)
+exports.randbytes = function (size) {
+  return crypto.randomBytes(size)
 }

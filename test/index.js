@@ -19,7 +19,7 @@ const createSbot = SecretStack({
   })
   .use(require('../')) // EBT
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSbot({
@@ -102,7 +102,7 @@ tape('three peers replicate everything between each other', async (t) => {
 
   const AMOUNT = 10;
   for (let i = 0; i < AMOUNT; i++) {
-    const j = ~~(Math.random() * bots.length)
+    const j = u.randint(bots.length)
     u.log('publish a new post by ' + names[bots[j].id])
     await pify(bots[j].publish)({ type: 'post', text: '' + i })
   }
@@ -124,5 +124,4 @@ tape('three peers replicate everything between each other', async (t) => {
     pify(charles.close)(true),
   ]);
   t.end()
-  return
 })
