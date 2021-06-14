@@ -1,9 +1,10 @@
 const tape = require('tape')
-const cont = require('cont')
 const pull = require('pull-stream')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
@@ -21,61 +22,61 @@ function createHistoryStream (sbot, opts) {
   )
 }
 
-tape('replicate between 3 peers', function (t) {
-  const bob = createSsbServer({
-    temp: 'test-bob',
-    //      port: 45452, host: 'localhost',
-    replicate: { legacy: false },
-    keys: ssbKeys.generate()
-  })
-
+tape('replicate between 2 peers', async (t) => {
+  t.plan(2)
   const alice = createSsbServer({
     temp: 'test-alice',
-    //    port: 45453, host: 'localhost',
-    seeds: [bob.getAddress()],
     replicate: { legacy: false },
     keys: ssbKeys.generate()
   })
 
-  cont.para([
-    cont(alice.publish)(u.follow(bob.id)),
-    cont(bob.publish)(u.follow(alice.id))
-  ])(function (err) {
-    if (err) throw err
+  const bob = createSsbServer({
+    temp: 'test-bob',
+    replicate: { legacy: false },
+    keys: ssbKeys.generate()
+  })
 
-    alice.connect(bob.getAddress(), function (_, _rpc) {
+  await Promise.all([
+    pify(alice.publish)(u.follow(bob.id)),
+    pify(bob.publish)(u.follow(alice.id))
+  ])
+
+  alice.connect(bob.getAddress(), (err) => {
+    if (err) t.fail(err)
+  })
+
+  // Collect all live msgs replicated from alice to bob's DB
+  const hotMsgs = []
+  pull(
+    createHistoryStream(bob, { id: alice.id, live: true }),
+    pull.drain(function (data) {
+      u.log(data)
+      hotMsgs.push(data)
     })
+  )
 
-    const ary = []
+  for (let i = 0; i < 11; i++) {
+    const msg = await pify(alice.publish)({ type: 'test', value: new Date() })
+    u.log('added', msg.key, msg.value.sequence)
+    await sleep(200)
+  }
+
+  const coldMsgs = await new Promise((resolve, reject) => {
     pull(
-      createHistoryStream(bob, { id: alice.id, live: true }),
-      pull.drain(function (data) {
-        u.log(data)
-        ary.push(data)
+      createHistoryStream(bob, { id: alice.id, live: false }),
+      pull.collect(function (err, msgs) {
+        if (err) reject(err)
+        else resolve(msgs)
       })
     )
-    let l = 12
-    setTimeout(function next () {
-      if (!--l) {
-        pull(
-          createHistoryStream(bob, { id: alice.id, live: false }),
-          pull.collect(function (err, _ary) {
-            t.error(err)
-            t.equal(_ary.length, 12)
-            t.deepEqual(ary, _ary)
-            bob.close(true)
-            alice.close(true)
-            t.end()
-          })
-        )
-      } else {
-        alice.publish({ type: 'test', value: new Date() },
-          function (err, msg) {
-            if (err) throw err
-            u.log('added', msg.key, msg.value.sequence)
-            setTimeout(next, 200)
-          })
-      }
-    }, 200)
   })
+
+  t.equal(coldMsgs.length, 12)
+  t.deepEqual(hotMsgs, coldMsgs)
+
+  await Promise.all([
+    pify(alice.close)(true),
+    pify(bob.close)(true),
+  ])
+  t.end()
 })

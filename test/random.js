@@ -6,6 +6,8 @@ const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
 const cats = require('cat-names')
 const dogs = require('dog-names')
+const pify = require('promisify-4loc')
+const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
@@ -17,200 +19,187 @@ const createSsbServer = SecretStack({
   .use(require('..'))
   .use(require('ssb-gossip'))
 
-let generated = {}
-const F = 100
-const N = 10000
+const AMOUNT_FEEDS = 100
+const AMOUNT_MSGS = 10000
 
-function generateAnimals (ssbServer, feed, f, n, cb) {
-  const a = [feed]
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-  while (f-- > 0) { a.push(ssbServer.createFeed()) }
+function generateAnimals (bot, mainFeed, amountFeeds, amountMsgs, doneCB) {
+  const feeds = [mainFeed]
+  while (amountFeeds-- > 0) {
+    feeds.push(bot.createFeed())
+  }
 
   u.log('generate NAMES')
 
   pull(
-    pull.values(a),
-    paramap(function (feed, cb) {
+    pull.values(feeds),
+    paramap((feed, cb) => {
       const animal = Math.random() > 0.5 ? 'cat' : 'dog'
       const name = animal === 'cat' ? cats.random() : dogs.allRandom()
-
       feed.name = name
-      u.log(feed.id)
+      u.log(feed.id + ' follows itself')
       feed.add(u.follow(feed.id), cb)
     }, 10),
     pull.drain(null, function (err) {
-      if (err) return cb(err)
-      const posts = []
+      if (err) return doneCB(err)
 
+      const posts = []
       pull(
-        pull.count(n),
-        paramap(function (n, cb) {
-          const me = a[~~(Math.random() * a.length)]
+        pull.count(amountMsgs),
+        paramap((i, cb) => {
+          const feed = feeds[~~(Math.random() * feeds.length)]
           const r = Math.random()
-          if (r < 0.1) u.log(n, me.id, r) // log only 1 in 10, less noise
+          // log only 1 in 10, less noise
+          if (r < 0.1) u.log(i, feed.id, r)
           // one in 20 messages is a random follow
           if (r < 0.5) {
-            const f = a[~~(Math.random() * a.length)]
-            me.add(u.follow(f.id), cb)
+            const otherFeed = feeds[~~(Math.random() * feeds.length)]
+            feed.add(u.follow(otherFeed.id), cb)
           } else if (r < 0.6) {
-            me.add({
+            feed.add({
               type: 'post',
-              text: me.animal === 'dog' ? 'woof' : 'meow'
+              text: feed.animal === 'dog' ? 'woof' : 'meow'
             }, function (err, msg) {
-              if (err) throw err
+              if (err) return cb(err)
               posts.push(msg.key)
               if (posts.length > 100) { posts.shift() }
               cb(null, msg)
             })
           } else {
             const post = posts[~~(Math.random() * posts.length)]
-            me.add({
+            feed.add({
               type: 'post',
               repliesTo: post,
-              text: me.animal === 'dog' ? 'woof woof' : 'purr'
-            }, function (err, msg) {
-              if (err) cb(err)
-              else cb(null, msg)
-            })
+              text: feed.animal === 'dog' ? 'woof woof' : 'purr'
+            }, cb)
           }
         }, 32),
-        pull.drain(null, cb)
+        pull.drain(null, doneCB)
       )
     })
   )
 }
 
-const alice = ssbKeys.generate()
-const bob = ssbKeys.generate()
-
-const animalNetwork = createSsbServer({
+const alice = createSsbServer({
   temp: 'ebt_test-random-animals',
   port: 45651,
   host: 'localhost',
-  timeout: 20001,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
-  keys: alice,
+  keys: ssbKeys.generate(),
   gossip: { pub: false }
 })
 
-let live = 0
-animalNetwork.post(function () {
-  if (!(live++ % 100)) {
-    u.log(live, live)
+let liveMsgCount = 0
+alice.post(function () {
+  if (!(liveMsgCount++ % 100)) {
+    u.log('liveMsgCount', liveMsgCount)
   }
 })
 
 pull(
-  animalNetwork.replicate.changes(),
+  alice.replicate.changes(),
   pull.drain(function (prog) {
     prog.id = 'animal network'
-    u.log(prog)
+    u.log('replicate.changes', prog)
   })
 )
 
-tape('generate random network', function (t) {
+tape('generate random network', async (t) => {
+  t.plan(3)
   const start = Date.now()
-  generateAnimals(animalNetwork, { add: animalNetwork.publish, id: animalNetwork.id }, F, N, function (err) {
-    if (err) throw err
-    u.log('replicate GRAPH')
-    animalNetwork.getVectorClock(function (err, _generated) {
-      if (err) throw err
 
-      generated = _generated
-      let total = 0
-      let feeds = 0
-      for (const k in generated) {
-        total += generated[k]
-        feeds++
-      }
+  await pify(generateAnimals)(alice, { add: alice.publish, id: alice.id }, AMOUNT_FEEDS, AMOUNT_MSGS)
 
-      const time = (Date.now() - start) / 1000
-      u.log('generated', total, 'messages in', time, 'at rate:', total / time)
-      u.log('over', feeds, 'feeds')
-      t.equal(total, N + 1 + F + 1)
-      t.equal(feeds, F + 1)
-      t.end()
-    })
-  })
+  u.log('replicate GRAPH')
+
+  const generated = await pify(alice.getVectorClock)()
+
+  let total = 0
+  let feeds = 0
+  for (const k in generated) {
+    total += generated[k]
+    feeds++
+  }
+
+  const duration = (Date.now() - start) / 1000
+  const rate = (total / duration).toFixed(1)
+
+  t.pass(`generated ${total} msgs over ${feeds} feeds in ${duration.toFixed(1)}s (rate: ${rate} msgs/s)`)
+  t.equal(total, AMOUNT_MSGS + 1 + AMOUNT_FEEDS + 1, 'expected amount of msgs')
+  t.equal(feeds, AMOUNT_FEEDS + 1, 'expected amount of feeds')
+  t.end()
 })
 
 tape('read all history streams', function (t) {
-  let c = 0
+  t.plan(5)
+  let msgs = 0
   const start = Date.now()
 
   // test just dumping everything!
   // not through network connection, because createLogStream is not on public api
   pull(
-    animalNetwork.createLogStream({ keys: false }),
+    alice.createLogStream({ keys: false }),
     pull.drain(function (n) {
-      c++
+      msgs++
     }, function () {
-      const time = (Date.now() - start) / 1000
-      u.log('dump all messages via createLogStream')
-      u.log('all histories dumped', c, 'messages in', time, 'at rate', c / time)
-      u.log('read back live:', live)
-      t.equal(live, F + N + 2)
-      t.equal(c, F + N + 2)
+      const duration = (Date.now() - start) / 1000
+      const rate = (msgs / duration).toFixed(1)
+      t.pass('dump all messages via createLogStream')
+      t.pass(`all histories dumped ${msgs} msgs in ${duration.toFixed(1)}s (rate ${rate} msgs/s)`)
+      t.pass(`live msg count: ${liveMsgCount}`)
+      t.equal(msgs, AMOUNT_FEEDS + AMOUNT_MSGS + 2, 'expected amount of msgs')
+      t.equal(liveMsgCount, AMOUNT_FEEDS + AMOUNT_MSGS + 2, 'expected live amount of msgs')
       t.end()
     })
   )
 })
 
-tape('replicate social network for animals', function (t) {
-  // return t.end()
-  let c = 0
-  if (!animalNetwork.friends) { throw new Error('missing frineds plugin') }
+tape('replicate social network for animals', async (t) => {
+  t.plan(3)
+  if (!alice.friends) { throw new Error('missing friends plugin') }
 
   const start = Date.now()
-  const animalFriends = createSsbServer({
+  const bob = createSsbServer({
     temp: 'ebt_test-random-animals2',
     port: 45652,
     host: 'localhost',
-    timeout: 20001,
+    timeout: CONNECTION_TIMEOUT,
     replicate: { hops: 3, legacy: false },
     gossip: { pub: false },
     progress: true,
-    seeds: [animalNetwork.getAddress()],
-    keys: bob
-  })
-  let connections = 0
-
-  animalFriends.on('rpc:connect', function (rpc) {
-    connections++
-    c++
-    u.log('CONNECT', connections)
-    rpc.on('closed', function () {
-      u.log('DISCONNECT', --connections)
-    })
+    seeds: [alice.getAddress()],
+    keys: ssbKeys.generate()
   })
 
-  const int = setInterval(function () {
-    const prog = animalFriends.progress()
-    if (prog.ebt && prog.ebt.current === prog.ebt.target) {
-      const target = F + N + 3
-      const time = (Date.now() - start) / 1000
-      u.log('replicated', target, 'messages in', time, 'at rate', target / time)
-      clearInterval(int)
-      t.equal(c, 1, 'everything replicated within a single connection')
-      animalFriends.close(true)
-      t.end()
-    }
-  }, 200)
+  if (!bob.friends) { throw new Error('missing friends plugin') }
 
-  animalFriends.logging = true
+  await pify(bob.connect)(alice.getAddress())
 
-  if (!animalFriends.friends) { throw new Error('missing friends plugin') }
-
-  animalFriends.publish({
+  await pify(bob.publish)({
     type: 'contact',
-    contact: animalNetwork.id,
+    contact: alice.id,
     following: true
-  }, function (err, msg) {
-    if (err) throw err
   })
+
+  await sleep(REPLICATION_TIMEOUT)
+
+  const prog = bob.progress()
+  t.ok(prog.ebt, 'bob ebt is okay')
+  t.equals(prog.ebt.current, prog.ebt.target, 'bob ebt is done')
+
+  const target = AMOUNT_FEEDS + AMOUNT_MSGS + 3
+  const time = (Date.now() - start) / 1000
+  const rate = (target / time).toFixed(1)
+  t.pass(`replicated ${target} msgs in ${time}s (rate ${rate} msgs/s)`)
+  await pify(bob.close)(true)
+
+  t.end()
 })
 
-tape('shutdown', function (t) {
-  animalNetwork.close(true)
+tape('teardown', async (t) => {
+  await pify(alice.close)(true)
   t.end()
 })

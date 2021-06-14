@@ -114,7 +114,7 @@ exports.init = function (sbot, config) {
   })
 
   function onClose () {
-    // TODO: remove this, no one seems to depend on it
+    // TODO: delete this, it seems to be used only in tests
     sbot.emit('replicate:finish', ebt.state.clock)
   }
 
