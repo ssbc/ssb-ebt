@@ -22,7 +22,7 @@ const createSsbServer = SecretStack({
 // 2. alice never tries to connect to bob. (removed from peers)
 // 3. carol will not give bob any, she will not give him any data from alice.
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSsbServer({

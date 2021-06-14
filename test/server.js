@@ -18,7 +18,7 @@ const createSsbServer = SecretStack({
   .use(require('..'))
   .use(require('ssb-friends'))
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 tape('replicate between 3 peers', async (t) => {

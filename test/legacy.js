@@ -18,7 +18,7 @@ const createSbot = SecretStack({
   })
   .use(require('../')) // EBT
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 
 const bobKeys = ssbKeys.generate()
 

@@ -22,7 +22,7 @@ const createSsbServer = SecretStack({
 const AMOUNT_FEEDS = 100
 const AMOUNT_MSGS = 10000
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 function generateAnimals (bot, mainFeed, amountFeeds, amountMsgs, doneCB) {
@@ -49,7 +49,7 @@ function generateAnimals (bot, mainFeed, amountFeeds, amountMsgs, doneCB) {
       pull(
         pull.count(amountMsgs),
         paramap((i, cb) => {
-          const feed = feeds[~~(Math.random() * feeds.length)]
+          const feed = u.randary(feeds)
           const r = Math.random()
           // log only 1 in 10, less noise
           if (r < 0.1) u.log(i, feed.id, r)
@@ -68,7 +68,7 @@ function generateAnimals (bot, mainFeed, amountFeeds, amountMsgs, doneCB) {
               cb(null, msg)
             })
           } else {
-            const post = posts[~~(Math.random() * posts.length)]
+            const post = u.randary(posts)
             feed.add({
               type: 'post',
               repliesTo: post,

@@ -19,7 +19,7 @@ const createSbot = SecretStack({
 // some of the peers might be too far from the followed peer.
 // TODO: create a thing that checks they where all actually reachable!
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSbot({

@@ -14,7 +14,7 @@ const createSbot = require('secret-stack')({
   .use(require('../'))
   .use(require('ssb-friends'))
 
-const CONNECTION_TIMEOUT = 500
+const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSbot({
