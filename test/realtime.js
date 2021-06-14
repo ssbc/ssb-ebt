@@ -22,16 +22,21 @@ function createHistoryStream (sbot, opts) {
   )
 }
 
+const CONNECTION_TIMEOUT = 500
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
+
 tape('replicate between 2 peers', async (t) => {
   t.plan(2)
   const alice = createSsbServer({
     temp: 'test-alice',
+    timeout: CONNECTION_TIMEOUT,
     replicate: { legacy: false },
     keys: ssbKeys.generate()
   })
 
   const bob = createSsbServer({
     temp: 'test-bob',
+    timeout: CONNECTION_TIMEOUT,
     replicate: { legacy: false },
     keys: ssbKeys.generate()
   })
@@ -60,6 +65,8 @@ tape('replicate between 2 peers', async (t) => {
     u.log('added', msg.key, msg.value.sequence)
     await sleep(200)
   }
+
+  await sleep(REPLICATION_TIMEOUT)
 
   const coldMsgs = await new Promise((resolve, reject) => {
     pull(

@@ -22,7 +22,6 @@ const alice = createSsbServer({
   timeout: CONNECTION_TIMEOUT,
   keys: ssbKeys.generate(),
   replicate: { legacy: false },
-  gossip: { pub: false }
 })
 
 const bob = createSsbServer({
@@ -30,7 +29,6 @@ const bob = createSsbServer({
   timeout: CONNECTION_TIMEOUT,
   keys: ssbKeys.generate(),
   replicate: { legacy: false },
-  gossip: { pub: false }
 })
 
 tape('alice blocks bob while he is connected, she should disconnect him', async (t) => {

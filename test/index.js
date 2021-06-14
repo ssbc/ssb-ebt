@@ -24,30 +24,22 @@ const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSbot({
   temp: 'random-animals_alice',
-  port: 45451,
-  host: 'localhost',
   timeout: CONNECTION_TIMEOUT,
   replicate: { legacy: false },
   keys: ssbKeys.generate(),
-  gossip: { pub: false },
   friends: { hops: 10 }
 })
 
 const bob = createSbot({
   temp: 'random-animals_bob',
-  port: 45452,
-  host: 'localhost',
   timeout: CONNECTION_TIMEOUT,
   replicate: { legacy: false },
   friends: { hops: 10 },
-  gossip: { pub: false },
   keys: ssbKeys.generate()
 })
 
 const charles = createSbot({
   temp: 'random-animals_charles',
-  port: 45453,
-  host: 'localhost',
   timeout: CONNECTION_TIMEOUT,
   replicate: { legacy: false },
   friends: { hops: 10 },

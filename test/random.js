@@ -84,12 +84,9 @@ function generateAnimals (bot, mainFeed, amountFeeds, amountMsgs, doneCB) {
 
 const alice = createSsbServer({
   temp: 'ebt_test-random-animals',
-  port: 45651,
-  host: 'localhost',
   timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
   keys: ssbKeys.generate(),
-  gossip: { pub: false }
 })
 
 let liveMsgCount = 0
@@ -164,13 +161,8 @@ tape('replicate social network for animals', async (t) => {
   const start = Date.now()
   const bob = createSsbServer({
     temp: 'ebt_test-random-animals2',
-    port: 45652,
-    host: 'localhost',
     timeout: CONNECTION_TIMEOUT,
     replicate: { hops: 3, legacy: false },
-    gossip: { pub: false },
-    progress: true,
-    seeds: [alice.getAddress()],
     keys: ssbKeys.generate()
   })
 

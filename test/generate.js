@@ -24,8 +24,6 @@ const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSbot({
   temp: 'alice',
-  port: 55451,
-  host: 'localhost',
   timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
   keys: ssbKeys.generate()
@@ -33,8 +31,6 @@ const alice = createSbot({
 
 const bob = createSbot({
   temp: 'bob',
-  port: 55452,
-  host: 'localhost',
   timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
   keys: ssbKeys.generate()

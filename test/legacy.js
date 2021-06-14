@@ -18,13 +18,13 @@ const createSbot = SecretStack({
   })
   .use(require('../')) // EBT
 
+const CONNECTION_TIMEOUT = 500
+
 const bobKeys = ssbKeys.generate()
 
 const alice = createSbot({
   temp: 'random-animals',
-  port: 45451,
-  host: 'localhost',
-  timeout: 20001,
+  timeout: CONNECTION_TIMEOUT,
   replicate: { hops: 3, legacy: false },
   keys: ssbKeys.generate()
 })
