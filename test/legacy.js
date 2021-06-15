@@ -9,13 +9,6 @@ const createSbot = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
 })
   .use(require('ssb-db'))
-  .use({
-    // fake replicate plugin
-    name: 'replicate',
-    init: function () {
-      return { request: function () {} }
-    }
-  })
   .use(require('../')) // EBT
 
 const CONNECTION_TIMEOUT = 500 // ms
@@ -25,7 +18,6 @@ const bobKeys = ssbKeys.generate()
 const alice = createSbot({
   temp: 'random-animals',
   timeout: CONNECTION_TIMEOUT,
-  replicate: { hops: 3, legacy: false },
   keys: ssbKeys.generate()
 })
 

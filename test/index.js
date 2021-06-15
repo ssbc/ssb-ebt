@@ -10,13 +10,6 @@ const createSbot = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
 })
   .use(require('ssb-db'))
-  .use({
-    // fake replicate plugin
-    name: 'replicate',
-    init: function () {
-      return { request: function () {} }
-    }
-  })
   .use(require('../')) // EBT
 
 const CONNECTION_TIMEOUT = 500 // ms
@@ -25,25 +18,18 @@ const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 const alice = createSbot({
   temp: 'random-animals_alice',
   timeout: CONNECTION_TIMEOUT,
-  replicate: { legacy: false },
   keys: ssbKeys.generate(),
-  friends: { hops: 10 }
 })
 
 const bob = createSbot({
   temp: 'random-animals_bob',
   timeout: CONNECTION_TIMEOUT,
-  replicate: { legacy: false },
-  friends: { hops: 10 },
   keys: ssbKeys.generate()
 })
 
 const charles = createSbot({
   temp: 'random-animals_charles',
   timeout: CONNECTION_TIMEOUT,
-  replicate: { legacy: false },
-  friends: { hops: 10 },
-  gossip: { pub: false },
   keys: ssbKeys.generate()
 })
 
@@ -59,10 +45,13 @@ tape('three peers replicate everything between each other', async (t) => {
   const bots = [alice, bob, charles]
 
   // make sure all the sbots are replicating all the feeds.
-  for (const bot of bots) {
-    alice.replicate.request(bot.id)
-    bob.replicate.request(bot.id)
-    charles.replicate.request(bot.id)
+  for (const other of bots) {
+    alice.ebt.request(other.id, true)
+    alice.ebt.block(alice.id, other.id, false)
+    bob.ebt.request(other.id, true)
+    bob.ebt.block(bob.id, other.id, false)
+    charles.ebt.request(other.id, true)
+    charles.ebt.block(charles.id, other.id, false)
   }
   t.pass('all peers are set to replicate each other')
 

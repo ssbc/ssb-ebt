@@ -5,11 +5,7 @@ const EBT = require('epidemic-broadcast-trees')
 const isFeed = require('ssb-ref').isFeed
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
-const Legacy = require('./legacy')
 
-function isObject (o) {
-  return o && typeof o === 'object'
-}
 function hook(hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
     hookable.hook(fn)
@@ -45,9 +41,6 @@ function cleanClock(clock) {
 }
 
 exports.init = function (sbot, config) {
-  config.replicate = config.replicate || {}
-  config.replicate.fallback = true
-
   const dir = config.path ? path.join(config.path, 'ebt') : null
   const store = Store(dir, null, toUrlFriendly)
 
@@ -88,84 +81,45 @@ exports.init = function (sbot, config) {
     ebt.onAppend(msg.value)
   })
 
-  // HACK: patch calls to replicate.request into ebt, too.
-  hook(sbot.replicate.request, function (fn, args) {
-    let id, replicate
-    if (isObject(args[0])) {
-      id = args[0].id
-      replicate = args[0].replicate
-    } else {
-      id = args[0]
-      replicate = args[1]
-    }
-    if (!isFeed(id)) return
-    ebt.request(id, replicate)
-    return fn.apply(this, args)
-  })
-
-  //  hook(sbot.status, function (fn) {
-  //    var _status = fn(), feeds = 0
-  //    _status.ebt = ebt.status()
-  //    return _status
-  //  })
-
-  hook(sbot.progress, function (fn) {
-    const prog = fn()
-    const p = ebt.progress()
-    if (p.target) prog.ebt = p
-    return prog
-  })
-
-  function onClose () {
-    // TODO: delete this, it seems to be used only in tests
-    sbot.emit('replicate:finish', ebt.state.clock)
+  // TODO: remove this when no one uses ssb-db anymore, because
+  // sbot.progress is defined in ssb-db but not in ssb-db2
+  if (sbot.progress) {
+    hook(sbot.progress, function (fn) {
+      const _progress = fn()
+      const ebtProg = ebt.progress()
+      if (ebtProg.target) _progress.ebt = ebtProg
+      return _progress
+    })
   }
 
   sbot.on('rpc:connect', function (rpc, isClient) {
     if (isClient) {
       const opts = { version: 3 }
-      const a = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
-      const b = rpc.ebt.replicate(opts, function (err) {
-        if (err) {
-          rpc.removeListener('closed', onClose)
-          rpc._emit('fallback:replicate', err)
-        }
+      const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
+      const remote = rpc.ebt.replicate(opts, function (err) {
+        // TODO: handle errors here, at least to log unexpected errors
       })
-
-      pull(a, b, a)
-      rpc.on('closed', onClose)
+      pull(local, remote, local)
     }
   })
 
-  function block (from, to, blocking) {
-    if (isObject(from)) {
-      to = from.to
-      blocking = from.blocking
-      from = from.from
-    }
-    if (blocking) {
-      ebt.block(from, to, true)
-    } else if (ebt.state.blocks[from] && ebt.state.blocks[from][to]) {
-      // only update unblock if they were already blocked
-      ebt.block(from, to, false)
-    }
-    // if we blocked them, but happen to be connected, disconnect immediately.
-    if (blocking && sbot.id === from && ebt.state.peers[to]) {
-      // TODO: conn.disconnect might not work because we're passing a Feed ID
-      // while it expects a multiserver address
-      if (sbot.conn) sbot.conn.disconnect(to, function () {})
-      else if (sbot.gossip) sbot.gossip.disconnect(to, function () {})
-    }
+  function request(destFeedId, requesting) {
+    if (!isFeed(destFeedId)) return
+    ebt.request(destFeedId, requesting)
   }
 
-  if (sbot.replicate.block) {
-    sbot.replicate.block.hook(function (fn, args) {
-      block.apply(this, args)
-      return fn.apply(this, args)
-    })
-  } else {
-    // remove this on next breaking change
-    Legacy(sbot, ebt)
+  function block(origFeedId, destFeedId, blocking) {
+    if (!isFeed(origFeedId)) return
+    if (!isFeed(destFeedId)) return
+    if (blocking) {
+      ebt.block(origFeedId, destFeedId, true)
+    } else if (
+      ebt.state.blocks[origFeedId] &&
+      ebt.state.blocks[origFeedId][destFeedId]
+    ) {
+      // only update unblock if they were already blocked
+      ebt.block(origFeedId, destFeedId, false)
+    }
   }
 
   function replicate(opts) {
@@ -197,8 +151,9 @@ exports.init = function (sbot, config) {
   }
 
   return {
+    request,
+    block,
     replicate,
     peerStatus,
-    block,
   }
 }

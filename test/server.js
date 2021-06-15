@@ -14,9 +14,7 @@ const createSsbServer = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
 })
   .use(require('ssb-db'))
-  .use(require('ssb-replicate'))
   .use(require('..'))
-  .use(require('ssb-friends'))
 
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
@@ -28,21 +26,18 @@ tape('replicate between 3 peers', async (t) => {
     temp: 'server-alice',
     keys: ssbKeys.generate(),
     timeout: CONNECTION_TIMEOUT,
-    replicate: { legacy: false },
     level: 'info'
   })
   const bob = createSsbServer({
     temp: 'server-bob',
     keys: ssbKeys.generate(),
     timeout: CONNECTION_TIMEOUT,
-    replicate: { legacy: false },
     level: 'info'
   })
   const carol = createSsbServer({
     temp: 'server-carol',
     keys: ssbKeys.generate(),
     timeout: CONNECTION_TIMEOUT,
-    replicate: { legacy: false },
     level: 'info'
   })
 
@@ -50,23 +45,39 @@ tape('replicate between 3 peers', async (t) => {
   await sleep(500)
 
   await Promise.all([
-    // All peers publish "pub" of themselves
-    pify(alice.publish)(u.pub(alice.getAddress())),
-    pify(bob.publish)(u.pub(bob.getAddress())),
-    pify(carol.publish)(u.pub(carol.getAddress())),
+    // All peers publish two msgs each
+    pify(alice.publish)({ type: 'post', text: 'hello' }),
+    pify(alice.publish)({ type: 'post', text: 'world' }),
 
-    // alice follows bob & carol
-    pify(alice.publish)(u.follow(bob.id)),
-    pify(alice.publish)(u.follow(carol.id)),
+    pify(bob.publish)({ type: 'post', text: 'hello' }),
+    pify(bob.publish)({ type: 'post', text: 'world' }),
 
-    // bob follows alice & carol
-    pify(bob.publish)(u.follow(alice.id)),
-    pify(bob.publish)(u.follow(carol.id)),
-
-    // carol follows alice & bob
-    pify(carol.publish)(u.follow(alice.id)),
-    pify(carol.publish)(u.follow(bob.id)),
+    pify(carol.publish)({ type: 'post', text: 'hello' }),
+    pify(carol.publish)({ type: 'post', text: 'world' }),
   ])
+
+  // Self replicate
+  alice.ebt.request(alice.id, true)
+  bob.ebt.request(bob.id, true)
+  carol.ebt.request(carol.id, true)
+
+  // alice wants to replicate bob & carol
+  alice.ebt.request(bob.id, true)
+  alice.ebt.block(alice.id, bob.id, false)
+  alice.ebt.request(carol.id, true)
+  alice.ebt.block(alice.id, carol.id, false)
+
+  // bob wants to replicate alice & carol
+  bob.ebt.request(alice.id, true)
+  bob.ebt.block(bob.id, alice.id, false)
+  bob.ebt.request(carol.id, true)
+  bob.ebt.block(bob.id, carol.id, false)
+
+  // carol wants to replicate alice & bob
+  carol.ebt.request(alice.id, true)
+  carol.ebt.block(carol.id, alice.id, false)
+  carol.ebt.request(bob.id, true)
+  carol.ebt.block(carol.id, bob.id, false)
 
   const [connectionBA, connectionBC, connectionCA] = await Promise.all([
     pify(bob.connect)(alice.getAddress()),
@@ -75,9 +86,9 @@ tape('replicate between 3 peers', async (t) => {
   ])
 
   const expectedClock = {
-    [alice.id]: 3,
-    [bob.id]: 3,
-    [carol.id]: 3,
+    [alice.id]: 2,
+    [bob.id]: 2,
+    [carol.id]: 2,
   }
 
   await sleep(REPLICATION_TIMEOUT)
