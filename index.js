@@ -1,4 +1,3 @@
-'use strict'
 const path = require('path')
 const pull = require('pull-stream')
 const toPull = require('push-stream-to-pull-stream')
@@ -11,9 +10,10 @@ const Legacy = require('./legacy')
 function isObject (o) {
   return o && typeof o === 'object'
 }
-
-function hook (hookable, fn) {
-  if (typeof hookable === 'function' && hookable.hook) { hookable.hook(fn) }
+function hook(hookable, fn) {
+  if (typeof hookable === 'function' && hookable.hook) {
+    hookable.hook(fn)
+  }
 }
 
 exports.name = 'ebt'
@@ -24,16 +24,19 @@ exports.manifest = {
   replicate: 'duplex',
   request: 'sync',
   block: 'sync',
-  peerStatus: 'sync'
+  peerStatus: 'sync',
 }
+
 exports.permissions = {
-  anonymous: { allow: ['replicate'] }
+  anonymous: {
+    allow: ['replicate'],
+  },
 }
 
 // there was a bug that caused some peers
 // to request things that weren't feeds.
 // this is fixed, so just ignore anything that isn't a feed.
-function cleanClock (clock, message) {
+function cleanClock(clock) {
   for (const k in clock) {
     if (!isFeed(k)) {
       delete clock[k]
@@ -51,37 +54,37 @@ exports.init = function (sbot, config) {
   const ebt = EBT({
     logging: config.ebt && config.ebt.logging,
     id: sbot.id,
-    getClock: function (id, cb) {
+    getClock(id, cb) {
       store.ensure(id, function () {
         const clock = store.get(id) || {}
         cleanClock(clock)
         cb(null, clock)
       })
     },
-    setClock: function (id, clock) {
+    setClock(id, clock) {
       cleanClock(clock, 'non-feed key when saving clock')
       store.set(id, clock)
     },
-    getAt: function (pair, cb) {
-      sbot.getAtSequence([pair.id, pair.sequence], function (err, data) {
+    getAt(pair, cb) {
+      sbot.getAtSequence([pair.id, pair.sequence], (err, data) => {
         cb(err, data ? data.value : null)
       })
     },
-    append: function (msg, cb) {
-      sbot.add(msg, function (err, msg) {
+    append(msg, cb) {
+      sbot.add(msg, (err, msg) => {
         cb(err && err.fatal ? err : null, msg)
       })
     },
-    isFeed: isFeed
+    isFeed: isFeed,
   })
 
-  sbot.getVectorClock(function (err, clock) {
+  sbot.getVectorClock((err, clock) => {
     if (err) console.warn(err)
     ebt.state.clock = clock || {}
     ebt.update()
   })
 
-  sbot.post(function (msg) {
+  sbot.post((msg) => {
     ebt.onAppend(msg.value)
   })
 
@@ -165,20 +168,20 @@ exports.init = function (sbot, config) {
     Legacy(sbot, ebt)
   }
 
-  function replicate (opts) {
+  function replicate(opts) {
     if (opts.version !== 2 && opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3 or 2})')
     }
-    return toPull.duplex(ebt.createStream(this.id, opts.version, false))
+    return toPull.duplex(ebt.createStream(sbot.id, opts.version, false))
   }
 
   // get replication status for feeds for this id.
-  function peerStatus (id) {
+  function peerStatus(id) {
     id = id || sbot.id
     const data = {
       id: id,
       seq: ebt.state.clock[id],
-      peers: {}
+      peers: {},
     }
     for (const k in ebt.state.peers) {
       const peer = ebt.state.peers[k]
@@ -186,7 +189,7 @@ exports.init = function (sbot, config) {
         const rep = peer.replicating && peer.replicating[id]
         data.peers[k] = {
           seq: peer.clock[id],
-          replicating: rep
+          replicating: rep,
         }
       }
     }
