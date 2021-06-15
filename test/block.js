@@ -111,7 +111,7 @@ tape('alice blocks bob, and bob cannot connect to alice', async (t) => {
   t.end()
 })
 
-tape('carol does replicate alice\'s data with bob', async (t) => {
+tape('carol does not replicate alice\'s data with bob', async (t) => {
   t.plan(1)
   // first, carol should have already replicated with alice.
   // emits this event when did not allow bob to get this data.
