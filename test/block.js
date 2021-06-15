@@ -47,7 +47,7 @@ const carol = createSsbServer({
 })
 
 tape('alice blocks bob, and bob cannot connect to alice', async (t) => {
-  t.plan(8)
+  t.plan(9)
 
   // in the beginning alice and bob follow each other
   // carol follows alice
@@ -105,14 +105,18 @@ tape('alice blocks bob, and bob cannot connect to alice', async (t) => {
   await pify(rpcCarolToAlice.close)(true)
 
   // carol has replicated with alice
-  const clock = await pify(carol.getVectorClock)()
-  t.equal(clock[alice.id], 2, 'carol replicated everything from alice')
+  const clockCarol = await pify(carol.getVectorClock)()
+  t.equal(clockCarol[alice.id], 2, 'carol replicated everything from alice')
+
+  // alice does not follow carol, so didnt get data
+  const clockAlice = await pify(alice.getVectorClock)()
+  t.notOk(clockAlice[carol.id], 'alice did not replicate alice')
 
   t.end()
 })
 
 tape('carol does not replicate alice\'s data with bob', async (t) => {
-  t.plan(1)
+  t.plan(3)
   // first, carol should have already replicated with alice.
   // emits this event when did not allow bob to get this data.
   const rpcBobToCarol = await pify(bob.connect)(carol.getAddress())
@@ -120,8 +124,14 @@ tape('carol does not replicate alice\'s data with bob', async (t) => {
 
   await pify(rpcBobToCarol.close)(true)
 
-  const clock = await pify(bob.getVectorClock)()
-  t.equal(clock[alice.id], 1)
+  const clockBob = await pify(bob.getVectorClock)()
+  t.equal(clockBob[alice.id], 1)
+
+  // Although carol connected to bob, she doesn't follow him, and
+  // neither does alice *anymore*, so carol does not replicate bob
+  const clockCarol = await pify(carol.getVectorClock)()
+  t.ok(clockCarol[alice.id], 'carol replicated alice')
+  t.notOk(clockCarol[bob.id], 'carol did not replicate bob')
 
   t.end()
 })
@@ -148,13 +158,15 @@ tape('alice does not replicate messages from bob, but carol does', async (t) => 
 
   const recv = { alice: 0, carol: 0 }
 
-  // carol will receive one message from bob and carol
+  // carol will receive: alice's recent follow and all of bob's (two) msgs
+  // because carol is now following bob
   carol.post((msg) => recv.carol++, false)
 
-  // alice will only receive the message from carol, but not bob.
+  // alice will receive: all of carol's (two) msgs
+  // because alice is now following carol
   alice.post((msg) => {
     recv.alice++
-    t.equal(msg.value.author, carol.id)
+    t.equal(msg.value.author, carol.id, 'alice gets a msg from carol')
   }, false)
 
   const g = await pify(carol.friends.get)()
@@ -186,8 +198,8 @@ tape('alice does not replicate messages from bob, but carol does', async (t) => 
   t.equals(vclock[bob.id], 2)
   t.equals(vclock[carol.id], 2)
 
-  t.equals(recv.alice, 2)
   t.equals(recv.carol, 3)
+  t.equals(recv.alice, 2)
 
   t.equal(friends, 3, "carol's createFriendStream has 3 peers")
   t.end()
