@@ -41,12 +41,18 @@ exports.keysFor = function (name) {
   return ssbKeys.generate(null, seed)
 }
 
-exports.readOnceFromDB = function (sbot) {
-  return new Promise((resolve) => {
-    var cancel = sbot.post((msg) => {
+exports.readOnceFromDB = function (sbot, timeout) {
+  return new Promise((resolve, reject) => {
+    const cancel = sbot.post((msg) => {
       cancel()
       resolve(msg)
     }, false)
+    if (timeout) {
+      setTimeout(() => {
+        cancel()
+        reject(new Error('readOnceFromDB timed out'))
+      }, timeout)
+    }
   })
 }
 

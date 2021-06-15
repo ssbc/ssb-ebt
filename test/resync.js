@@ -1,4 +1,4 @@
-const tape = require('tape')
+const test = require('tape')
 const gen = require('ssb-generate')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
@@ -10,40 +10,33 @@ const createSbot = require('secret-stack')({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
 })
   .use(require('ssb-db'))
-  .use(require('ssb-replicate'))
   .use(require('../'))
-  .use(require('ssb-friends'))
 
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-const alice = createSbot({
-  temp: 'alice',
-  timeout: CONNECTION_TIMEOUT,
-  replicate: { hops: 3, legacy: false },
-  keys: ssbKeys.generate()
-})
+test('peer can recover and resync its content from a friend', async (t) => {
+  const alice = createSbot({
+    temp: 'alice',
+    timeout: CONNECTION_TIMEOUT,
+    keys: ssbKeys.generate()
+  })
 
-const bob = createSbot({
-  temp: 'bob',
-  timeout: CONNECTION_TIMEOUT,
-  replicate: { hops: 3, legacy: false },
-  keys: ssbKeys.generate()
-})
+  const bob = createSbot({
+    temp: 'bob',
+    timeout: CONNECTION_TIMEOUT,
+    keys: ssbKeys.generate()
+  })
 
-u.trackProgress(alice, 'alice')
-u.trackProgress(bob, 'bob')
-
-tape('peer can recover and resync its content from a friend', async (t) => {
-  t.plan(6)
   t.ok(alice.getAddress(), 'alice has an address')
 
-  await pify(alice.publish)({
-    type: 'contact',
-    contact: bob.id,
-    following: true,
-  })
-  t.pass('alice publishes: follow bob')
+  // Self replicate
+  alice.ebt.request(alice.id, true)
+  bob.ebt.request(bob.id, true)
+
+  alice.ebt.request(bob.id, true)
+  alice.ebt.block(alice.id, bob.id, false)
+  t.pass('alice wants to replicate bob')
 
   // alice has data from some random peers
   const peers = await pify(gen.initialize)(alice, 50, 4)
