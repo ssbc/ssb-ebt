@@ -53,9 +53,9 @@ function generateAnimals (bot, mainFeed, amountFeeds, amountMsgs, doneCB) {
           const r = Math.random()
           // log only 1 in 10, less noise
           if (r < 0.1) u.log(i, feed.id, r)
-          // one in 20 messages is a random follow
+          // 50% of messages are a random follow
           if (r < 0.5) {
-            const otherFeed = feeds[~~(Math.random() * feeds.length)]
+            const otherFeed = u.randary(feeds)
             feed.add(u.follow(otherFeed.id), cb)
           } else if (r < 0.6) {
             feed.add({
