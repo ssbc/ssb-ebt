@@ -5,6 +5,7 @@ const EBT = require('epidemic-broadcast-trees')
 const isFeed = require('ssb-ref').isFeed
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
+const getSeverity = require('ssb-network-errors')
 
 function hook(hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
@@ -96,8 +97,10 @@ exports.init = function (sbot, config) {
     if (isClient) {
       const opts = { version: 3 }
       const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
-      const remote = rpc.ebt.replicate(opts, function (err) {
-        // TODO: handle errors here, at least to log unexpected errors
+      const remote = rpc.ebt.replicate(opts, (networkError) => {
+        if (networkError && getSeverity(networkError) >= 3) {
+          console.error(networkError)
+        }
       })
       pull(local, remote, local)
     }
