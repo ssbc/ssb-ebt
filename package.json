@@ -13,7 +13,7 @@
     "lossy-store": "^1.2.3",
     "pull-stream": "^3.5.0",
     "push-stream-to-pull-stream": "^1.0.0",
-    "ssb-network-errors": "^0.4.0",
+    "ssb-network-errors": "^1.0.0",
     "ssb-ref": "^2.9.1"
   },
   "devDependencies": {
