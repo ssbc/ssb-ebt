@@ -9,7 +9,7 @@
   },
   "dependencies": {
     "base64-url": "^2.2.0",
-    "epidemic-broadcast-trees": "^8.0.3",
+    "epidemic-broadcast-trees": "^8.0.4",
     "lossy-store": "^1.2.3",
     "pull-stream": "^3.5.0",
     "push-stream-to-pull-stream": "^1.0.0",
