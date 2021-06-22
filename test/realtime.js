@@ -5,7 +5,6 @@ const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
 const pify = require('promisify-4loc')
 const sleep = require('util').promisify(setTimeout)
-const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') }
@@ -81,7 +80,7 @@ tape('replicate between 2 peers', async (t) => {
 
   await Promise.all([
     pify(alice.close)(true),
-    pify(bob.close)(true),
+    pify(bob.close)(true)
   ])
   t.end()
 })

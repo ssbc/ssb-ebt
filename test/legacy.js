@@ -22,7 +22,7 @@ const alice = createSbot({
 })
 
 tape('legacy (version 1) is unsupported', async (t) => {
-  t.plan(1);
+  t.plan(1)
 
   // Wait for alice to be ready, so that it *can* be closed
   await sleep(500)
