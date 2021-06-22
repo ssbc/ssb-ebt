@@ -2,7 +2,7 @@
 
 *Replicates SSB feeds using the efficient "Epidemic broadcast tree" algorithm.*
 
-This module is an adapter for the module [epidemic-broadcast-trees](https://github.com/dominictarr/epidemic-broadcast-trees)
+This module is an adapter for the module [epidemic-broadcast-trees](https://github.com/ssbc/epidemic-broadcast-trees)
 to work with [secure-scuttlebutt](http://scuttlebutt.nz/). Supersedes
 [ssb-replicate](https://github.com/ssbc/ssb-replicate).
 
