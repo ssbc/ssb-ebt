@@ -1,51 +1,70 @@
 # ssb-ebt
 
-Adapter for [epidemic-broadcast-trees](https://github.com/dominictarr/epidemic-broadcast-trees)
-to [secure-scuttlebutt](http://scuttlebutt.nz/)
+Replicates SSB feeds using the efficient "Epidemic broadcast tree" algorithm.
+This module is an adapter for the module [epidemic-broadcast-trees](https://github.com/dominictarr/epidemic-broadcast-trees)
+to work with [secure-scuttlebutt](http://scuttlebutt.nz/). Supersedes
+[ssb-replicate](https://github.com/ssbc/ssb-replicate).
 
+## Usage
 
-## testing/debugging
+**Prerequisites:**
 
-There are several scripts in `./debug` which I used for testing
-ebt replicaiton.
+- Requires **Node.js 8** or higher
+- Requires **ssb-db** or **ssb-db2**
 
-use `./debug/remote.js <address>` to connect to an sbot running
-ebt and replicate. Running this won't store anything locally,
-it will just download everything drop it on the floor. This
-is used to test performance of ebt on a server.
+```
+npm install --save ssb-ebt
+```
 
-I normally see values between 2k and 3k messages per second,
-that replicates 100k messages in under a minute.
+Add this secret-stack plugin like this:
 
-## api
+```diff
+ const SecretStack = require('secret-stack')
+ const caps = require('ssb-caps')
 
-### ebt.block (from, to, blocking)
+ const createSsbServer = SecretStack({ caps })
+     .use(require('ssb-master'))
+     .use(require('ssb-db'))
++    .use(require('ssb-ebt'))
+     .use(require('ssb-friends'))
+     // ...
+```
 
-blocks a peer and disallows them from connecting.
-They are also removed from peers, so there is no connecting to them.
-Also disallows peers to pass on data to them. 
+## API
 
-### ebt.replicate (opts)
+ssb-ebt itself does **NOT** trigger replication automatically after it's
+installed, instead, you need to call its API methods yourself (primarily
+`request` or `block`), or use a scheduler module such as
+[ssb-replication-scheduler](https://github.com/ssb-ngi-pointer/ssb-replication-scheduler).
 
-creates a duplex replication stream to the remote peer.
-when two peers connect, the peer who initiated the call
-(the client) should call this. It is not intended to
-be called by the user.
+### `ssb.ebt.request(destination, replicating)`
 
-### ebt.request (feedId, toReplicate)
+Request that the SSB feed ID `destination` be replicated. `replication` is a
+boolean, where `true` indicates we want to replicate the destination. If set to
+`false`, replication is stopped.
 
-request that `feedId` be replicated. `toReplicate` is
-a boolean, replicate feed if true. If set to false,
-replication is immediately stopped.
+### `ssb.ebt.block(origin, destination, blocking)`
 
-### ebt.peerStatus (id, cb)
+Blocks a peer `destination` and disallows them from connecting. They are also
+removed from peers, so there is no connecting to them. Also disallows other
+peers to pass on data to them.
 
-query the status of replication for a given feed id.
-returns a small data structure showing the replication
-state for all peers we are currently connected to.
+`origin` is the SSB feed ID of the peer who created the block, `destination` is
+the SSB feed ID of the peer being blocked, and `blocking` is a boolean that
+indicates whether to enable the block (`true`) or to unblock (`false`).
 
-output looks like this:
-``` js
+### `ssb.ebt.peerStatus(id, cb)`
+
+Query the status of replication for a given SSB feed ID `id`. Returns a JSON
+object showing the replication state for all peers we are currently
+connected to.
+
+The output passed to the callback `cb` looks like this:
+
+<details>
+<summary>CLICK HERE</summary>
+
+```js
 {
   "id": "@EMovhfIrFk4NihAKnRNhrfRaqIhBv1Wj8pTxJNgvCCY=.ed25519",
   "seq": 13293, //the sequence we have locally.
@@ -72,6 +91,27 @@ output looks like this:
   }
 }
 ```
+
+</details>
+
+### (Internal) `ssb.ebt.replicate(opts)`
+
+Creates a duplex replication stream to the remote peer. When two peers connect,
+the peer who initiated the call (the client) should call this. You do not need
+to call this method, it is called automatically in ssb-ebt whenever our peer
+connects to a remote peer. `opts` is an object with one field: `version`.
+
+## Testing and debugging
+
+There are several scripts in `./debug` which can be used for testing EBT
+replication.
+
+Use `./debug/remote.js <address>` to connect to an SSB peer running EBT. Running
+this won't store anything locally, it will just download everything and drop it
+on the floor. This is used to test performance of EBT on a server.
+
+We normally see values between 2k and 3k messages per second, in other words,
+replicates 100k messages in under a minute.
 
 ## License
 
