@@ -1,11 +1,12 @@
 # ssb-ebt
 
-Replicates SSB feeds using the efficient "Epidemic broadcast tree" algorithm.
+*Replicates SSB feeds using the efficient "Epidemic broadcast tree" algorithm.*
+
 This module is an adapter for the module [epidemic-broadcast-trees](https://github.com/dominictarr/epidemic-broadcast-trees)
 to work with [secure-scuttlebutt](http://scuttlebutt.nz/). Supersedes
 [ssb-replicate](https://github.com/ssbc/ssb-replicate).
 
-## Usage
+## Installation
 
 **Prerequisites:**
 
@@ -30,7 +31,7 @@ Add this secret-stack plugin like this:
      // ...
 ```
 
-## API
+## Usage
 
 ssb-ebt itself does **NOT** trigger replication automatically after it's
 installed, instead, you need to call its API methods yourself (primarily
