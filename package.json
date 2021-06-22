@@ -1,6 +1,6 @@
 {
   "name": "ssb-ebt",
-  "description": "scaleable scuttlebutt replication for ssb",
+  "description": "Replicates SSB feeds using Epidemic broadcast trees",
   "version": "6.0.0",
   "homepage": "https://github.com/ssbc/ssb-ebt",
   "repository": {
