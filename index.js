@@ -7,7 +7,7 @@ const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
 
-function hook(hookable, fn) {
+function hook (hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
     hookable.hook(fn)
   }
@@ -21,19 +21,19 @@ exports.manifest = {
   replicate: 'duplex',
   request: 'sync',
   block: 'sync',
-  peerStatus: 'sync',
+  peerStatus: 'sync'
 }
 
 exports.permissions = {
   anonymous: {
-    allow: ['replicate'],
-  },
+    allow: ['replicate']
+  }
 }
 
 // there was a bug that caused some peers
 // to request things that weren't feeds.
 // this is fixed, so just ignore anything that isn't a feed.
-function cleanClock(clock) {
+function cleanClock (clock) {
   for (const k in clock) {
     if (!isFeed(k)) {
       delete clock[k]
@@ -48,28 +48,28 @@ exports.init = function (sbot, config) {
   const ebt = EBT({
     logging: config.ebt && config.ebt.logging,
     id: sbot.id,
-    getClock(id, cb) {
+    getClock (id, cb) {
       store.ensure(id, function () {
         const clock = store.get(id) || {}
         cleanClock(clock)
         cb(null, clock)
       })
     },
-    setClock(id, clock) {
+    setClock (id, clock) {
       cleanClock(clock, 'non-feed key when saving clock')
       store.set(id, clock)
     },
-    getAt(pair, cb) {
+    getAt (pair, cb) {
       sbot.getAtSequence([pair.id, pair.sequence], (err, data) => {
         cb(err, data ? data.value : null)
       })
     },
-    append(msg, cb) {
+    append (msg, cb) {
       sbot.add(msg, (err, msg) => {
         cb(err && err.fatal ? err : null, msg)
       })
     },
-    isFeed: isFeed,
+    isFeed: isFeed
   })
 
   sbot.getVectorClock((err, clock) => {
@@ -106,12 +106,12 @@ exports.init = function (sbot, config) {
     }
   })
 
-  function request(destFeedId, requesting) {
+  function request (destFeedId, requesting) {
     if (!isFeed(destFeedId)) return
     ebt.request(destFeedId, requesting)
   }
 
-  function block(origFeedId, destFeedId, blocking) {
+  function block (origFeedId, destFeedId, blocking) {
     if (!isFeed(origFeedId)) return
     if (!isFeed(destFeedId)) return
     if (blocking) {
@@ -125,7 +125,7 @@ exports.init = function (sbot, config) {
     }
   }
 
-  function replicate(opts) {
+  function replicate (opts) {
     if (opts.version !== 2 && opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3 or 2})')
     }
@@ -133,12 +133,12 @@ exports.init = function (sbot, config) {
   }
 
   // get replication status for feeds for this id.
-  function peerStatus(id) {
+  function peerStatus (id) {
     id = id || sbot.id
     const data = {
       id: id,
       seq: ebt.state.clock[id],
-      peers: {},
+      peers: {}
     }
     for (const k in ebt.state.peers) {
       const peer = ebt.state.peers[k]
@@ -146,7 +146,7 @@ exports.init = function (sbot, config) {
         const rep = peer.replicating && peer.replicating[id]
         data.peers[k] = {
           seq: peer.clock[id],
-          replicating: rep,
+          replicating: rep
         }
       }
     }
@@ -157,6 +157,6 @@ exports.init = function (sbot, config) {
     request,
     block,
     replicate,
-    peerStatus,
+    peerStatus
   }
 }

@@ -16,19 +16,19 @@ const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 const alice = createSsbServer({
   temp: 'test-block-alice',
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('alice'),
+  keys: u.keysFor('alice')
 })
 
 const bob = createSsbServer({
   temp: 'test-block-bob',
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('bob'),
+  keys: u.keysFor('bob')
 })
 
 tape('alice blocks bob, then unblocks', async (t) => {
   await Promise.all([
     pify(alice.publish)({ type: 'post', text: 'hello' }),
-    pify(bob.publish)({ type: 'post', text: 'hello' }),
+    pify(bob.publish)({ type: 'post', text: 'hello' })
   ])
 
   // Self replicate
@@ -44,10 +44,10 @@ tape('alice blocks bob, then unblocks', async (t) => {
   t.pass('bob wants alice\'s data')
 
   try {
-    const [rpcBobToAlice, msgAtBob, msgAtAlice] = await Promise.all([
+    await Promise.all([
       pify(bob.connect)(alice.getAddress()),
       u.readOnceFromDB(bob, REPLICATION_TIMEOUT),
-      u.readOnceFromDB(alice, REPLICATION_TIMEOUT),
+      u.readOnceFromDB(alice, REPLICATION_TIMEOUT)
     ])
     t.fail('replication should not succeed')
   } catch (err) {
@@ -70,7 +70,7 @@ tape('alice blocks bob, then unblocks', async (t) => {
 
   const [rpcBobToAlice, msgAtAlice] = await Promise.all([
     pify(bob.connect)(alice.getAddress()),
-    u.readOnceFromDB(alice, REPLICATION_TIMEOUT),
+    u.readOnceFromDB(alice, REPLICATION_TIMEOUT)
   ])
 
   t.equals(msgAtAlice.value.author, bob.id, 'alice has a msg from bob')
@@ -82,7 +82,7 @@ tape('alice blocks bob, then unblocks', async (t) => {
 
   await Promise.all([
     pify(alice.close)(true),
-    pify(bob.close)(true),
+    pify(bob.close)(true)
   ])
   t.end()
 })

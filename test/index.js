@@ -18,7 +18,7 @@ const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 const alice = createSbot({
   temp: 'random-animals_alice',
   timeout: CONNECTION_TIMEOUT,
-  keys: ssbKeys.generate(),
+  keys: ssbKeys.generate()
 })
 
 const bob = createSbot({
@@ -36,7 +36,7 @@ const charles = createSbot({
 const names = {
   [alice.id]: 'alice',
   [bob.id]: 'bob',
-  [charles.id]: 'charles',
+  [charles.id]: 'charles'
 }
 
 tape('three peers replicate everything between each other', async (t) => {
@@ -59,7 +59,7 @@ tape('three peers replicate everything between each other', async (t) => {
   const recv = {
     alice: new Set(),
     bob: new Set(),
-    charles: new Set(),
+    charles: new Set()
   }
 
   function consistent (name) {
@@ -78,18 +78,18 @@ tape('three peers replicate everything between each other', async (t) => {
   await Promise.all([
     pify(alice.publish)({ type: 'post', text: 'hello world' }),
     pify(bob.publish)({ type: 'post', text: 'hello world' }),
-    pify(charles.publish)({ type: 'post', text: 'hello world' }),
+    pify(charles.publish)({ type: 'post', text: 'hello world' })
   ])
   t.pass('all peers have posted "hello world"')
 
   await Promise.all([
     pify(alice.connect)(bob.getAddress()),
     pify(alice.connect)(charles.getAddress()),
-    pify(charles.connect)(bob.getAddress()),
+    pify(charles.connect)(bob.getAddress())
   ])
   t.pass('the three peers are connected to each other as a triangle')
 
-  const AMOUNT = 10;
+  const AMOUNT = 10
   for (let i = 0; i < AMOUNT; i++) {
     const j = u.randint(bots.length)
     u.log('publish a new post by ' + names[bots[j].id])
@@ -110,7 +110,7 @@ tape('three peers replicate everything between each other', async (t) => {
   await Promise.all([
     pify(alice.close)(true),
     pify(bob.close)(true),
-    pify(charles.close)(true),
-  ]);
+    pify(charles.close)(true)
+  ])
   t.end()
 })

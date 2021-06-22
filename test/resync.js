@@ -52,18 +52,18 @@ test('peer can recover and resync its content from a friend', async (t) => {
         return {
           type: 'contact',
           contact: u.randary(peers).id,
-          following: true,
+          following: true
         }
       }
       return {
         type: 'test',
         ts: Date.now(),
         random: Math.random(),
-        value: u.randbytes(u.randint(1024)).toString('base64'),
+        value: u.randbytes(u.randint(1024)).toString('base64')
       }
     },
     peers,
-    1000,
+    1000
   )
   t.pass('done generating msgs')
 
@@ -90,7 +90,7 @@ test('peer can recover and resync its content from a friend', async (t) => {
 
   await Promise.all([
     pify(alice.close)(true),
-    pify(bob.close)(true),
+    pify(bob.close)(true)
   ])
   t.end()
 })

@@ -4,7 +4,6 @@ const ssbKeys = require('ssb-keys')
 const SecretStack = require('secret-stack')
 const pify = require('promisify-4loc')
 const sleep = require('util').promisify(setTimeout)
-const u = require('./misc/util')
 
 // create 3 servers
 // give them all pub servers (on localhost)
@@ -53,7 +52,7 @@ tape('replicate between 3 peers', async (t) => {
     pify(bob.publish)({ type: 'post', text: 'world' }),
 
     pify(carol.publish)({ type: 'post', text: 'hello' }),
-    pify(carol.publish)({ type: 'post', text: 'world' }),
+    pify(carol.publish)({ type: 'post', text: 'world' })
   ])
 
   // Self replicate
@@ -82,13 +81,13 @@ tape('replicate between 3 peers', async (t) => {
   const [connectionBA, connectionBC, connectionCA] = await Promise.all([
     pify(bob.connect)(alice.getAddress()),
     pify(bob.connect)(carol.getAddress()),
-    pify(carol.connect)(alice.getAddress()),
+    pify(carol.connect)(alice.getAddress())
   ])
 
   const expectedClock = {
     [alice.id]: 2,
     [bob.id]: 2,
-    [carol.id]: 2,
+    [carol.id]: 2
   }
 
   await sleep(REPLICATION_TIMEOUT)
@@ -96,7 +95,7 @@ tape('replicate between 3 peers', async (t) => {
   const [clockAlice, clockBob, clockCarol] = await Promise.all([
     pify(alice.getVectorClock)(),
     pify(bob.getVectorClock)(),
-    pify(carol.getVectorClock)(),
+    pify(carol.getVectorClock)()
   ])
 
   t.deepEqual(clockAlice, expectedClock, 'alice\'s clock is correct')
@@ -106,7 +105,7 @@ tape('replicate between 3 peers', async (t) => {
   await Promise.all([
     pify(connectionBA.close)(true),
     pify(connectionBC.close)(true),
-    pify(connectionCA.close)(true),
+    pify(connectionCA.close)(true)
   ])
 
   await Promise.all([
