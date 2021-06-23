@@ -38,29 +38,33 @@ installed, instead, you need to call its API methods yourself (primarily
 `request` or `block`), or use a scheduler module such as
 [ssb-replication-scheduler](https://github.com/ssb-ngi-pointer/ssb-replication-scheduler).
 
-### `ssb.ebt.request(destination, replicating)`
+### `ssb.ebt.request(destination, replicating)` ("sync" muxrpc API)
 
 Request that the SSB feed ID `destination` be replicated. `replication` is a
 boolean, where `true` indicates we want to replicate the destination. If set to
 `false`, replication is stopped.
 
-### `ssb.ebt.block(origin, destination, blocking)`
+Returns undefined, always.
 
-Blocks a peer `destination` and disallows them from connecting. They are also
-removed from peers, so there is no connecting to them. Also disallows other
-peers to pass on data to them.
+### `ssb.ebt.block(origin, destination, blocking)` ("sync" muxrpc API)
+
+Computes that `origid` does not want to replicate `destination`'s feed. Also
+disallows other peers (who have this same ssb-ebt installed) to pass on data to
+them.
 
 `origin` is the SSB feed ID of the peer who created the block, `destination` is
 the SSB feed ID of the peer being blocked, and `blocking` is a boolean that
 indicates whether to enable the block (`true`) or to unblock (`false`).
 
-### `ssb.ebt.peerStatus(id, cb)`
+Returns undefined, always.
+
+### `ssb.ebt.peerStatus(id)` ("sync" muxrpc API)
 
 Query the status of replication for a given SSB feed ID `id`. Returns a JSON
 object showing the replication state for all peers we are currently
 connected to.
 
-The output passed to the callback `cb` looks like this:
+The output looks like this:
 
 <details>
 <summary>CLICK HERE</summary>
@@ -95,7 +99,7 @@ The output passed to the callback `cb` looks like this:
 
 </details>
 
-### (Internal) `ssb.ebt.replicate(opts)`
+### (Internal) `ssb.ebt.replicate(opts)` ("duplex" muxrpc API)
 
 Creates a duplex replication stream to the remote peer. When two peers connect,
 the peer who initiated the call (the client) should call this. You do not need
