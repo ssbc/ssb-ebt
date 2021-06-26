@@ -1,4 +1,4 @@
-const test = require('tape')
+const tape = require('tape')
 const gen = require('ssb-generate')
 const crypto = require('crypto')
 const ssbKeys = require('ssb-keys')
@@ -15,7 +15,7 @@ const createSbot = require('secret-stack')({
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-test('peer can recover and resync its content from a friend', async (t) => {
+tape('peer can recover and resync its content from a friend', async (t) => {
   const alice = createSbot({
     temp: 'alice',
     timeout: CONNECTION_TIMEOUT,
