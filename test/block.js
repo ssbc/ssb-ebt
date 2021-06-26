@@ -57,9 +57,9 @@ tape('alice blocks bob, then unblocks', async (t) => {
   const clockAlice = await pify(alice.getVectorClock)()
   t.notOk(clockAlice[bob.id], 'alice did not replicate bob')
 
-  // TODO: shouldn't bob be forbidden to replicate alice???
   const clockBob = await pify(bob.getVectorClock)()
-  t.ok(clockBob[bob.id], 'bob replicated alice')
+  t.ok(clockBob[bob.id], 'bob replicated bob')
+  t.notOk(clockBob[alice.id], 'bob did not replicate alice')
 
   alice.ebt.request(bob.id, true)
   alice.ebt.block(alice.id, bob.id, false)
