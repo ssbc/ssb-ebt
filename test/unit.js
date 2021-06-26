@@ -1,4 +1,4 @@
-const test = require('tape')
+const tape = require('tape')
 const crypto = require('crypto')
 const SecretStack = require('secret-stack')
 const pify = require('promisify-4loc')
@@ -25,7 +25,7 @@ const bob = createSsbServer({
   keys: u.keysFor('bob')
 })
 
-test('alice replicates bob', async (t) => {
+tape('alice replicates bob', async (t) => {
   await Promise.all([
     pify(alice.publish)({ type: 'post', text: 'hello' }),
     pify(alice.publish)({ type: 'post', text: 'world' }),
@@ -57,7 +57,7 @@ test('alice replicates bob', async (t) => {
   await pify(rpcBobToAlice.close)(true)
 })
 
-test('ssb.progress', t => {
+tape('ssb.progress', t => {
   const p = alice.progress()
   t.ok(p, 'progress')
   t.ok(p.ebt, 'progress.ebt')
@@ -67,7 +67,7 @@ test('ssb.progress', t => {
   t.end()
 })
 
-test('ssb.ebt.peerStatus', t => {
+tape('ssb.ebt.peerStatus', t => {
   const s = alice.ebt.peerStatus(bob.id)
   t.ok(s, 'response is an object')
   t.equals(s.id, bob.id, 'response.id is correct')
@@ -75,14 +75,14 @@ test('ssb.ebt.peerStatus', t => {
   t.end()
 })
 
-test('silly ssb.ebt.request', t => {
+tape('silly ssb.ebt.request', t => {
   t.doesNotThrow(() => {
     alice.ebt.request('not a feed id', true)
   })
   t.end()
 })
 
-test('silly ssb.ebt.block', t => {
+tape('silly ssb.ebt.block', t => {
   t.doesNotThrow(() => {
     alice.ebt.block(bob.id, 'not a feed id', true)
   })
@@ -92,7 +92,7 @@ test('silly ssb.ebt.block', t => {
   t.end()
 })
 
-test('teardown', async (t) => {
+tape('teardown', async (t) => {
   await Promise.all([
     pify(alice.close)(true),
     pify(bob.close)(true)
