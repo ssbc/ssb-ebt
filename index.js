@@ -73,7 +73,7 @@ exports.init = function (sbot, config) {
   })
 
   sbot.getVectorClock((err, clock) => {
-    if (err) console.warn(err)
+    if (err) console.warn('Failed to getVectorClock in ssb-ebt because: ' + err)
     ebt.state.clock = clock || {}
     ebt.update()
   })
@@ -94,12 +94,12 @@ exports.init = function (sbot, config) {
   }
 
   sbot.on('rpc:connect', function (rpc, isClient) {
-    if (isClient) {
+    if (isClient && rpc.id !== sbot.id) {
       const opts = { version: 3 }
       const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       const remote = rpc.ebt.replicate(opts, (networkError) => {
         if (networkError && getSeverity(networkError) >= 3) {
-          console.error(networkError)
+          console.error('rpc.ebt.replicate exception: ' + networkError)
         }
       })
       pull(local, remote, local)
@@ -129,6 +129,7 @@ exports.init = function (sbot, config) {
     if (opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3})')
     }
+    // `this` refers to the remote peer who called this muxrpc API
     return toPull.duplex(ebt.createStream(this.id, opts.version, false))
   }
 
