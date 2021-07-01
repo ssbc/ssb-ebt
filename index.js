@@ -94,7 +94,8 @@ exports.init = function (sbot, config) {
   }
 
   sbot.on('rpc:connect', function (rpc, isClient) {
-    if (isClient && rpc.id !== sbot.id) {
+    if (rpc.id === ssb.id) return // ssb-client connecting to ssb-server
+    if (isClient) {
       const opts = { version: 3 }
       const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       const remote = rpc.ebt.replicate(opts, (networkError) => {
