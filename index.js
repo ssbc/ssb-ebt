@@ -73,7 +73,7 @@ exports.init = function (sbot, config) {
   })
 
   sbot.getVectorClock((err, clock) => {
-    if (err) console.warn('Failed to getVectorClock in ssb-ebt because: ' + err)
+    if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
     ebt.state.clock = clock || {}
     ebt.update()
   })
@@ -100,7 +100,7 @@ exports.init = function (sbot, config) {
       const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
       const remote = rpc.ebt.replicate(opts, (networkError) => {
         if (networkError && getSeverity(networkError) >= 3) {
-          console.error('rpc.ebt.replicate exception: ' + networkError)
+          console.error('rpc.ebt.replicate exception:', networkError)
         }
       })
       pull(local, remote, local)
