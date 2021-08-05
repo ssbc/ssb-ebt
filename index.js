@@ -6,6 +6,8 @@ const isFeed = require('ssb-ref').isFeed
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
+const Obv = require('obz')
+const pullDefer = require('pull-defer')
 
 function hook (hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
@@ -72,10 +74,13 @@ exports.init = function (sbot, config) {
     isFeed: isFeed
   })
 
+  const initialized = Obv(false)
+
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
     ebt.state.clock = clock || {}
     ebt.update()
+    if (!initialized.value) initialized.set(true)
   })
 
   sbot.post((msg) => {
@@ -96,14 +101,16 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if (rpc.id === sbot.id) return // ssb-client connecting to ssb-server
     if (isClient) {
-      const opts = { version: 3 }
-      const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
-      const remote = rpc.ebt.replicate(opts, (networkError) => {
-        if (networkError && getSeverity(networkError) >= 3) {
-          console.error('rpc.ebt.replicate exception:', networkError)
-        }
+      initialized.once(() => {
+        const opts = { version: 3 }
+        const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
+        const remote = rpc.ebt.replicate(opts, (networkError) => {
+          if (networkError && getSeverity(networkError) >= 3) {
+            console.error('rpc.ebt.replicate exception:', networkError)
+          }
+        })
+        pull(local, remote, local)
       })
-      pull(local, remote, local)
     }
   })
 
@@ -130,8 +137,13 @@ exports.init = function (sbot, config) {
     if (opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3})')
     }
-    // `this` refers to the remote peer who called this muxrpc API
-    return toPull.duplex(ebt.createStream(this.id, opts.version, false))
+
+    var deferred = pullDefer.duplex()
+    initialized.once(() => {
+      // `this` refers to the remote peer who called this muxrpc API
+      deferred.resolve(toPull.duplex(ebt.createStream(this.id, opts.version, false)))
+    })
+    return deferred
   }
 
   // get replication status for feeds for this id.
