@@ -10,6 +10,10 @@
     "url": "git://github.com/ssbc/ssb-ebt.git"
   },
   "main": "index.js",
+  "files": [
+    "*.js",
+    "debug/*.js"
+  ],
   "engines": {
     "node": ">=10"
   },
