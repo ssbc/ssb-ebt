@@ -23,7 +23,8 @@ exports.manifest = {
   replicate: 'duplex',
   request: 'sync',
   block: 'sync',
-  peerStatus: 'sync'
+  peerStatus: 'sync',
+  getClock: 'async'
 }
 
 exports.permissions = {
@@ -174,10 +175,17 @@ exports.init = function (sbot, config) {
     return data
   }
 
+  function clock(cb) {
+    initialized.once(() => {
+      cb(null, ebt.state.clock)
+    })
+  }
+
   return {
     request,
     block,
     replicate,
-    peerStatus
+    peerStatus,
+    clock
   }
 }
