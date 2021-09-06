@@ -47,16 +47,25 @@ function cleanClock (clock, isFeed) {
 exports.init = function (sbot, config) {
   const formats = {
     'classic': {
+      // used in sbot.post & in ebt:stream to distinguish between
+      // messages and notes
       isMsg(m) {
         return Number.isInteger(m.sequence) && m.sequence > 0 &&
           typeof m.author == 'string' && m.content
       },
+      // used in request, block, cleanClock
       isFeed: ref.isFeed,
+      // used in ebt:events
       getMsgAuthor(msg) {
         return msg.author
       },
+      // used in ebt:events
       getMsgSequence(msg) {
         return msg.sequence
+      },
+      // used in getAt
+      getAtTransform(msg) {
+        return msg ? msg.value : null
       }
     }
   }
@@ -85,7 +94,7 @@ exports.init = function (sbot, config) {
       },
       getAt (pair, cb) {
         sbot.getAtSequence([pair.id, pair.sequence], (err, data) => {
-          cb(err, data ? data.value : null)
+          cb(err, formats[formatName].getAtTransform(data))
         })
       },
       append (msg, cb) {

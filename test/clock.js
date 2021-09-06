@@ -15,18 +15,18 @@ const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSsbServer({
-  temp: 'test-block-alice',
+  temp: 'test-clock-alice',
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('alice')
 })
 
 const bob = createSsbServer({
-  temp: 'test-block-bob',
+  temp: 'test-clock-bob',
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('bob')
 })
 
-tape('alice blocks bob, then unblocks', async (t) => {
+tape('clock works', async (t) => {
   await Promise.all([
     pify(alice.publish)({ type: 'post', text: 'hello' }),
     pify(bob.publish)({ type: 'post', text: 'hello' })
