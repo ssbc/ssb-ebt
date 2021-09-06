@@ -51,7 +51,7 @@ tape('alice blocks bob, then unblocks', async (t) => {
   t.equal(clockAliceAfter[alice.id], 1, 'clock ok')
   t.equal(clockAliceAfter[bob.id], 1, 'clock ok')
 
-  const clockBobAfter = await pify(alice.ebt.clock)()
+  const clockBobAfter = await pify(bob.ebt.clock)()
   t.equal(clockBobAfter[alice.id], 1, 'clock ok')
   t.equal(clockBobAfter[bob.id], 1, 'clock ok')
   
