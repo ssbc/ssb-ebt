@@ -47,62 +47,67 @@ function cleanClock (clock, isFeed) {
 exports.init = function (sbot, config) {
   const formats = {
     'classic': {
-      // used in sbot.post & in ebt:stream to distinguish between
-      // messages and notes
-      isMsg(m) {
-        return Number.isInteger(m.sequence) && m.sequence > 0 &&
-          typeof m.author == 'string' && m.content
-      },
-      // used in request, block, cleanClock
+      // used in request, block, cleanClock, sbot.post
       isFeed: ref.isFeed,
-      // used in ebt:events
-      getMsgAuthor(msg) {
-        return msg.author
-      },
-      // used in ebt:events
-      getMsgSequence(msg) {
-        return msg.sequence
-      },
       // used in getAt
-      getAtTransform(msg) {
+      fromDB(msg) {
         return msg ? msg.value : null
-      }
+      },
+      // used in append
+      toDB(msgVal) {
+        return msgVal
+      },
+
+      // used in ebt:stream to distinguish between messages and notes
+      isMsg(msgVal) {
+        return Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
+          typeof msgVal.author == 'string' && msgVal.content
+      },
+      // used in ebt:events
+      getMsgAuthor(msgVal) {
+        return msgVal.author
+      },
+      // used in ebt:events
+      getMsgSequence(msgVal) {
+        return msgVal.sequence
+      },
     }
   }
 
   const ebts = {}
   function addEBT(formatName) {
-    const dirName = 'ebt' + (formatName === 'classic') ? '' : formatName
+    const dirName = 'ebt' + (formatName === 'classic' ? '' : formatName)
     const dir = config.path ? path.join(config.path, dirName) : null
     const store = Store(dir, null, toUrlFriendly)
 
-    const isFeed = formats[formatName].isFeed
+    const format = formats[formatName]
 
     const ebt = EBT(Object.assign({
+      format: formatName,
       logging: config.ebt && config.ebt.logging,
       id: sbot.id,
       getClock (id, cb) {
         store.ensure(id, function () {
           const clock = store.get(id) || {}
-          cleanClock(clock, isFeed)
+          cleanClock(clock, format.isFeed)
           cb(null, clock)
         })
       },
       setClock (id, clock) {
-        cleanClock(clock, isFeed)
+        cleanClock(clock, format.isFeed)
         store.set(id, clock)
       },
       getAt (pair, cb) {
-        sbot.getAtSequence([pair.id, pair.sequence], (err, data) => {
-          cb(err, formats[formatName].getAtTransform(data))
+        sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
+          cb(err, format.fromDB(msg))
         })
       },
-      append (msg, cb) {
-        sbot.add(msg, (err, msg) => {
+      append (msgVal, cb) {
+        sbot.add(format.toDB(msgVal), (err, msg) => {
           cb(err && err.fatal ? err : null, msg)
         })
       }
-    }, formats[formatName]))
+    }, format))
 
     ebts[formatName] = ebt
   }
