@@ -21,15 +21,16 @@ exports.version = '1.0.0'
 
 exports.manifest = {
   replicate: 'duplex',
+  replicateFormat: 'duplex',
   request: 'sync',
   block: 'sync',
   peerStatus: 'sync',
-  getClock: 'async'
+  clock: 'async'
 }
 
 exports.permissions = {
   anonymous: {
-    allow: ['replicate']
+    allow: ['replicate', 'replicateFormat', 'clock']
   }
 }
 
@@ -167,7 +168,12 @@ exports.init = function (sbot, config) {
           const ebt = ebts[format]
           const opts = { version: 3, format }
           const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
-          const remote = rpc.ebt.replicate(opts, (networkError) => {
+
+          // for backwards compatibility we always replicate classic
+          // feeds using existing replicate RPC
+          const replicate = (format === 'classic' ? rpc.ebt.replicate : rpc.ebt.replicateFormat)
+
+          const remote = replicate(opts, (networkError) => {
             if (networkError && getSeverity(networkError) >= 3) {
               console.error('rpc.ebt.replicate exception:', networkError)
             }
@@ -212,7 +218,7 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function replicate (opts) {
+  function replicateFormat(opts) {
     if (opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3})')
     }
@@ -275,7 +281,8 @@ exports.init = function (sbot, config) {
   return {
     request,
     block,
-    replicate,
+    replicate: replicateFormat,
+    replicateFormat,
     peerStatus,
     clock,
     registerFormat
