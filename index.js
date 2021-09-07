@@ -6,7 +6,7 @@ const isFeed = require('ssb-ref').isFeed
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
-const Obv = require('obz')
+const DeferredPromise = require('p-defer')
 const pullDefer = require('pull-defer')
 
 function hook (hookable, fn) {
@@ -74,17 +74,19 @@ exports.init = function (sbot, config) {
     isFeed: isFeed
   })
 
-  const initialized = Obv(false)
+  const initialized = DeferredPromise()
 
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
     ebt.state.clock = clock || {}
     ebt.update()
-    if (!initialized.value) initialized.set(true)
+    initialized.resolve()
   })
 
   sbot.post((msg) => {
-    ebt.onAppend(msg.value)
+    initialized.promise.then(() => {
+      ebt.onAppend(msg.value)
+    })
   })
 
   // TODO: remove this when no one uses ssb-db anymore, because
@@ -101,7 +103,7 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if (rpc.id === sbot.id) return // ssb-client connecting to ssb-server
     if (isClient) {
-      initialized.once(() => {
+      initialized.promise.then(() => {
         const opts = { version: 3 }
         const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
         const remote = rpc.ebt.replicate(opts, (networkError) => {
@@ -115,22 +117,26 @@ exports.init = function (sbot, config) {
   })
 
   function request (destFeedId, requesting) {
-    if (!isFeed(destFeedId)) return
-    ebt.request(destFeedId, requesting)
+    initialized.promise.then(() => {
+      if (!isFeed(destFeedId)) return
+      ebt.request(destFeedId, requesting)
+    })
   }
 
   function block (origFeedId, destFeedId, blocking) {
-    if (!isFeed(origFeedId)) return
-    if (!isFeed(destFeedId)) return
-    if (blocking) {
-      ebt.block(origFeedId, destFeedId, true)
-    } else if (
-      ebt.state.blocks[origFeedId] &&
-      ebt.state.blocks[origFeedId][destFeedId]
-    ) {
-      // only update unblock if they were already blocked
-      ebt.block(origFeedId, destFeedId, false)
-    }
+    initialized.promise.then(() => {
+      if (!isFeed(origFeedId)) return
+      if (!isFeed(destFeedId)) return
+      if (blocking) {
+        ebt.block(origFeedId, destFeedId, true)
+      } else if (
+        ebt.state.blocks[origFeedId] &&
+          ebt.state.blocks[origFeedId][destFeedId]
+      ) {
+        // only update unblock if they were already blocked
+        ebt.block(origFeedId, destFeedId, false)
+      }
+    })
   }
 
   function replicate (opts) {
@@ -139,7 +145,7 @@ exports.init = function (sbot, config) {
     }
 
     var deferred = pullDefer.duplex()
-    initialized.once(() => {
+    initialized.promise.then(() => {
       // `this` refers to the remote peer who called this muxrpc API
       deferred.resolve(toPull.duplex(ebt.createStream(this.id, opts.version, false)))
     })
