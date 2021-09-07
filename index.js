@@ -61,7 +61,7 @@ exports.init = function (sbot, config) {
       // used in ebt:stream to distinguish between messages and notes
       isMsg(msgVal) {
         return Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
-          typeof msgVal.author == 'string' && msgVal.content
+          ref.isFeed(msgVal.author) && msgVal.content
       },
       // used in ebt:events
       getMsgAuthor(msgVal) {
@@ -83,7 +83,6 @@ exports.init = function (sbot, config) {
     const format = formats[formatName]
 
     const ebt = EBT(Object.assign({
-      format: formatName,
       logging: config.ebt && config.ebt.logging,
       id: sbot.id,
       getClock (id, cb) {
@@ -126,10 +125,14 @@ exports.init = function (sbot, config) {
 
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
-    for (let format in ebts) {
-      const ebt = ebts[format]
-      // FIXME: do we need to split the clock?
-      ebt.state.clock = clock || {}
+    for (let formatName in ebts) {
+      const format = formats[formatName]
+      const ebt = ebts[formatName]
+      validClock = {}
+      for (let k in clock)
+        if (format.isFeed(k))
+          validClock[k] = clock[k]
+      ebt.state.clock = validClock
       ebt.update()
     }
     initialized.resolve()
@@ -138,7 +141,7 @@ exports.init = function (sbot, config) {
   sbot.post((msg) => {
     initialized.promise.then(() => {
       for (let format in ebts) {
-        if (formats[format].isMsg(msg.value))
+        if (formats[format].isFeed(msg.value.author))
           ebts[format].onAppend(msg.value)
       }
     })
