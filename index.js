@@ -50,13 +50,15 @@ exports.init = function (sbot, config) {
     'classic': {
       // used in request, block, cleanClock, sbot.post
       isFeed: ref.isFeed,
-      // used in getAt
-      fromDB(msg) {
-        return msg ? msg.value : null
+      getAtSequence(sbot, pair, cb) {
+        sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
+          cb(err, msg ? msg.value : null)
+        })
       },
-      // used in append
-      toDB(msgVal) {
-        return msgVal
+      appendMsg(sbot, msgVal, cb) {
+        sbot.add(msgVal, (err, msg) => {
+          cb(err && err.fatal ? err : null, msg)
+        })
       },
 
       // used in ebt:stream to distinguish between messages and notes
@@ -98,14 +100,10 @@ exports.init = function (sbot, config) {
         store.set(id, clock)
       },
       getAt (pair, cb) {
-        sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-          cb(err, format.fromDB(msg))
-        })
+        format.getAtSequence(sbot, pair, cb)
       },
       append (msgVal, cb) {
-        sbot.add(format.toDB(msgVal), (err, msg) => {
-          cb(err && err.fatal ? err : null, msg)
-        })
+        format.appendMsg(sbot, msgVal, cb)
       }
     }, format))
 
@@ -129,10 +127,12 @@ exports.init = function (sbot, config) {
     for (let formatName in ebts) {
       const format = formats[formatName]
       const ebt = ebts[formatName]
+
       validClock = {}
       for (let k in clock)
         if (format.isFeed(k))
           validClock[k] = clock[k]
+
       ebt.state.clock = validClock
       ebt.update()
     }
@@ -285,6 +285,7 @@ exports.init = function (sbot, config) {
     replicateFormat,
     peerStatus,
     clock,
-    registerFormat
+    registerFormat,
+    formats
   }
 }
