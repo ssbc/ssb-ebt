@@ -40,7 +40,7 @@
     "ssb-bendy-butt": "^0.12.2",
     "ssb-client": "^4.9.0",
     "ssb-db": "^19.2.0",
-    "ssb-db2": "github:ssb-ngi-pointer/ssb-db2#support-bendy-butt",
+    "ssb-db2": "^2.4.0",
     "ssb-generate": "^1.0.1",
     "ssb-keys": "^8.1.0",
     "ssb-uri2": "^1.5.2",
