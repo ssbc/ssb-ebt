@@ -273,6 +273,13 @@ exports.init = function (sbot, config) {
     })
   }
 
+  function setClockForSlicedReplication(format, feed, sequence) {
+    initialized.promise.then(() => {
+      const ebt = getEBT(format)
+      ebt.state.clock[feed] = sequence
+    })
+  }
+
   function registerFormat(formatName, methods) {
     formats[formatName] = methods
     addEBT(formatName)
@@ -285,6 +292,7 @@ exports.init = function (sbot, config) {
     replicateFormat,
     peerStatus,
     clock,
+    setClockForSlicedReplication,
     registerFormat,
     formats
   }
