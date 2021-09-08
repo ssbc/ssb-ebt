@@ -466,7 +466,7 @@ tape('sliced index replication', async (t) => {
                                          1)
   carol.ebt.request(aliceIndexKey.id, true, 'indexedfeed')
 
-  await sleep(REPLICATION_TIMEOUT)
+  await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
 
   const carolMessages = await carol.db.query(toPromise())
