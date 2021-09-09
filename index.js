@@ -113,7 +113,7 @@ exports.init = function (sbot, config) {
   function getEBT(formatName) {
     const ebt = ebts[formatName]
     if (!ebt)
-      throw new Error('Unknown format' + formatName)
+      throw new Error('Unknown format: ' + formatName)
 
     return ebt
   }
