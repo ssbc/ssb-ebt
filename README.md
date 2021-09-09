@@ -96,6 +96,7 @@ The output looks like this:
   }
 }
 ```
+</details>
 
 ### `ssb.ebt.registerFormat(formatName, methods)` ("sync" muxrpc API)
 
