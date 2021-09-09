@@ -48,7 +48,7 @@ function cleanClock (clock, isFeed) {
 exports.init = function (sbot, config) {
   const formats = {
     'classic': {
-      // used in request, block, cleanClock, sbot.post
+      // used in request, block, cleanClock, sbot.post, vectorClock
       isFeed: ref.isFeed,
       getAtSequence(sbot, pair, cb) {
         sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
@@ -73,7 +73,7 @@ exports.init = function (sbot, config) {
       // used in ebt:events
       getMsgSequence(msgVal) {
         return msgVal.sequence
-      },
+      }
     }
   }
 
