@@ -143,8 +143,8 @@ tape('multiple formats', async (t) => {
   bobMFId = bobBBMsg.author
 
   // self replicate
-  alice.ebt.request(aliceMFId, true, 'bendybutt')
-  bob.ebt.request(bobMFId, true, 'bendybutt')
+  alice.ebt.request(aliceMFId, true)
+  bob.ebt.request(bobMFId, true)
 
   await Promise.all([
     pify(alice.add)(aliceBBMsg),
@@ -152,10 +152,10 @@ tape('multiple formats', async (t) => {
   ])
 
   alice.ebt.request(bob.id, true)
-  alice.ebt.request(bobMFId, true, 'bendybutt')
+  alice.ebt.request(bobMFId, true)
 
   bob.ebt.request(alice.id, true)
-  bob.ebt.request(aliceMFId, true, 'bendybutt')
+  bob.ebt.request(aliceMFId, true)
 
   await pify(bob.connect)(alice.getAddress())
 
@@ -208,9 +208,9 @@ tape('multiple formats restart', async (t) => {
 
   // self replicate
   alice.ebt.request(alice.id, true)
-  alice.ebt.request(aliceMFId, true, 'bendybutt')
+  alice.ebt.request(aliceMFId, true)
   bob.ebt.request(bob.id, true)
-  bob.ebt.request(bobMFId, true, 'bendybutt')
+  bob.ebt.request(bobMFId, true)
 
   const expectedClassicClock = {
     [alice.id]: 1,
@@ -342,13 +342,13 @@ tape('index format', async (t) => {
 
   // self replicate
   alice.ebt.request(alice.id, true)
-  alice.ebt.request(aliceIndexKey.id, true, 'indexedfeed')
+  alice.ebt.request(aliceIndexKey.id, true)
   bob.ebt.request(bob.id, true)
-  bob.ebt.request(bobIndexKey.id, true, 'indexedfeed')
+  bob.ebt.request(bobIndexKey.id, true)
 
   // only replicate index feeds
-  alice.ebt.request(bobIndexKey.id, true, 'indexedfeed')
-  bob.ebt.request(aliceIndexKey.id, true, 'indexedfeed')
+  alice.ebt.request(bobIndexKey.id, true)
+  bob.ebt.request(aliceIndexKey.id, true)
 
   await pify(bob.connect)(alice.getAddress())
 
@@ -441,7 +441,7 @@ tape('sliced index replication', async (t) => {
 
   // self replicate
   alice.ebt.request(alice.id, true)
-  alice.ebt.request(aliceIndexKey.id, true, 'indexedfeed')
+  alice.ebt.request(aliceIndexKey.id, true)
   carol.ebt.request(carol.id, true)
 
   // publish a few more messages
@@ -464,7 +464,7 @@ tape('sliced index replication', async (t) => {
 
   carol.ebt.setClockForSlicedReplication('indexedfeed', aliceIndexKey.id,
                                          clockAlice[aliceIndexKey.id] - 1)
-  carol.ebt.request(aliceIndexKey.id, true, 'indexedfeed')
+  carol.ebt.request(aliceIndexKey.id, true)
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')

@@ -184,9 +184,13 @@ exports.init = function (sbot, config) {
     }
   })
 
-  function request(destFeedId, requesting, formatName) {
+  function request(destFeedId, requesting) {
     initialized.promise.then(() => {
-      formatName = formatName || 'classic'
+      formatName = 'classic'
+      for (let format in ebts)
+        if (formats[format].isFeed(destFeedId))
+          formatName = format
+
       const format = formats[formatName]
 
       if (!(format && format.isFeed(destFeedId))) return
@@ -195,9 +199,13 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function block(origFeedId, destFeedId, blocking, formatName) {
+  function block(origFeedId, destFeedId, blocking) {
     initialized.promise.then(() => {
-      formatName = formatName || 'classic'
+      formatName = 'classic'
+      for (let format in ebts)
+        if (formats[format].isFeed(origFeedId))
+          formatName = format
+
       const format = formats[formatName]
 
       if (!format) return
