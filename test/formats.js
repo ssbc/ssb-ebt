@@ -171,16 +171,16 @@ tape('multiple formats', async (t) => {
     [bobMFId]: 1
   }
 
-  const clockAlice = await pify(alice.ebt.clock)('classic')
+  const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
 
-  const bbClockAlice = await pify(alice.ebt.clock)('bendybutt')
+  const bbClockAlice = await pify(alice.ebt.clock)({ format: 'bendybutt' })
   t.deepEqual(bbClockAlice, expectedBBClock, 'alice correct bb clock')
 
-  const clockBob = await pify(bob.ebt.clock)('classic')
+  const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
 
-  const bbClockBob = await pify(bob.ebt.clock)('bendybutt')
+  const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt' })
   t.deepEqual(bbClockBob, expectedBBClock, 'bob correct bb clock')
 
   await Promise.all([
@@ -221,16 +221,16 @@ tape('multiple formats restart', async (t) => {
     [bobMFId]: 1
   }
 
-  const clockAlice = await pify(alice.ebt.clock)('classic')
+  const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
 
-  const bbClockAlice = await pify(alice.ebt.clock)('bendybutt')
+  const bbClockAlice = await pify(alice.ebt.clock)({ format: 'bendybutt' })
   t.deepEqual(bbClockAlice, expectedBBClock, 'alice correct bb clock')
 
-  const clockBob = await pify(bob.ebt.clock)('classic')
+  const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
 
-  const bbClockBob = await pify(bob.ebt.clock)('bendybutt')
+  const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt' })
   t.deepEqual(bbClockBob, expectedBBClock, 'bob correct bb clock')
 
   await Promise.all([
@@ -373,10 +373,10 @@ tape('index format', async (t) => {
     [bobIndexKey.id]: 1
   }
 
-  const indexClockAlice = await pify(alice.ebt.clock)('indexedfeed')
+  const indexClockAlice = await pify(alice.ebt.clock)({ format: 'indexedfeed' })
   t.deepEqual(indexClockAlice, expectedIndexClock, 'alice correct index clock')
 
-  const indexClockBob = await pify(bob.ebt.clock)('indexedfeed')
+  const indexClockBob = await pify(bob.ebt.clock)({ format: 'indexedfeed' })
   t.deepEqual(indexClockBob, expectedIndexClock, 'bob correct index clock')
 
   await Promise.all([
@@ -459,7 +459,7 @@ tape('sliced index replication', async (t) => {
 
   await pify(carol.connect)(alice.getAddress())
 
-  const clockAlice = await pify(alice.ebt.clock)('indexedfeed')
+  const clockAlice = await pify(alice.ebt.clock)({ format: 'indexedfeed' })
   t.equal(clockAlice[aliceIndexKey.id], 2, 'alice correct index clock')
 
   carol.ebt.setClockForSlicedReplication('indexedfeed', aliceIndexKey.id,

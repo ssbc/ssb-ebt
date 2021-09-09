@@ -106,6 +106,20 @@ the peer who initiated the call (the client) should call this. You do not need
 to call this method, it is called automatically in ssb-ebt whenever our peer
 connects to a remote peer. `opts` is an object with one field: `version`.
 
+### (Internal) `ssb.ebt.replicateFormat(opts)` ("duplex" muxrpc API)
+
+Creates a duplex replication stream to the remote peer. This behaves
+similar to `replicate` except it takes an extra field `format`
+specifying what is transferred over this EBT stream. Classic feeds are
+still replicated using `replicate` while this will be used to
+replicate other feed formats.
+
+### (Internal) `ssb.ebt.clock(opts, cb)` ("async" muxrpc API)
+
+Gets the current vector clock of a remote peer. `opts` is an object
+with one field: `format` specifying what format to get the vector
+clock for. Defaults to 'classic'.
+
 ## Testing and debugging
 
 There are several scripts in `./debug` which can be used for testing EBT

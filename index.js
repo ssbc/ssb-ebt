@@ -266,14 +266,14 @@ exports.init = function (sbot, config) {
     return data
   }
 
-  function clock(formatName, cb) {
+  function clock(opts, cb) {
     if (!cb) {
-      cb = formatName
-      formatName = 'classic'
+      cb = opts
+      opts = { format: 'classic' }
     }
 
     initialized.promise.then(() => {
-      const ebt = getEBT(formatName)
+      const ebt = getEBT(opts.format)
       cb(null, ebt.state.clock)
     })
   }
