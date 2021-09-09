@@ -235,9 +235,14 @@ exports.init = function (sbot, config) {
   }
 
   // get replication status for feeds for this id
-  function peerStatus(id, formatName) {
+  function peerStatus(id) {
     id = id || sbot.id
-    formatName = formatName || 'classic'
+
+    formatName = 'classic'
+    for (let format in ebts)
+      if (formats[format].isFeed(id))
+        formatName = format
+
     const ebt = getEBT(formatName)
 
     const data = {
