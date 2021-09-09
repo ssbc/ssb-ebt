@@ -138,8 +138,15 @@ example shows the 'classic' implementation.
   }
 }
 ```
-
 </details>
+
+### `ssb.ebt.setClockForSlicedReplication(feedId, sequence)` ("sync" muxrpc API)
+
+Sets the internal clock of a feed to a specific sequence. Note this
+does not start replicating the feed, it only updates the clock. By
+combining this with `clock` it is possible do to sliced replication
+with a remote peer where say only the latest 100 messages of a feed is
+replicated.
 
 ### (Internal) `ssb.ebt.replicate(opts)` ("duplex" muxrpc API)
 

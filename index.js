@@ -286,10 +286,15 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function setClockForSlicedReplication(format, feed, sequence) {
+  function setClockForSlicedReplication(feedId, sequence) {
+    formatName = 'classic'
+    for (let format in ebts)
+      if (formats[format].isFeed(feedId))
+        formatName = format
+
     initialized.promise.then(() => {
-      const ebt = getEBT(format)
-      ebt.state.clock[feed] = sequence
+      const ebt = getEBT(formatName)
+      ebt.state.clock[feedId] = sequence
     })
   }
 

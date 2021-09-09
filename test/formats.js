@@ -462,7 +462,7 @@ tape('sliced index replication', async (t) => {
   const clockAlice = await pify(alice.ebt.clock)({ format: 'indexedfeed' })
   t.equal(clockAlice[aliceIndexKey.id], 2, 'alice correct index clock')
 
-  carol.ebt.setClockForSlicedReplication('indexedfeed', aliceIndexKey.id,
+  carol.ebt.setClockForSlicedReplication(aliceIndexKey.id,
                                          clockAlice[aliceIndexKey.id] - 1)
   carol.ebt.request(aliceIndexKey.id, true)
 
