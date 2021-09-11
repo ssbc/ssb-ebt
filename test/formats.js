@@ -56,15 +56,18 @@ const bendyButtMethods = {
       cb(err && err.fatal ? err : null, msg)
     })
   },
+  convertMsg(msgVal) {
+    return bendyButt.encode(msgVal)
+  },
 
   // used in ebt:stream to distinguish between messages and notes
   isMsg(bbVal) {
-    if (!Buffer.isBuffer(bbVal)) return false
-
-    const msgVal = bendyButt.decode(bbVal)
-    return msgVal &&
-      Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
-      typeof msgVal.author == 'string' && msgVal.content
+    if (Buffer.isBuffer(bbVal)) {
+      const msgVal = bendyButt.decode(bbVal)
+      return msgVal && SSBURI.isBendyButtV1FeedSSBURI(msgVal.author)
+    } else {
+      return bbVal && SSBURI.isBendyButtV1FeedSSBURI(bbVal.author)
+    }
   },
   // used in ebt:events
   getMsgAuthor(bbVal) {

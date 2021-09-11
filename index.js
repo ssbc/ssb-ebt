@@ -60,6 +60,10 @@ exports.init = function (sbot, config) {
           cb(err && err.fatal ? err : null, msg)
         })
       },
+      // used in onAppend
+      convertMsg(msgVal) {
+        return msgVal
+      },
 
       // used in ebt:stream to distinguish between messages and notes
       isMsg(msgVal) {
@@ -141,9 +145,10 @@ exports.init = function (sbot, config) {
 
   sbot.post((msg) => {
     initialized.promise.then(() => {
-      for (let format in ebts) {
-        if (formats[format].isFeed(msg.value.author))
-          ebts[format].onAppend(msg.value)
+      for (let formatName in ebts) {
+        const format = formats[formatName]
+        if (format.isFeed(msg.value.author))
+          ebts[formatName].onAppend(format.convertMsg(msg.value))
       }
     })
   })
