@@ -2,7 +2,6 @@ const path = require('path')
 const pull = require('pull-stream')
 const toPull = require('push-stream-to-pull-stream')
 const EBT = require('epidemic-broadcast-trees')
-const ref = require('ssb-ref')
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
@@ -47,42 +46,7 @@ function cleanClock (clock, isFeed) {
 
 exports.init = function (sbot, config) {
   const formats = {
-    'classic': {
-      // used in request, block, cleanClock, sbot.post, vectorClock
-      isFeed: ref.isFeed,
-      getAtSequence(sbot, pair, cb) {
-        sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-          cb(err, msg ? msg.value : null)
-        })
-      },
-      appendMsg(sbot, msgVal, cb) {
-        sbot.add(msgVal, (err, msg) => {
-          cb(err && err.fatal ? err : null, msg)
-        })
-      },
-      // used in onAppend
-      convertMsg(msgVal) {
-        return msgVal
-      },
-      // used in vectorClock
-      isReady(sbot) {
-        return Promise.resolve(true)
-      },
-
-      // used in ebt:stream to distinguish between messages and notes
-      isMsg(msgVal) {
-        return Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
-          ref.isFeed(msgVal.author) && msgVal.content
-      },
-      // used in ebt:events
-      getMsgAuthor(msgVal) {
-        return msgVal.author
-      },
-      // used in ebt:events
-      getMsgSequence(msgVal) {
-        return msgVal.sequence
-      }
-    }
+    'classic': require('./formats/classic')
   }
 
   const ebts = {}
@@ -92,6 +56,8 @@ exports.init = function (sbot, config) {
     const store = Store(dir, null, toUrlFriendly)
 
     const format = formats[formatName]
+    // EBT expects a function of only feedId so we bind sbot here
+    format.isFeed = (feedId) => format.sbotIsFeed(sbot, feedId)
 
     const ebt = EBT(Object.assign({
       logging: config.ebt && config.ebt.logging,

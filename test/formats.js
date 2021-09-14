@@ -46,53 +46,6 @@ let bob = createSSBServer().call(null, {
   keys: u.keysFor('bob')
 })
 
-// FIXME: this should be somewhere else
-const bendyButtMethods = {
-  // used in request, block, cleanClock, sbot.post, vectorClock
-  isFeed: SSBURI.isBendyButtV1FeedSSBURI,
-  getAtSequence(sbot, pair, cb) {
-    sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-      cb(err, msg ? bendyButt.encode(msg.value) : null)
-    })
-  },
-  appendMsg(sbot, msgVal, cb) {
-    sbot.add(bendyButt.decode(msgVal), (err, msg) => {
-      cb(err && err.fatal ? err : null, msg)
-    })
-  },
-  convertMsg(msgVal) {
-    return bendyButt.encode(msgVal)
-  },
-  // used in vectorClock
-  isReady(sbot) {
-    return Promise.resolve(true)
-  },
-
-  // used in ebt:stream to distinguish between messages and notes
-  isMsg(bbVal) {
-    if (Buffer.isBuffer(bbVal)) {
-      const msgVal = bendyButt.decode(bbVal)
-      return msgVal && SSBURI.isBendyButtV1FeedSSBURI(msgVal.author)
-    } else {
-      return bbVal && SSBURI.isBendyButtV1FeedSSBURI(bbVal.author)
-    }
-  },
-  // used in ebt:events
-  getMsgAuthor(bbVal) {
-    if (Buffer.isBuffer(bbVal))
-      return bendyButt.decode(bbVal).author
-    else
-      return bbVal.author
-  },
-  // used in ebt:events
-  getMsgSequence(bbVal) {
-    if (Buffer.isBuffer(bbVal))
-      return bendyButt.decode(bbVal).sequence
-    else
-      return bbVal.sequence
-  }
-}
-
 function getBBMsg(mainKeys) {
   // fake some keys
   const mfKeys = ssbKeys.generate()
@@ -126,6 +79,8 @@ function getBBMsg(mainKeys) {
 
   return bendyButt.decode(bbmsg)
 }
+
+const bendyButtMethods = require('../formats/bendy-butt')
 
 // need them later
 let aliceMFId
@@ -249,50 +204,6 @@ tape('multiple formats restart', async (t) => {
   t.end()
 })
 
-
-// FIXME: this needs the ability to add 2 messages in a transaction
-function indexedFeedMethods(sbot) {
-  return Object.assign(
-    {}, alice.ebt.formats['classic'], {
-      isFeed(author) {
-        const info = sbot.metafeeds.findByIdSync(author)
-        return info && info.feedpurpose === 'index'
-      },
-      appendMsg(sbot, msgVal, cb) {
-        const payload = msgVal.content.indexed.payload
-        delete msgVal.content.indexed.payload
-        sbot.db.add(msgVal, (err, msg) => {
-          if (err) return cb(err)
-          sbot.db.addOOO(payload, (err, indexedMsg) => {
-            if (err) return cb(err)
-            else cb(null, msg)
-          })
-        })
-      },
-      getAtSequence(sbot, pair, cb) {
-        sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-          if (err) return cb(err)
-          const { sequence } = msg.value.content.indexed
-          const authorInfo = sbot.metafeeds.findByIdSync(msg.value.author)
-          if (!authorInfo) return cb(new Error("Unknown author", msg.value.author))
-          const { author } = JSON.parse(authorInfo.metadata.query)
-          sbot.getAtSequence([author, sequence], (err, indexedMsg) => {
-            if (err) return cb(err)
-
-            // add referenced message as payload
-            msg.value.content.indexed.payload = indexedMsg.value
-
-            cb(null, msg.value)
-          })
-        })
-      },
-      isReady(sbot) {
-        return pify(sbot.metafeeds.loadState)()
-      },
-    }
-  )
-}
-
 const carolDir = getFreshDir('carol')
 
 tape('index format', async (t) => {
@@ -309,9 +220,12 @@ tape('index format', async (t) => {
     keys: u.keysFor('dave')
   })
 
-  carol.ebt.registerFormat('indexedfeed', indexedFeedMethods(carol))
+  const carolIndexedMethods = require('../formats/indexed.js')()
+  const daveIndexedMethods = require('../formats/indexed.js')()
+
+  carol.ebt.registerFormat('indexedfeed', carolIndexedMethods)
   carol.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
-  dave.ebt.registerFormat('indexedfeed', indexedFeedMethods(dave))
+  dave.ebt.registerFormat('indexedfeed', daveIndexedMethods)
   dave.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
 
   const carolIndexId = (await pify(carol.indexFeedWriter.start)({ author: carol.id, type: 'dog', private: false })).subfeed
@@ -434,18 +348,6 @@ tape('index format', async (t) => {
   t.end()
 })
 
-const slicedReplication = Object.assign(
-  {}, alice.ebt.formats['classic'], {
-    appendMsg(sbot, msgVal, cb) {
-      sbot.db.addOOO(msgVal, (err, msg) => {
-        if (err) return cb(err)
-        else cb(null, msg)
-      })
-    }
-  }
-)
-
-// FIXME: this needs to be as before
 tape('sliced replication', async (t) => {
   alice = createSSBServer().call(null, {
     path: aliceDir,
@@ -463,9 +365,10 @@ tape('sliced replication', async (t) => {
     pify(alice.db.publish)({ type: 'post', text: 'hello2' }),
     pify(alice.db.publish)({ type: 'post', text: 'hello3' }),
   ])
-  
-  alice.ebt.registerFormat('slicedreplication', slicedReplication)
-  carol.ebt.registerFormat('slicedreplication', slicedReplication)
+
+  const slicedMethods = require('../formats/sliced')
+  alice.ebt.registerFormat('slicedreplication', slicedMethods)
+  carol.ebt.registerFormat('slicedreplication', slicedMethods)
 
   // self replicate
   alice.ebt.request(alice.id, true)

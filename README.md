@@ -100,8 +100,12 @@ The output looks like this:
 
 ### `ssb.ebt.registerFormat(formatName, methods)` ("sync" muxrpc API)
 
+Register a new format for replication. Note this does not have to be a
+new feed format, it could also be indexed replication or sliced
+replication. See `formats` folder for examples.
+
 By registering a format you create a new EBT instance used for
-replicating feeds in that format. This means its own clock. Message
+replicating feeds using that format. This means its own clock. Message
 will be replicated using the `replicateFormat` api. `formatName` must
 be a string and methods must implement the following functions. The
 example shows the 'classic' implementation.
@@ -112,7 +116,9 @@ example shows the 'classic' implementation.
 ```js
 {
   // used in request, block, cleanClock, sbot.post, vectorClock
-  isFeed: ref.isFeed,
+  sbotIsFeed(sbot, feedId) {
+    return ref.isFeed(feedId)
+  },
   getAtSequence(sbot, pair, cb) {
     sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
       cb(err, msg ? msg.value : null)
@@ -122,6 +128,14 @@ example shows the 'classic' implementation.
     sbot.add(msgVal, (err, msg) => {
       cb(err && err.fatal ? err : null, msg)
     })
+  },
+  // used in onAppend
+  convertMsg(msgVal) {
+    return msgVal
+  },
+  // used in vectorClock
+  isReady(sbot) {
+    return Promise.resolve(true)
   },
 
   // used in ebt:stream to distinguish between messages and notes
