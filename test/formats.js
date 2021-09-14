@@ -378,7 +378,7 @@ tape('index format', async (t) => {
   
   await pify(dave.connect)(carol.getAddress())
 
-  await sleep(2 * REPLICATION_TIMEOUT)
+  await sleep(3 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
 
   // debugging
@@ -414,7 +414,7 @@ tape('index format', async (t) => {
     where(author(carol.id)),
     toPromise()
   )
-  t.equal(daveCarolMessages.length, 1, 'dave got dob message from carol')
+  t.equal(daveCarolMessages.length, 1, 'dave got dog message from carol')
 
   const expectedIndexClock = {
     [carolIndexId]: 1,
