@@ -11,40 +11,44 @@ const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt')
-const { where, author, toPromise } = require('ssb-db2/operators')
+const { where, author, type, toPromise } = require('ssb-db2/operators')
 
-function createSsbServer() {
+function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
     .use(require('ssb-db2/compat/ebt'))
+    .use(require('ssb-meta-feeds'))
+    .use(require('ssb-index-feed-writer'))
     .use(require('../'))
 }
 
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-const aliceDir = '/tmp/test-format-alice'
-rimraf.sync(aliceDir)
-mkdirp.sync(aliceDir)
+function getFreshDir(name) {
+  const dir = '/tmp/test-format-' + name
+  rimraf.sync(dir)
+  mkdirp.sync(dir)
+  return dir
+}
 
-let alice = createSsbServer().call(null, {
+const aliceDir = getFreshDir('alice')
+let alice = createSSBServer().call(null, {
   path: aliceDir,
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('alice'),
 })
 
-const bobDir = '/tmp/test-format-bob'
-rimraf.sync(bobDir)
-mkdirp.sync(bobDir)
-
-let bob = createSsbServer().call(null, {
+const bobDir = getFreshDir('bob')
+let bob = createSSBServer().call(null, {
   path: bobDir,
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('bob')
 })
 
+// FIXME: this should be somewhere else
 const bendyButtMethods = {
-  // used in request, block, cleanClock, sbot.post
+  // used in request, block, cleanClock, sbot.post, vectorClock
   isFeed: SSBURI.isBendyButtV1FeedSSBURI,
   getAtSequence(sbot, pair, cb) {
     sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
@@ -59,6 +63,10 @@ const bendyButtMethods = {
   convertMsg(msgVal) {
     return bendyButt.encode(msgVal)
   },
+  // used in vectorClock
+  isReady(sbot) {
+    return Promise.resolve(true)
+  },
 
   // used in ebt:stream to distinguish between messages and notes
   isMsg(bbVal) {
@@ -71,7 +79,6 @@ const bendyButtMethods = {
   },
   // used in ebt:events
   getMsgAuthor(bbVal) {
-    //console.log("bb getMsgAuthor", Buffer.isBuffer(bbVal))
     if (Buffer.isBuffer(bbVal))
       return bendyButt.decode(bbVal).author
     else
@@ -79,7 +86,6 @@ const bendyButtMethods = {
   },
   // used in ebt:events
   getMsgSequence(bbVal) {
-    //console.log("bb getMsgSequence", Buffer.isBuffer(bbVal))
     if (Buffer.isBuffer(bbVal))
       return bendyButt.decode(bbVal).sequence
     else
@@ -96,7 +102,7 @@ function getBBMsg(mainKeys) {
   mfKeys.id = bendybuttUri
 
   const content = {
-    type: "metafeed/add",
+    type: "metafeed/add/existing",
     feedpurpose: "main",
     subfeed: mainKeys.id,
     metafeed: mfKeys.id,
@@ -126,8 +132,8 @@ let aliceMFId
 let bobMFId
 
 tape('multiple formats', async (t) => {
-  alice.ebt.registerFormat('bendybutt', bendyButtMethods)
-  bob.ebt.registerFormat('bendybutt', bendyButtMethods)
+  alice.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
+  bob.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
 
   // self replicate
   alice.ebt.request(alice.id, true)
@@ -177,13 +183,13 @@ tape('multiple formats', async (t) => {
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
 
-  const bbClockAlice = await pify(alice.ebt.clock)({ format: 'bendybutt' })
+  const bbClockAlice = await pify(alice.ebt.clock)({ format: 'bendybutt-v1' })
   t.deepEqual(bbClockAlice, expectedBBClock, 'alice correct bb clock')
 
   const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
 
-  const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt' })
+  const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt-v1' })
   t.deepEqual(bbClockBob, expectedBBClock, 'bob correct bb clock')
 
   await Promise.all([
@@ -194,20 +200,20 @@ tape('multiple formats', async (t) => {
 })
 
 tape('multiple formats restart', async (t) => {
-  alice = createSsbServer().call(null, {
+  alice = createSSBServer().call(null, {
     path: aliceDir,
     timeout: CONNECTION_TIMEOUT,
     keys: u.keysFor('alice'),
   })
 
-  bob = createSsbServer().call(null, {
+  bob = createSSBServer().call(null, {
     path: bobDir,
     timeout: CONNECTION_TIMEOUT,
     keys: u.keysFor('bob')
   })
 
-  alice.ebt.registerFormat('bendybutt', bendyButtMethods)
-  bob.ebt.registerFormat('bendybutt', bendyButtMethods)
+  alice.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
+  bob.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
 
   // self replicate
   alice.ebt.request(alice.id, true)
@@ -227,13 +233,13 @@ tape('multiple formats restart', async (t) => {
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
 
-  const bbClockAlice = await pify(alice.ebt.clock)({ format: 'bendybutt' })
+  const bbClockAlice = await pify(alice.ebt.clock)({ format: 'bendybutt-v1' })
   t.deepEqual(bbClockAlice, expectedBBClock, 'alice correct bb clock')
 
   const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
 
-  const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt' })
+  const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt-v1' })
   t.deepEqual(bbClockBob, expectedBBClock, 'bob correct bb clock')
 
   await Promise.all([
@@ -243,237 +249,245 @@ tape('multiple formats restart', async (t) => {
   t.end()
 })
 
-let indexedFeeds = []
 
-// first solution:
-// replicating index feeds using classic and indexed using a special
-// format does not work because ebt:events expects messages to come in
-// order. Furthermore getting the vector clock of this indexed ebt on
-// start is also a bit complicated
-
-// second solution:
-// - don't send indexes over classic unless you only replicate the index
-// - use a special indexed format that sends both index + indexed as 1
-//   message with indexed as payload
-// - this requires that we are able to add 2 messages in a
-//   transaction. Should be doable, but requires changes all the way
-//   down the stack
-
-const indexedFeedMethods = Object.assign(
-  {}, alice.ebt.formats['classic'], {
-    isFeed(author) {
-      return indexedFeeds.includes(author)
-    },
-    appendMsg(sbot, msgVal, cb) {
-      const payload = msgVal.content.indexed.payload
-      delete msgVal.content.indexed.payload
-      sbot.db.add(msgVal, (err, msg) => {
-        if (err) return cb(err)
-        sbot.db.addOOO(payload, (err, indexedMsg) => {
+// FIXME: this needs the ability to add 2 messages in a transaction
+function indexedFeedMethods(sbot) {
+  return Object.assign(
+    {}, alice.ebt.formats['classic'], {
+      isFeed(author) {
+        const info = sbot.metafeeds.findByIdSync(author)
+        return info && info.feedpurpose === 'index'
+      },
+      appendMsg(sbot, msgVal, cb) {
+        const payload = msgVal.content.indexed.payload
+        delete msgVal.content.indexed.payload
+        sbot.db.add(msgVal, (err, msg) => {
           if (err) return cb(err)
-          else cb(null, msg)
+          sbot.db.addOOO(payload, (err, indexedMsg) => {
+            if (err) return cb(err)
+            else cb(null, msg)
+          })
         })
-      })
-    },
-    getAtSequence(sbot, pair, cb) {
-      sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-        if (err) return cb(err)
-        const { author, sequence } = msg.value.content.indexed
-        sbot.getAtSequence([author, sequence], (err, indexedMsg) => {
+      },
+      getAtSequence(sbot, pair, cb) {
+        sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
           if (err) return cb(err)
+          const { sequence } = msg.value.content.indexed
+          const authorInfo = sbot.metafeeds.findByIdSync(msg.value.author)
+          if (!authorInfo) return cb(new Error("Unknown author", msg.value.author))
+          const { author } = JSON.parse(authorInfo.metadata.query)
+          sbot.getAtSequence([author, sequence], (err, indexedMsg) => {
+            if (err) return cb(err)
 
-          // add referenced message as payload
-          msg.value.content.indexed.payload = indexedMsg.value
+            // add referenced message as payload
+            msg.value.content.indexed.payload = indexedMsg.value
 
-          cb(null, msg.value)
+            cb(null, msg.value)
+          })
         })
-      })
+      },
+      isReady(sbot) {
+        return pify(sbot.metafeeds.loadState)()
+      },
     }
-  }
-)
+  )
+}
 
-const aliceIndexKey = ssbKeys.generate()
+const carolDir = getFreshDir('carol')
 
 tape('index format', async (t) => {
-  const bobIndexKey = ssbKeys.generate()
-
-  indexedFeeds.push(aliceIndexKey.id)
-  indexedFeeds.push(bobIndexKey.id)
-
-  alice = createSsbServer().call(null, {
-    path: aliceDir,
-    timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice')
-  })
-
-  bob = createSsbServer().call(null, {
-    path: bobDir,
-    timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('bob')
-  })
-
-  alice.ebt.registerFormat('indexedfeed', indexedFeedMethods)
-  bob.ebt.registerFormat('indexedfeed', indexedFeedMethods)
-
-  // publish a few more messages
-  const res = await Promise.all([
-    pify(alice.db.publish)({ type: 'post', text: 'hello 2' }),
-    pify(alice.db.publish)({ type: 'dog', name: 'Buff' }),
-    pify(bob.db.publish)({ type: 'post', text: 'hello 2' }),
-    pify(bob.db.publish)({ type: 'dog', name: 'Biff' })
-  ])
-
-  // index the dog messages
-  await Promise.all([
-    pify(alice.db.publishAs)(aliceIndexKey, {
-      type: 'metafeed/index',
-      indexed: {
-        key: res[1].key,
-        author: alice.id,
-        sequence: res[1].value.sequence
-      }
-    }),
-    pify(bob.db.publishAs)(bobIndexKey, {
-      type: 'metafeed/index',
-      indexed: {
-        key: res[3].key,
-        author: bob.id,
-        sequence: res[3].value.sequence
-      }
-    })
-  ])
-
-  // self replicate
-  alice.ebt.request(alice.id, true)
-  alice.ebt.request(aliceIndexKey.id, true)
-  bob.ebt.request(bob.id, true)
-  bob.ebt.request(bobIndexKey.id, true)
-
-  // only replicate index feeds
-  alice.ebt.request(bobIndexKey.id, true)
-  bob.ebt.request(aliceIndexKey.id, true)
-
-  await pify(bob.connect)(alice.getAddress())
-
-  await sleep(2 * REPLICATION_TIMEOUT)
-  t.pass('wait for replication to complete')
-
-  // we should only get the dog message and not second post
-  const aliceBobMessages = await alice.db.query(
-    where(author(bob.id)),
-    toPromise()
-  )
-  t.equal(aliceBobMessages.length, 2, 'alice correct messages from bob')
-
-  const bobAliceMessages = await bob.db.query(
-    where(author(alice.id)),
-    toPromise()
-  )
-  t.equal(bobAliceMessages.length, 2, 'bob correct messages from alice')
-
-  const expectedIndexClock = {
-    [aliceIndexKey.id]: 1,
-    [bobIndexKey.id]: 1
-  }
-
-  const indexClockAlice = await pify(alice.ebt.clock)({ format: 'indexedfeed' })
-  t.deepEqual(indexClockAlice, expectedIndexClock, 'alice correct index clock')
-
-  const indexClockBob = await pify(bob.ebt.clock)({ format: 'indexedfeed' })
-  t.deepEqual(indexClockBob, expectedIndexClock, 'bob correct index clock')
-
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
-  t.end()
-})
-
-const sliceIndexedFeedMethods = Object.assign(
-  {}, alice.ebt.formats['classic'], {
-    isFeed(author) {
-      return indexedFeeds.includes(author)
-    },
-    appendMsg(sbot, msgVal, cb) {
-      const payload = msgVal.content.indexed.payload
-      delete msgVal.content.indexed.payload
-      sbot.db.addOOO(msgVal, (err, msg) => {
-        if (err) return cb(err)
-        sbot.db.addOOO(payload, (err, indexedMsg) => {
-          if (err) return cb(err)
-          else cb(null, msg)
-        })
-      })
-    },
-    getAtSequence(sbot, pair, cb) {
-      sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-        if (err) return cb(err)
-        const { author, sequence } = msg.value.content.indexed
-        sbot.getAtSequence([author, sequence], (err, indexedMsg) => {
-          if (err) return cb(err)
-
-          // add referenced message as payload
-          msg.value.content.indexed.payload = indexedMsg.value
-
-          cb(null, msg.value)
-        })
-      })
-    }
-  }
-)
-
-tape('sliced index replication', async (t) => {
-  alice = createSsbServer().call(null, {
-    path: aliceDir,
-    timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice')
-  })
-
-  const carolDir = '/tmp/test-format-carol'
-  rimraf.sync(carolDir)
-  mkdirp.sync(carolDir)
-
-  let carol = createSsbServer().call(null, {
+  const carol = createSSBServer().call(null, {
     path: carolDir,
     timeout: CONNECTION_TIMEOUT,
     keys: u.keysFor('carol')
   })
 
-  alice.ebt.registerFormat('indexedfeed', sliceIndexedFeedMethods)
-  carol.ebt.registerFormat('indexedfeed', sliceIndexedFeedMethods)
-
-  // self replicate
-  alice.ebt.request(alice.id, true)
-  alice.ebt.request(aliceIndexKey.id, true)
-  carol.ebt.request(carol.id, true)
-
-  // publish a few more messages
-  const res = await pify(alice.db.publish)({ type: 'dog', name: 'Buffy' })
-
-  // index the new dog message
-  await pify(alice.db.publishAs)(aliceIndexKey, {
-      type: 'metafeed/index',
-      indexed: {
-        key: res.key,
-        author: alice.id,
-        sequence: res.value.sequence
-      }
+  const daveDir = getFreshDir('dave')
+  const dave = createSSBServer().call(null, {
+    path: daveDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('dave')
   })
 
-  await pify(carol.connect)(alice.getAddress())
+  carol.ebt.registerFormat('indexedfeed', indexedFeedMethods(carol))
+  carol.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
+  dave.ebt.registerFormat('indexedfeed', indexedFeedMethods(dave))
+  dave.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
 
-  const clockAlice = await pify(alice.ebt.clock)({ format: 'indexedfeed' })
-  t.equal(clockAlice[aliceIndexKey.id], 2, 'alice correct index clock')
+  const carolIndexId = (await pify(carol.indexFeedWriter.start)({ author: carol.id, type: 'dog', private: false })).subfeed
+  const daveIndexId = (await pify(dave.indexFeedWriter.start)({ author: dave.id, type: 'dog', private: false })).subfeed
 
-  carol.ebt.setClockForSlicedReplication(aliceIndexKey.id,
-                                         clockAlice[aliceIndexKey.id] - 1)
-  carol.ebt.request(aliceIndexKey.id, true)
+  // publish some messages
+  const res = await Promise.all([
+    pify(carol.db.publish)({ type: 'post', text: 'hello 2' }),
+    pify(carol.db.publish)({ type: 'dog', name: 'Buff' }),
+    pify(dave.db.publish)({ type: 'post', text: 'hello 2' }),
+    pify(dave.db.publish)({ type: 'dog', name: 'Biff' })
+  ])
+
+  await sleep(2 * REPLICATION_TIMEOUT)
+  t.pass('wait for index to complete')
+
+  // get meta feed id to replicate
+  const carolMetaMessages = await carol.db.query(
+    where(type('metafeed/announce')),
+    toPromise()
+  )
+
+  // get meta index feed
+  const carolMetaIndexMessages = await carol.db.query(
+    where(type('metafeed/add/derived')),
+    toPromise()
+  )
+
+  // get meta feed id to replicate
+  const daveMetaMessages = await dave.db.query(
+    where(type('metafeed/announce')),
+    toPromise()
+  )
+  
+  // get meta index feed
+  const daveMetaIndexMessages = await dave.db.query(
+    where(type('metafeed/add/derived')),
+    toPromise()
+  )
+
+  const carolMetaId = carolMetaMessages[0].value.content.metafeed
+  const carolMetaIndexId = carolMetaIndexMessages[0].value.content.subfeed
+  
+  const daveMetaId = daveMetaMessages[0].value.content.metafeed
+  const daveMetaIndexId = daveMetaIndexMessages[0].value.content.subfeed
+  
+  // self replicate
+  carol.ebt.request(carol.id, true)
+  carol.ebt.request(carolMetaId, true)
+  carol.ebt.request(carolMetaIndexId, true)
+  carol.ebt.request(carolIndexId, true)
+
+  dave.ebt.request(dave.id, true)
+  dave.ebt.request(daveMetaId, true)
+  dave.ebt.request(daveMetaIndexId, true)
+  dave.ebt.request(daveIndexId, true)
+
+  // replication
+  carol.ebt.request(daveMetaId, true)
+  carol.ebt.request(daveMetaIndexId, true)
+
+  dave.ebt.request(carolMetaId, true)
+  dave.ebt.request(carolMetaIndexId, true)
+  
+  await pify(dave.connect)(carol.getAddress())
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
 
-  const carolMessages = await carol.db.query(toPromise())
-  t.equal(carolMessages.length, 2, '1 index + 1 indexed message')
+  // debugging
+  const carolIndexMessages = await carol.db.query(
+    where(author(daveMetaIndexId)),
+    toPromise()
+  )
+  t.equal(carolIndexMessages.length, 1, 'carol has dave meta index')
+
+  const daveIndexMessages = await dave.db.query(
+    where(author(carolMetaIndexId)),
+    toPromise()
+  )
+  t.equal(daveIndexMessages.length, 1, 'dave has carol meta index')
+  
+  // now that we have meta feeds from the other peer we can replicate
+  // index feeds
+
+  carol.ebt.request(daveIndexId, true)
+  dave.ebt.request(carolIndexId, true)
+
+  await sleep(2 * REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  // we should only get the dog message and not second post
+  const carolDaveMessages = await carol.db.query(
+    where(author(dave.id)),
+    toPromise()
+  )
+  t.equal(carolDaveMessages.length, 1, 'carol got dog message from dave')
+
+  const daveCarolMessages = await dave.db.query(
+    where(author(carol.id)),
+    toPromise()
+  )
+  t.equal(daveCarolMessages.length, 1, 'dave got dob message from carol')
+
+  const expectedIndexClock = {
+    [carolIndexId]: 1,
+    [daveIndexId]: 1
+  }
+
+  const indexClockCarol = await pify(carol.ebt.clock)({ format: 'indexedfeed' })
+  t.deepEqual(indexClockCarol, expectedIndexClock, 'carol correct index clock')
+
+  const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexedfeed' })
+  t.deepEqual(indexClockDave, expectedIndexClock, 'dave correct index clock')
+
+  await Promise.all([
+    pify(carol.close)(true),
+    pify(dave.close)(true)
+  ])
+  t.end()
+})
+
+const slicedReplication = Object.assign(
+  {}, alice.ebt.formats['classic'], {
+    appendMsg(sbot, msgVal, cb) {
+      sbot.db.addOOO(msgVal, (err, msg) => {
+        if (err) return cb(err)
+        else cb(null, msg)
+      })
+    }
+  }
+)
+
+// FIXME: this needs to be as before
+tape('sliced replication', async (t) => {
+  alice = createSSBServer().call(null, {
+    path: aliceDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('alice')
+  })
+
+  let carol = createSSBServer().call(null, {
+    path: carolDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('carol')
+  })
+
+  await Promise.all([
+    pify(alice.db.publish)({ type: 'post', text: 'hello2' }),
+    pify(alice.db.publish)({ type: 'post', text: 'hello3' }),
+  ])
+  
+  alice.ebt.registerFormat('slicedreplication', slicedReplication)
+  carol.ebt.registerFormat('slicedreplication', slicedReplication)
+
+  // self replicate
+  alice.ebt.request(alice.id, true)
+  carol.ebt.request(carol.id, true)
+
+  await pify(carol.connect)(alice.getAddress())
+
+  const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
+  t.equal(clockAlice[alice.id], 3, 'alice correct index clock')
+
+  carol.ebt.setClockForSlicedReplication(alice.id,
+                                         clockAlice[alice.id] - 2)
+  carol.ebt.request(alice.id, true)
+
+  await sleep(2 * REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  const carolMessages = await carol.db.query(
+    where(author(alice.id)),
+    toPromise()
+  )
+  t.equal(carolMessages.length, 2, 'latest 2 messages from alice')
 
   await Promise.all([
     pify(alice.close)(true),

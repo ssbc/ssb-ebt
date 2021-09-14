@@ -64,6 +64,10 @@ exports.init = function (sbot, config) {
       convertMsg(msgVal) {
         return msgVal
       },
+      // used in vectorClock
+      isReady(sbot) {
+        return Promise.resolve(true)
+      },
 
       // used in ebt:stream to distinguish between messages and notes
       isMsg(msgVal) {
@@ -128,19 +132,23 @@ exports.init = function (sbot, config) {
 
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
-    for (let formatName in ebts) {
-      const format = formats[formatName]
-      const ebt = ebts[formatName]
 
-      validClock = {}
-      for (let k in clock)
-        if (format.isFeed(k))
-          validClock[k] = clock[k]
+    const readies = Object.values(formats).map(f => f.isReady(sbot))
+    Promise.all(readies).then(() => {
+      for (let formatName in ebts) {
+        const format = formats[formatName]
+        const ebt = ebts[formatName]
 
-      ebt.state.clock = validClock
-      ebt.update()
-    }
-    initialized.resolve()
+        validClock = {}
+        for (let k in clock)
+          if (format.isFeed(k))
+            validClock[k] = clock[k]
+
+        ebt.state.clock = validClock
+        ebt.update()
+      }
+      initialized.resolve()
+    })
   })
 
   sbot.post((msg) => {
