@@ -42,7 +42,7 @@
     "ssb-db": "^19.2.0",
     "ssb-db2": "^2.4.0",
     "ssb-generate": "^1.0.1",
-    "ssb-index-feed-writer": "^0.5.1",
+    "ssb-index-feed-writer": "^0.6.0",
     "ssb-keys": "^8.1.0",
     "ssb-meta-feeds": "^0.19.0",
     "ssb-uri2": "^1.5.2",
