@@ -378,7 +378,7 @@ tape('index format', async (t) => {
   
   await pify(dave.connect)(carol.getAddress())
 
-  await sleep(3 * REPLICATION_TIMEOUT)
+  await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
 
   // debugging
