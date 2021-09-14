@@ -31,6 +31,7 @@
   "devDependencies": {
     "cat-names": "^3.0.0",
     "dog-names": "^2.0.0",
+    "mkdirp": "^1.0.4",
     "nyc": "^15.1.0",
     "promisify-4loc": "^1.0.0",
     "pull-paramap": "^1.2.2",
