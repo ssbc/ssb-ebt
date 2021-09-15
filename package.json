@@ -12,7 +12,8 @@
   "main": "index.js",
   "files": [
     "*.js",
-    "debug/*.js"
+    "debug/*.js",
+    "formats/*.js"
   ],
   "engines": {
     "node": ">=10"
