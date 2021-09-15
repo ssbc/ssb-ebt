@@ -45,11 +45,10 @@ function cleanClock (clock, isFeed) {
 }
 
 exports.init = function (sbot, config) {
-  const formats = {
-    'classic': require('./formats/classic')
-  }
-
   const ebts = {}
+  const formats = {}
+  registerFormat('classic', require('./formats/classic'))
+
   function addEBT(formatName) {
     const dirName = 'ebt' + (formatName === 'classic' ? '' : formatName)
     const dir = config.path ? path.join(config.path, dirName) : null
@@ -57,9 +56,9 @@ exports.init = function (sbot, config) {
 
     const format = formats[formatName]
     // EBT expects a function of only feedId so we bind sbot here
-    format.isFeed = (feedId) => format.sbotIsFeed(sbot, feedId)
+    format.isFeed = format.sbotIsFeed.bind(format, sbot)
 
-    const ebt = EBT(Object.assign({
+    const ebt = EBT({
       logging: config.ebt && config.ebt.logging,
       id: sbot.id,
       getClock (id, cb) {
@@ -78,8 +77,9 @@ exports.init = function (sbot, config) {
       },
       append (msgVal, cb) {
         format.appendMsg(sbot, msgVal, cb)
-      }
-    }, format))
+      },
+      ...format
+    })
 
     ebts[formatName] = ebt
   }
@@ -91,8 +91,6 @@ exports.init = function (sbot, config) {
 
     return ebt
   }
-
-  addEBT('classic')
 
   const initialized = DeferredPromise()
 
