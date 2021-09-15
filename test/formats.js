@@ -366,33 +366,59 @@ tape('sliced replication', async (t) => {
     pify(alice.db.publish)({ type: 'post', text: 'hello3' }),
   ])
 
-  const slicedMethods = require('../formats/sliced')
-  alice.ebt.registerFormat('slicedreplication', slicedMethods)
-  carol.ebt.registerFormat('slicedreplication', slicedMethods)
+  // carol wants to slice replicate some things, so she overwrites
+  // classic for this purpose
+
+  const sliced = [alice.id]
+
+  const slicedMethods = {
+    ...require('../formats/classic'),
+    appendMsg(sbot, msgVal, cb) {
+      let append = sbot.add
+      if (sliced.includes(msgVal.author))
+        append = sbot.db.addOOO
+
+      append(msgVal, (err, msg) => {
+        if (err) return cb(err)
+        else cb(null, msg)
+      })
+    }
+  }
+
+  carol.ebt.registerFormat('classic', slicedMethods)
+
+  const bobId = u.keysFor('bob').id
 
   // self replicate
   alice.ebt.request(alice.id, true)
-  alice.ebt.request(alice.id, true, "slicedreplication")
+  alice.ebt.request(bob.id, true)
   carol.ebt.request(carol.id, true)
 
   await pify(carol.connect)(alice.getAddress())
 
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.equal(clockAlice[alice.id], 3, 'alice correct index clock')
-
+  
   carol.ebt.setClockForSlicedReplication(alice.id,
-                                         clockAlice[alice.id] - 2,
-                                        "slicedreplication")
-  carol.ebt.request(alice.id, true, "slicedreplication")
+                                         clockAlice[alice.id] - 2)
+  carol.ebt.request(alice.id, true)
+
+  carol.ebt.request(bobId, true) // in full
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
 
-  const carolMessages = await carol.db.query(
+  const carolAMessages = await carol.db.query(
     where(author(alice.id)),
     toPromise()
   )
-  t.equal(carolMessages.length, 2, 'latest 2 messages from alice')
+  t.equal(carolAMessages.length, 2, 'latest 2 messages from alice')
+
+  const carolBMessages = await carol.db.query(
+    where(author(bob.id)),
+    toPromise()
+  )
+  t.equal(carolBMessages.length, 1, 'all messages from bob')
 
   await Promise.all([
     pify(alice.close)(true),
