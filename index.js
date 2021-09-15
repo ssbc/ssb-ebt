@@ -46,17 +46,16 @@ function cleanClock (clock, isFeed) {
 
 exports.init = function (sbot, config) {
   const ebts = {}
-  const formats = {}
   registerFormat('classic', require('./formats/classic'))
 
-  function addEBT(formatName) {
+  function registerFormat(formatName, format) {
     const dirName = 'ebt' + (formatName === 'classic' ? '' : formatName)
     const dir = config.path ? path.join(config.path, dirName) : null
     const store = Store(dir, null, toUrlFriendly)
 
-    const format = formats[formatName]
     // EBT expects a function of only feedId so we bind sbot here
-    format.isFeed = format.sbotIsFeed.bind(format, sbot)
+    const isFeed = format.sbotIsFeed.bind(format, sbot)
+    const { isMsg, getMsgAuthor, getMsgSequence } = format
 
     const ebt = EBT({
       logging: config.ebt && config.ebt.logging,
@@ -64,12 +63,12 @@ exports.init = function (sbot, config) {
       getClock (id, cb) {
         store.ensure(id, function () {
           const clock = store.get(id) || {}
-          cleanClock(clock, format.isFeed)
+          cleanClock(clock, isFeed)
           cb(null, clock)
         })
       },
       setClock (id, clock) {
-        cleanClock(clock, format.isFeed)
+        cleanClock(clock, isFeed)
         store.set(id, clock)
       },
       getAt (pair, cb) {
@@ -78,8 +77,17 @@ exports.init = function (sbot, config) {
       append (msgVal, cb) {
         format.appendMsg(sbot, msgVal, cb)
       },
-      ...format
+
+      isFeed,
+      isMsg,
+      getMsgAuthor,
+      getMsgSequence
     })
+
+    // attach a few methods we need in this module
+    ebt.convertMsg = format.convertMsg
+    ebt.isReady = format.isReady.bind(format, sbot)
+    ebt.isFeed = isFeed
 
     ebts[formatName] = ebt
   }
@@ -97,31 +105,27 @@ exports.init = function (sbot, config) {
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
 
-    const readies = Object.values(formats).map(f => f.isReady(sbot))
+    const readies = Object.values(ebts).map(ebt => ebt.isReady())
     Promise.all(readies).then(() => {
-      for (let formatName in ebts) {
-        const format = formats[formatName]
-        const ebt = ebts[formatName]
-
-        validClock = {}
+      Object.values(ebts).forEach(ebt => {
+        const validClock = {}
         for (let k in clock)
-          if (format.isFeed(k))
+          if (ebt.isFeed(k))
             validClock[k] = clock[k]
 
         ebt.state.clock = validClock
         ebt.update()
-      }
+      })
       initialized.resolve()
     })
   })
 
   sbot.post((msg) => {
     initialized.promise.then(() => {
-      for (let formatName in ebts) {
-        const format = formats[formatName]
-        if (format.isFeed(msg.value.author))
-          ebts[formatName].onAppend(format.convertMsg(msg.value))
-      }
+      Object.values(ebts).forEach(ebt => {
+        if (ebt.isFeed(msg.value.author))
+          ebt.onAppend(ebt.convertMsg(msg.value))
+      })
     })
   })
 
@@ -161,35 +165,28 @@ exports.init = function (sbot, config) {
     }
   })
 
+  function findEBTForFeed(feedId) {
+    let ebt = Object.values(ebts).reverse().find(ebt => ebt.isFeed(feedId))
+    if (ebt) return ebt
+    else return ebts['classic']
+  }
+
   function request(destFeedId, requesting) {
     initialized.promise.then(() => {
-      formatName = 'classic'
-      for (let format in ebts)
-        if (formats[format].isFeed(destFeedId))
-          formatName = format
+      const ebt = findEBTForFeed(destFeedId)
 
-      const format = formats[formatName]
-
-      if (!(format && format.isFeed(destFeedId))) return
+      if (!ebt.isFeed(destFeedId)) return
       
-      ebts[formatName].request(destFeedId, requesting)
+      ebt.request(destFeedId, requesting)
     })
   }
 
   function block(origFeedId, destFeedId, blocking) {
     initialized.promise.then(() => {
-      formatName = 'classic'
-      for (let format in ebts)
-        if (formats[format].isFeed(origFeedId))
-          formatName = format
+      const ebt = findEBTForFeed(origFeedId)
 
-      const format = formats[formatName]
-
-      if (!format) return
-      if (!format.isFeed(origFeedId)) return
-      if (!format.isFeed(destFeedId)) return
-
-      const ebt = ebts[formatName]
+      if (!ebt.isFeed(origFeedId)) return
+      if (!ebt.isFeed(destFeedId)) return
 
       if (blocking) {
         ebt.block(origFeedId, destFeedId, true)
@@ -223,12 +220,7 @@ exports.init = function (sbot, config) {
   function peerStatus(id) {
     id = id || sbot.id
 
-    formatName = 'classic'
-    for (let format in ebts)
-      if (formats[format].isFeed(id))
-        formatName = format
-
-    const ebt = getEBT(formatName)
+    const ebt = findEBTForFeed(id)
 
     const data = {
       id: id,
@@ -264,20 +256,10 @@ exports.init = function (sbot, config) {
   }
 
   function setClockForSlicedReplication(feedId, sequence) {
-    formatName = 'classic'
-    for (let format in ebts)
-      if (formats[format].isFeed(feedId))
-        formatName = format
-
     initialized.promise.then(() => {
-      const ebt = getEBT(formatName)
+      const ebt = findEBTForFeed(feedId)
       ebt.state.clock[feedId] = sequence
     })
-  }
-
-  function registerFormat(formatName, methods) {
-    formats[formatName] = methods
-    addEBT(formatName)
   }
 
   return {
@@ -288,7 +270,6 @@ exports.init = function (sbot, config) {
     peerStatus,
     clock,
     setClockForSlicedReplication,
-    registerFormat,
-    formats
+    registerFormat
   }
 }

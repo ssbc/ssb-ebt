@@ -220,12 +220,11 @@ tape('index format', async (t) => {
     keys: u.keysFor('dave')
   })
 
-  const carolIndexedMethods = require('../formats/indexed.js')()
-  const daveIndexedMethods = require('../formats/indexed.js')()
+  const indexedMethods = require('../formats/indexed.js')
 
-  carol.ebt.registerFormat('indexedfeed', carolIndexedMethods)
+  carol.ebt.registerFormat('indexedfeed', indexedMethods)
   carol.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
-  dave.ebt.registerFormat('indexedfeed', daveIndexedMethods)
+  dave.ebt.registerFormat('indexedfeed', indexedMethods)
   dave.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
 
   const carolIndexId = (await pify(carol.indexFeedWriter.start)({ author: carol.id, type: 'dog', private: false })).subfeed
