@@ -108,7 +108,7 @@ By registering a format you create a new EBT instance used for
 replicating feeds using that format. This means its own clock. Message
 will be replicated using the `replicateFormat` API. `formatName` must
 be a string and methods must implement the following functions. The
-example shows the 'classic' implementation.
+example below shows the implementation for 'classic' ed25519 SSB feeds.
 
 <details>
 <summary>CLICK HERE</summary>
