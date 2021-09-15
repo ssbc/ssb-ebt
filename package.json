@@ -29,6 +29,7 @@
     "ssb-bendy-butt": "^0.12.2",
     "ssb-network-errors": "^1.0.0",
     "ssb-ref": "^2.13.0",
+    "ssb-subset-ql": "^0.6.1",
     "ssb-uri2": "^1.5.2"
   },
   "devDependencies": {

@@ -1,5 +1,6 @@
 const classic = require('./classic')
 const pify = require('promisify-4loc')
+const { QL0 } = require('ssb-subset-ql')
 
 module.exports = function () {
   return {
@@ -25,8 +26,8 @@ module.exports = function () {
         if (err) return cb(err)
         const { sequence } = msg.value.content.indexed
         const authorInfo = sbot.metafeeds.findByIdSync(msg.value.author)
-        if (!authorInfo) return cb(new Error("Unknown author", msg.value.author))
-        const { author } = JSON.parse(authorInfo.metadata.query)
+        if (!authorInfo) return cb(new Error("Unknown author:" + msg.value.author))
+        const { author } = QL0.parse(authorInfo.metadata.query)
         sbot.getAtSequence([author, sequence], (err, indexedMsg) => {
           if (err) return cb(err)
 
