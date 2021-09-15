@@ -210,7 +210,7 @@ exports.init = function (sbot, config) {
       throw new Error('expected ebt.replicate({version: 3})')
     }
 
-    let formatName = opts.format || 'classic'
+    const formatName = opts.format || 'classic'
     const ebt = getEBT(formatName)
 
     var deferred = pullDefer.duplex()
