@@ -165,15 +165,19 @@ exports.init = function (sbot, config) {
     }
   })
 
-  function findEBTForFeed(feedId) {
-    let ebt = Object.values(ebts).reverse().find(ebt => ebt.isFeed(feedId))
+  function findEBTForFeed(feedId, formatName) {
+    let ebt
+    if (formatName)
+      ebt = ebts[formatName]
+    else
+      ebt = Object.values(ebts).find(ebt => ebt.isFeed(feedId))
     if (ebt) return ebt
     else return ebts['classic']
   }
 
-  function request(destFeedId, requesting) {
+  function request(destFeedId, requesting, formatName) {
     initialized.promise.then(() => {
-      const ebt = findEBTForFeed(destFeedId)
+      const ebt = findEBTForFeed(destFeedId, formatName)
 
       if (!ebt.isFeed(destFeedId)) return
       
@@ -181,9 +185,9 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function block(origFeedId, destFeedId, blocking) {
+  function block(origFeedId, destFeedId, blocking, formatName) {
     initialized.promise.then(() => {
-      const ebt = findEBTForFeed(origFeedId)
+      const ebt = findEBTForFeed(origFeedId, formatName)
 
       if (!ebt.isFeed(origFeedId)) return
       if (!ebt.isFeed(destFeedId)) return
@@ -255,9 +259,10 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function setClockForSlicedReplication(feedId, sequence) {
+  function setClockForSlicedReplication(feedId, sequence, formatName) {
     initialized.promise.then(() => {
-      const ebt = findEBTForFeed(feedId)
+      const ebt = findEBTForFeed(feedId, formatName)
+
       ebt.state.clock[feedId] = sequence
     })
   }

@@ -227,8 +227,10 @@ tape('index format', async (t) => {
   dave.ebt.registerFormat('indexedfeed', indexedMethods)
   dave.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
 
-  const carolIndexId = (await pify(carol.indexFeedWriter.start)({ author: carol.id, type: 'dog', private: false })).subfeed
-  const daveIndexId = (await pify(dave.indexFeedWriter.start)({ author: dave.id, type: 'dog', private: false })).subfeed
+  const carolIndexId = (await pify(carol.indexFeedWriter.start)({
+    author: carol.id, type: 'dog', private: false })).subfeed
+  const daveIndexId = (await pify(dave.indexFeedWriter.start)({
+    author: dave.id, type: 'dog', private: false })).subfeed
 
   // publish some messages
   const res = await Promise.all([
@@ -275,17 +277,16 @@ tape('index format', async (t) => {
   carol.ebt.request(carol.id, true)
   carol.ebt.request(carolMetaId, true)
   carol.ebt.request(carolMetaIndexId, true)
-  carol.ebt.request(carolIndexId, true)
+  carol.ebt.request(carolIndexId, true, "indexedfeed")
 
   dave.ebt.request(dave.id, true)
   dave.ebt.request(daveMetaId, true)
   dave.ebt.request(daveMetaIndexId, true)
-  dave.ebt.request(daveIndexId, true)
+  dave.ebt.request(daveIndexId, true, "indexedfeed")
 
   // replication
   carol.ebt.request(daveMetaId, true)
   carol.ebt.request(daveMetaIndexId, true)
-
   dave.ebt.request(carolMetaId, true)
   dave.ebt.request(carolMetaIndexId, true)
   
@@ -310,8 +311,8 @@ tape('index format', async (t) => {
   // now that we have meta feeds from the other peer we can replicate
   // index feeds
 
-  carol.ebt.request(daveIndexId, true)
-  dave.ebt.request(carolIndexId, true)
+  carol.ebt.request(daveIndexId, true, "indexedfeed")
+  dave.ebt.request(carolIndexId, true, "indexedfeed")
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
@@ -371,6 +372,7 @@ tape('sliced replication', async (t) => {
 
   // self replicate
   alice.ebt.request(alice.id, true)
+  alice.ebt.request(alice.id, true, "slicedreplication")
   carol.ebt.request(carol.id, true)
 
   await pify(carol.connect)(alice.getAddress())
@@ -379,8 +381,9 @@ tape('sliced replication', async (t) => {
   t.equal(clockAlice[alice.id], 3, 'alice correct index clock')
 
   carol.ebt.setClockForSlicedReplication(alice.id,
-                                         clockAlice[alice.id] - 2)
-  carol.ebt.request(alice.id, true)
+                                         clockAlice[alice.id] - 2,
+                                        "slicedreplication")
+  carol.ebt.request(alice.id, true, "slicedreplication")
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')

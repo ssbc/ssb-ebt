@@ -38,11 +38,13 @@ installed, instead, you need to call its API methods yourself (primarily
 `request` or `block`), or use a scheduler module such as
 [ssb-replication-scheduler](https://github.com/ssb-ngi-pointer/ssb-replication-scheduler).
 
-### `ssb.ebt.request(destination, replicating)` ("sync" muxrpc API)
+### `ssb.ebt.request(destination, replicating, formatName)` ("sync" muxrpc API)
 
 Request that the SSB feed ID `destination` be replicated. `replication` is a
 boolean, where `true` indicates we want to replicate the destination. If set to
-`false`, replication is stopped.
+`false`, replication is stopped. `formatName` is optional and used to specify 
+the specific EBT instance, otherwise the first where isFeed is `true` for 
+`destination` is used.
 
 Returns undefined, always.
 
@@ -55,6 +57,9 @@ them.
 `origin` is the SSB feed ID of the peer who created the block, `destination` is
 the SSB feed ID of the peer being blocked, and `blocking` is a boolean that
 indicates whether to enable the block (`true`) or to unblock (`false`).
+
+`formatName` is optional and used to specify the specific EBT instance, 
+otherwise the first where isFeed is `true` for `origin` is used.
 
 Returns undefined, always.
 
@@ -155,7 +160,7 @@ example below shows the implementation for 'classic' ed25519 SSB feeds.
 ```
 </details>
 
-### `ssb.ebt.setClockForSlicedReplication(feedId, sequence)` ("sync" muxrpc API)
+### `ssb.ebt.setClockForSlicedReplication(feedId, sequence, formatName)` ("sync" muxrpc API)
 
 Sets the internal clock of a feed to a specific sequence. Note this
 does not start replicating the feed, it only updates the clock. By
