@@ -106,7 +106,7 @@ replication. See `formats` folder for examples.
 
 By registering a format you create a new EBT instance used for
 replicating feeds using that format. This means its own clock. Message
-will be replicated using the `replicateFormat` api. `formatName` must
+will be replicated using the `replicateFormat` API. `formatName` must
 be a string and methods must implement the following functions. The
 example shows the 'classic' implementation.
 
