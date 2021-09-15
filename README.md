@@ -103,7 +103,7 @@ The output looks like this:
 ```
 </details>
 
-### `ssb.ebt.registerFormat(formatName, methods)` ("sync" muxrpc API)
+### `ssb.ebt.registerFormat(methods)` ("sync" muxrpc API)
 
 Register a new format for replication. Note this does not have to be a
 new feed format, it could also be indexed replication or sliced
@@ -111,15 +111,16 @@ replication. See `formats` folder for examples.
 
 By registering a format you create a new EBT instance used for
 replicating feeds using that format. This means its own clock. Message
-will be replicated using the `replicateFormat` API. `formatName` must
-be a string and methods must implement the following functions. The
-example below shows the implementation for 'classic' ed25519 SSB feeds.
+will be replicated using the `replicateFormat` API. The `methods`
+argument must implement the following functions. The example below
+shows the implementation for 'classic' ed25519 SSB feeds.
 
 <details>
 <summary>CLICK HERE</summary>
 
 ```js
 {
+  name: 'classic',
   // used in request, block, cleanClock, sbot.post, vectorClock
   sbotIsFeed(sbot, feedId) {
     return ref.isFeed(feedId)

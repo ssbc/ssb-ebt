@@ -87,8 +87,8 @@ let aliceMFId
 let bobMFId
 
 tape('multiple formats', async (t) => {
-  alice.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
-  bob.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
+  alice.ebt.registerFormat(bendyButtMethods)
+  bob.ebt.registerFormat(bendyButtMethods)
 
   // self replicate
   alice.ebt.request(alice.id, true)
@@ -167,8 +167,8 @@ tape('multiple formats restart', async (t) => {
     keys: u.keysFor('bob')
   })
 
-  alice.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
-  bob.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
+  alice.ebt.registerFormat(bendyButtMethods)
+  bob.ebt.registerFormat(bendyButtMethods)
 
   // self replicate
   alice.ebt.request(alice.id, true)
@@ -222,10 +222,10 @@ tape('index format', async (t) => {
 
   const indexedMethods = require('../formats/indexed.js')
 
-  carol.ebt.registerFormat('indexedfeed', indexedMethods)
-  carol.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
-  dave.ebt.registerFormat('indexedfeed', indexedMethods)
-  dave.ebt.registerFormat('bendybutt-v1', bendyButtMethods)
+  carol.ebt.registerFormat(indexedMethods)
+  carol.ebt.registerFormat(bendyButtMethods)
+  dave.ebt.registerFormat(indexedMethods)
+  dave.ebt.registerFormat(bendyButtMethods)
 
   const carolIndexId = (await pify(carol.indexFeedWriter.start)({
     author: carol.id, type: 'dog', private: false })).subfeed
@@ -277,12 +277,12 @@ tape('index format', async (t) => {
   carol.ebt.request(carol.id, true)
   carol.ebt.request(carolMetaId, true)
   carol.ebt.request(carolMetaIndexId, true)
-  carol.ebt.request(carolIndexId, true, "indexedfeed")
+  carol.ebt.request(carolIndexId, true, "indexed")
 
   dave.ebt.request(dave.id, true)
   dave.ebt.request(daveMetaId, true)
   dave.ebt.request(daveMetaIndexId, true)
-  dave.ebt.request(daveIndexId, true, "indexedfeed")
+  dave.ebt.request(daveIndexId, true, "indexed")
 
   // replication
   carol.ebt.request(daveMetaId, true)
@@ -311,8 +311,8 @@ tape('index format', async (t) => {
   // now that we have meta feeds from the other peer we can replicate
   // index feeds
 
-  carol.ebt.request(daveIndexId, true, "indexedfeed")
-  dave.ebt.request(carolIndexId, true, "indexedfeed")
+  carol.ebt.request(daveIndexId, true, "indexed")
+  dave.ebt.request(carolIndexId, true, "indexed")
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
@@ -335,10 +335,10 @@ tape('index format', async (t) => {
     [daveIndexId]: 1
   }
 
-  const indexClockCarol = await pify(carol.ebt.clock)({ format: 'indexedfeed' })
+  const indexClockCarol = await pify(carol.ebt.clock)({ format: 'indexed' })
   t.deepEqual(indexClockCarol, expectedIndexClock, 'carol correct index clock')
 
-  const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexedfeed' })
+  const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexed' })
   t.deepEqual(indexClockDave, expectedIndexClock, 'dave correct index clock')
 
   await Promise.all([
@@ -385,7 +385,7 @@ tape('sliced replication', async (t) => {
     }
   }
 
-  carol.ebt.registerFormat('classic', slicedMethods)
+  carol.ebt.registerFormat(slicedMethods)
 
   const bobId = u.keysFor('bob').id
 

@@ -1,6 +1,7 @@
 const ref = require('ssb-ref')
 
 module.exports = {
+  name: 'classic',
   // used in request, block, cleanClock, sbot.post, vectorClock
   sbotIsFeed(sbot, feedId) {
     return ref.isFeed(feedId)

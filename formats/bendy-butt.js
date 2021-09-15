@@ -2,6 +2,7 @@ const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt')
 
 module.exports = {
+  name: 'bendybutt-v1',
   // used in request, block, cleanClock, sbot.post, vectorClock
   sbotIsFeed(sbot, feedId) {
     return SSBURI.isBendyButtV1FeedSSBURI(feedId)

@@ -45,11 +45,13 @@ function cleanClock (clock, isFeed) {
 }
 
 exports.init = function (sbot, config) {
-  const ebts = {}
-  registerFormat('classic', require('./formats/classic'))
+  const ebts = []
+  registerFormat(require('./formats/classic'))
 
-  function registerFormat(formatName, format) {
-    const dirName = 'ebt' + (formatName === 'classic' ? '' : formatName)
+  function registerFormat(format) {
+    if (!format.name) throw new Error('format must have a name')
+
+    const dirName = 'ebt' + (format.name === 'classic' ? '' : format.name)
     const dir = config.path ? path.join(config.path, dirName) : null
     const store = Store(dir, null, toUrlFriendly)
 
@@ -88,14 +90,21 @@ exports.init = function (sbot, config) {
     ebt.convertMsg = format.convertMsg
     ebt.isReady = format.isReady.bind(format, sbot)
     ebt.isFeed = isFeed
+    ebt.name = format.name
 
-    ebts[formatName] = ebt
+    const existingId = ebts.findIndex(e => e.name === format.name)
+    if (existingId != -1)
+      ebts[existingId] = ebt
+    else
+      ebts.push(ebt)
   }
 
   function getEBT(formatName) {
-    const ebt = ebts[formatName]
-    if (!ebt)
+    const ebt = ebts.find(ebt => ebt.name === formatName)
+    if (!ebt) {
+      console.log(ebts)
       throw new Error('Unknown format: ' + formatName)
+    }
 
     return ebt
   }
@@ -105,9 +114,9 @@ exports.init = function (sbot, config) {
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
 
-    const readies = Object.values(ebts).map(ebt => ebt.isReady())
+    const readies = ebts.map(ebt => ebt.isReady())
     Promise.all(readies).then(() => {
-      Object.values(ebts).forEach(ebt => {
+      ebts.forEach(ebt => {
         const validClock = {}
         for (let k in clock)
           if (ebt.isFeed(k))
@@ -122,7 +131,7 @@ exports.init = function (sbot, config) {
 
   sbot.post((msg) => {
     initialized.promise.then(() => {
-      Object.values(ebts).forEach(ebt => {
+      ebts.forEach(ebt => {
         if (ebt.isFeed(msg.value.author))
           ebt.onAppend(ebt.convertMsg(msg.value))
       })
@@ -134,7 +143,7 @@ exports.init = function (sbot, config) {
   if (sbot.progress) {
     hook(sbot.progress, function (fn) {
       const _progress = fn()
-      const ebt = ebts['classic']
+      const ebt = ebts.find(ebt => ebt.name === 'classic')
       const ebtProg = ebt.progress()
       if (ebtProg.target) _progress.ebt = ebtProg
       return _progress
@@ -145,8 +154,8 @@ exports.init = function (sbot, config) {
     if (rpc.id === sbot.id) return // ssb-client connecting to ssb-server
     if (isClient) {
       initialized.promise.then(() => {
-        for (let format in ebts) {
-          const ebt = ebts[format]
+        ebts.forEach(ebt => {
+          const format = ebt.name
           const opts = { version: 3, format }
           const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
 
@@ -160,7 +169,7 @@ exports.init = function (sbot, config) {
             }
           })
           pull(local, remote, local)
-        }
+        })
       })
     }
   })
@@ -168,11 +177,14 @@ exports.init = function (sbot, config) {
   function findEBTForFeed(feedId, formatName) {
     let ebt
     if (formatName)
-      ebt = ebts[formatName]
+      ebt = ebts.find(ebt => ebt.name === formatName)
     else
-      ebt = Object.values(ebts).find(ebt => ebt.isFeed(feedId))
-    if (ebt) return ebt
-    else return ebts['classic']
+      ebt = ebts.find(ebt => ebt.isFeed(feedId))
+
+    if (!ebt)
+      ebt = ebts.find(ebt => ebt.name === 'classic')
+
+    return ebt
   }
 
   function request(destFeedId, requesting, formatName) {
