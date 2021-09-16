@@ -6,7 +6,7 @@ const pify = require('promisify-4loc')
 const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
-function delayedVectorClock (sbot, config) {
+function delayedVectorClock(sbot, config) {
   const realGetVectorClock = sbot.getVectorClock
   sbot.getVectorClock = (cb) => {
     setTimeout(() => realGetVectorClock(cb), 1000)
@@ -14,7 +14,7 @@ function delayedVectorClock (sbot, config) {
 }
 
 const createSbot = require('secret-stack')({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(delayedVectorClock)
@@ -31,19 +31,19 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
   let alice = createSbot({
     path: '/tmp/alice',
     timeout: CONNECTION_TIMEOUT,
-    keys: aliceKeys
+    keys: aliceKeys,
   })
 
   const bobKeys = ssbKeys.generate()
   let bob = createSbot({
     path: '/tmp/bob',
     timeout: CONNECTION_TIMEOUT,
-    keys: bobKeys
+    keys: bobKeys,
   })
 
   await Promise.all([
     pify(alice.publish)({ type: 'post', text: 'hello world' }),
-    pify(bob.publish)({ type: 'post', text: 'hello world' })
+    pify(bob.publish)({ type: 'post', text: 'hello world' }),
   ])
   t.pass('all peers have posted "hello world"')
 
@@ -52,21 +52,18 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
 
   t.pass('restarting')
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
 
   alice = createSbot({
     path: '/tmp/alice',
     timeout: CONNECTION_TIMEOUT,
-    keys: aliceKeys
+    keys: aliceKeys,
   })
 
   bob = createSbot({
     path: '/tmp/bob',
     timeout: CONNECTION_TIMEOUT,
-    keys: bobKeys
+    keys: bobKeys,
   })
 
   // self replicate
@@ -86,12 +83,17 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
 
   u.log('A', u.countClock(clockAlice), 'B', u.countClock(clockBob))
 
-  t.deepEqual(u.countClock(clockAlice), { total: 2, sum: 2 }, 'alice has both feeds')
-  t.deepEqual(u.countClock(clockBob), { total: 1, sum: 1 }, 'bob only has own feed')
+  t.deepEqual(
+    u.countClock(clockAlice),
+    { total: 2, sum: 2 },
+    'alice has both feeds'
+  )
+  t.deepEqual(
+    u.countClock(clockBob),
+    { total: 1, sum: 1 },
+    'bob only has own feed'
+  )
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })

@@ -5,7 +5,7 @@ const pify = require('promisify-4loc')
 const u = require('./misc/util')
 
 const createSsbServer = SecretStack({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(require('../'))
@@ -16,13 +16,13 @@ const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 const alice = createSsbServer({
   temp: 'test-block-alice',
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('alice')
+  keys: u.keysFor('alice'),
 })
 
 const bob = createSsbServer({
   temp: 'test-block-bob',
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('bob')
+  keys: u.keysFor('bob'),
 })
 
 tape('alice replicates bob', async (t) => {
@@ -30,7 +30,7 @@ tape('alice replicates bob', async (t) => {
     pify(alice.publish)({ type: 'post', text: 'hello' }),
     pify(alice.publish)({ type: 'post', text: 'world' }),
     pify(bob.publish)({ type: 'post', text: 'hello' }),
-    pify(bob.publish)({ type: 'post', text: 'world' })
+    pify(bob.publish)({ type: 'post', text: 'world' }),
   ])
 
   // Self replicate
@@ -39,16 +39,16 @@ tape('alice replicates bob', async (t) => {
 
   alice.ebt.request(bob.id, true)
   alice.ebt.block(alice.id, bob.id, false)
-  t.pass('alice wants bob\'s data')
+  t.pass("alice wants bob's data")
 
   bob.ebt.request(alice.id, true)
   bob.ebt.block(bob.id, alice.id, false)
-  t.pass('bob wants alice\'s data')
+  t.pass("bob wants alice's data")
 
   const [rpcBobToAlice, msgAtBob, msgAtAlice] = await Promise.all([
     pify(bob.connect)(alice.getAddress()),
     u.readOnceFromDB(bob, REPLICATION_TIMEOUT),
-    u.readOnceFromDB(alice, REPLICATION_TIMEOUT)
+    u.readOnceFromDB(alice, REPLICATION_TIMEOUT),
   ])
 
   t.equals(msgAtAlice.value.author, bob.id, 'alice has a msg from bob')
@@ -57,7 +57,7 @@ tape('alice replicates bob', async (t) => {
   await pify(rpcBobToAlice.close)(true)
 })
 
-tape('ssb.progress', t => {
+tape('ssb.progress', (t) => {
   const p = alice.progress()
   t.ok(p, 'progress')
   t.ok(p.ebt, 'progress.ebt')
@@ -67,7 +67,7 @@ tape('ssb.progress', t => {
   t.end()
 })
 
-tape('ssb.ebt.peerStatus', t => {
+tape('ssb.ebt.peerStatus', (t) => {
   const s = alice.ebt.peerStatus(bob.id)
   t.ok(s, 'response is an object')
   t.equals(s.id, bob.id, 'response.id is correct')
@@ -75,14 +75,14 @@ tape('ssb.ebt.peerStatus', t => {
   t.end()
 })
 
-tape('silly ssb.ebt.request', t => {
+tape('silly ssb.ebt.request', (t) => {
   t.doesNotThrow(() => {
     alice.ebt.request('not a feed id', true)
   })
   t.end()
 })
 
-tape('silly ssb.ebt.block', t => {
+tape('silly ssb.ebt.block', (t) => {
   t.doesNotThrow(() => {
     alice.ebt.block(bob.id, 'not a feed id', true)
   })
@@ -93,9 +93,6 @@ tape('silly ssb.ebt.block', t => {
 })
 
 tape('teardown', async (t) => {
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })

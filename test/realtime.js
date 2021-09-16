@@ -7,12 +7,12 @@ const pify = require('promisify-4loc')
 const sleep = require('util').promisify(setTimeout)
 
 const createSsbServer = SecretStack({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(require('..'))
 
-function createHistoryStream (sbot, opts) {
+function createHistoryStream(sbot, opts) {
   return pull(
     sbot.createLogStream({ keys: false, live: opts.live }),
     pull.filter((msg) => msg.author === opts.id)
@@ -26,13 +26,13 @@ tape('replicate between 2 peers', async (t) => {
   const alice = createSsbServer({
     temp: 'test-alice',
     timeout: CONNECTION_TIMEOUT,
-    keys: ssbKeys.generate()
+    keys: ssbKeys.generate(),
   })
 
   const bob = createSsbServer({
     temp: 'test-bob',
     timeout: CONNECTION_TIMEOUT,
-    keys: ssbKeys.generate()
+    keys: ssbKeys.generate(),
   })
 
   // Self replicate
@@ -78,9 +78,6 @@ tape('replicate between 2 peers', async (t) => {
   t.equal(coldMsgs.length, 10)
   t.deepEqual(hotMsgs, coldMsgs)
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })

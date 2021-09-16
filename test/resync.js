@@ -7,7 +7,7 @@ const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
 const createSbot = require('secret-stack')({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(require('../'))
@@ -19,13 +19,13 @@ tape('peer can recover and resync its content from a friend', async (t) => {
   const alice = createSbot({
     temp: 'alice',
     timeout: CONNECTION_TIMEOUT,
-    keys: ssbKeys.generate()
+    keys: ssbKeys.generate(),
   })
 
   const bob = createSbot({
     temp: 'bob',
     timeout: CONNECTION_TIMEOUT,
-    keys: ssbKeys.generate()
+    keys: ssbKeys.generate(),
   })
 
   t.ok(alice.getAddress(), 'alice has an address')
@@ -44,7 +44,7 @@ tape('peer can recover and resync its content from a friend', async (t) => {
   // in this test, bob's feed is on alice,
   // because bob's database corrupted (but had key backup)
   peers.push(alice.createFeed(bob.keys))
-  t.pass('alice has bob\'s content')
+  t.pass("alice has bob's content")
 
   await pify(gen.messages)(
     function (n) {
@@ -52,14 +52,14 @@ tape('peer can recover and resync its content from a friend', async (t) => {
         return {
           type: 'contact',
           contact: u.randary(peers).id,
-          following: true
+          following: true,
         }
       }
       return {
         type: 'test',
         ts: Date.now(),
         random: Math.random(),
-        value: u.randbytes(u.randint(1024)).toString('base64')
+        value: u.randbytes(u.randint(1024)).toString('base64'),
       }
     },
     peers,
@@ -84,13 +84,19 @@ tape('peer can recover and resync its content from a friend', async (t) => {
     }
   }
 
-  u.log('A', u.countClock(clockAlice), 'B', u.countClock(clockBob), 'diff', diff, 'common', commonCount)
+  u.log(
+    'A',
+    u.countClock(clockAlice),
+    'B',
+    u.countClock(clockBob),
+    'diff',
+    diff,
+    'common',
+    commonCount
+  )
   t.equals(diff, 0, 'no diff between alice and bob')
   t.equals(commonCount > 0, true, 'bob has some content')
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })

@@ -12,7 +12,7 @@ const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
-function createSSBServer () {
+function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
     .use(require('ssb-db2/compat/ebt'))
@@ -24,7 +24,7 @@ function createSSBServer () {
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-function getFreshDir (name) {
+function getFreshDir(name) {
   const dir = '/tmp/test-format-' + name
   rimraf.sync(dir)
   mkdirp.sync(dir)
@@ -35,17 +35,17 @@ const aliceDir = getFreshDir('alice')
 let alice = createSSBServer().call(null, {
   path: aliceDir,
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('alice')
+  keys: u.keysFor('alice'),
 })
 
 const bobDir = getFreshDir('bob')
 let bob = createSSBServer().call(null, {
   path: bobDir,
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('bob')
+  keys: u.keysFor('bob'),
 })
 
-function getBBMsg (mainKeys) {
+function getBBMsg(mainKeys) {
   // fake some keys
   const mfKeys = ssbKeys.generate()
   const classicUri = SSBURI.fromFeedSigil(mfKeys.id)
@@ -61,9 +61,9 @@ function getBBMsg (mainKeys) {
     tangles: {
       metafeed: {
         root: null,
-        previous: null
-      }
-    }
+        previous: null,
+      },
+    },
   }
 
   const bbmsg = bendyButt.encodeNew(
@@ -96,7 +96,7 @@ tape('multiple formats', async (t) => {
   // publish normal messages
   await Promise.all([
     pify(alice.db.publish)({ type: 'post', text: 'hello' }),
-    pify(bob.db.publish)({ type: 'post', text: 'hello' })
+    pify(bob.db.publish)({ type: 'post', text: 'hello' }),
   ])
 
   const aliceBBMsg = getBBMsg(alice.config.keys)
@@ -109,10 +109,7 @@ tape('multiple formats', async (t) => {
   alice.ebt.request(aliceMFId, true)
   bob.ebt.request(bobMFId, true)
 
-  await Promise.all([
-    pify(alice.add)(aliceBBMsg),
-    pify(bob.add)(bobBBMsg)
-  ])
+  await Promise.all([pify(alice.add)(aliceBBMsg), pify(bob.add)(bobBBMsg)])
 
   alice.ebt.request(bob.id, true)
   alice.ebt.request(bobMFId, true)
@@ -127,11 +124,11 @@ tape('multiple formats', async (t) => {
 
   const expectedClassicClock = {
     [alice.id]: 1,
-    [bob.id]: 1
+    [bob.id]: 1,
   }
   const expectedBBClock = {
     [aliceMFId]: 1,
-    [bobMFId]: 1
+    [bobMFId]: 1,
   }
 
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
@@ -146,10 +143,7 @@ tape('multiple formats', async (t) => {
   const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt-v1' })
   t.deepEqual(bbClockBob, expectedBBClock, 'bob correct bb clock')
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })
 
@@ -157,13 +151,13 @@ tape('multiple formats restart', async (t) => {
   alice = createSSBServer().call(null, {
     path: aliceDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice')
+    keys: u.keysFor('alice'),
   })
 
   bob = createSSBServer().call(null, {
     path: bobDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('bob')
+    keys: u.keysFor('bob'),
   })
 
   alice.ebt.registerFormat(bendyButtMethods)
@@ -177,11 +171,11 @@ tape('multiple formats restart', async (t) => {
 
   const expectedClassicClock = {
     [alice.id]: 1,
-    [bob.id]: 1
+    [bob.id]: 1,
   }
   const expectedBBClock = {
     [aliceMFId]: 1,
-    [bobMFId]: 1
+    [bobMFId]: 1,
   }
 
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
@@ -196,10 +190,7 @@ tape('multiple formats restart', async (t) => {
   const bbClockBob = await pify(bob.ebt.clock)({ format: 'bendybutt-v1' })
   t.deepEqual(bbClockBob, expectedBBClock, 'bob correct bb clock')
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })
 
@@ -209,14 +200,14 @@ tape('index format', async (t) => {
   const carol = createSSBServer().call(null, {
     path: carolDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('carol')
+    keys: u.keysFor('carol'),
   })
 
   const daveDir = getFreshDir('dave')
   const dave = createSSBServer().call(null, {
     path: daveDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('dave')
+    keys: u.keysFor('dave'),
   })
 
   const indexedMethods = require('../formats/indexed.js')
@@ -226,15 +217,27 @@ tape('index format', async (t) => {
   dave.ebt.registerFormat(indexedMethods)
   dave.ebt.registerFormat(bendyButtMethods)
 
-  const carolIndexId = (await pify(carol.indexFeedWriter.start)({ author: carol.id, type: 'dog', private: false })).subfeed
-  const daveIndexId = (await pify(dave.indexFeedWriter.start)({ author: dave.id, type: 'dog', private: false })).subfeed
+  const carolIndexId = (
+    await pify(carol.indexFeedWriter.start)({
+      author: carol.id,
+      type: 'dog',
+      private: false,
+    })
+  ).subfeed
+  const daveIndexId = (
+    await pify(dave.indexFeedWriter.start)({
+      author: dave.id,
+      type: 'dog',
+      private: false,
+    })
+  ).subfeed
 
   // publish some messages
   await Promise.all([
     pify(carol.db.publish)({ type: 'post', text: 'hello 2' }),
     pify(carol.db.publish)({ type: 'dog', name: 'Buff' }),
     pify(dave.db.publish)({ type: 'post', text: 'hello 2' }),
-    pify(dave.db.publish)({ type: 'dog', name: 'Biff' })
+    pify(dave.db.publish)({ type: 'dog', name: 'Biff' }),
   ])
 
   await sleep(2 * REPLICATION_TIMEOUT)
@@ -329,7 +332,7 @@ tape('index format', async (t) => {
 
   const expectedIndexClock = {
     [carolIndexId]: 1,
-    [daveIndexId]: 1
+    [daveIndexId]: 1,
   }
 
   const indexClockCarol = await pify(carol.ebt.clock)({ format: 'indexed' })
@@ -338,10 +341,7 @@ tape('index format', async (t) => {
   const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexed' })
   t.deepEqual(indexClockDave, expectedIndexClock, 'dave correct index clock')
 
-  await Promise.all([
-    pify(carol.close)(true),
-    pify(dave.close)(true)
-  ])
+  await Promise.all([pify(carol.close)(true), pify(dave.close)(true)])
   t.end()
 })
 
@@ -349,18 +349,18 @@ tape('sliced replication', async (t) => {
   alice = createSSBServer().call(null, {
     path: aliceDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice')
+    keys: u.keysFor('alice'),
   })
 
   const carol = createSSBServer().call(null, {
     path: carolDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('carol')
+    keys: u.keysFor('carol'),
   })
 
   await Promise.all([
     pify(alice.db.publish)({ type: 'post', text: 'hello2' }),
-    pify(alice.db.publish)({ type: 'post', text: 'hello3' })
+    pify(alice.db.publish)({ type: 'post', text: 'hello3' }),
   ])
 
   // carol wants to slice replicate some things, so she overwrites
@@ -370,15 +370,17 @@ tape('sliced replication', async (t) => {
 
   const slicedMethods = {
     ...require('../formats/classic'),
-    appendMsg (sbot, msgVal, cb) {
+    appendMsg(sbot, msgVal, cb) {
       let append = sbot.add
-      if (sliced.includes(msgVal.author)) { append = sbot.db.addOOO }
+      if (sliced.includes(msgVal.author)) {
+        append = sbot.db.addOOO
+      }
 
       append(msgVal, (err, msg) => {
         if (err) return cb(err)
         else cb(null, msg)
       })
-    }
+    },
   }
 
   carol.ebt.registerFormat(slicedMethods)
@@ -395,8 +397,7 @@ tape('sliced replication', async (t) => {
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.equal(clockAlice[alice.id], 3, 'alice correct index clock')
 
-  carol.ebt.setClockForSlicedReplication(alice.id,
-    clockAlice[alice.id] - 2)
+  carol.ebt.setClockForSlicedReplication(alice.id, clockAlice[alice.id] - 2)
   carol.ebt.request(alice.id, true)
 
   carol.ebt.request(bobId, true) // in full
@@ -416,9 +417,6 @@ tape('sliced replication', async (t) => {
   )
   t.equal(carolBMessages.length, 1, 'all messages from bob')
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(carol.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(carol.close)(true)])
   t.end()
 })

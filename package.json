@@ -36,8 +36,11 @@
   "devDependencies": {
     "cat-names": "^3.0.0",
     "dog-names": "^2.0.0",
+    "husky": "^4.3.0",
     "mkdirp": "^1.0.4",
     "nyc": "^15.1.0",
+    "prettier": "^2.1.2",
+    "pretty-quick": "^3.1.0",
     "pull-paramap": "^1.2.2",
     "rimraf": "^2.7.1",
     "rng": "^0.2.2",
@@ -51,15 +54,20 @@
     "ssb-keys": "^8.1.0",
     "ssb-meta-feeds": "^0.21.0",
     "ssb-validate": "^4.1.4",
-    "standardx": "^7.0.0",
     "tap-spec": "^5.0.0",
     "tape": "^5.2.2"
   },
   "scripts": {
-    "lint": "standardx --fix '**/*.js'",
     "test": "set -e; for t in test/*.js; do echo \"#Test: $t\"; tape $t | tap-spec; done",
     "test-verbose": "TEST_VERBOSE=1 npm test",
-    "coverage": "nyc --reporter=lcov npm test"
+    "coverage": "nyc --reporter=lcov npm test",
+    "format-code": "prettier --write \"*.js\" \"test/*.js\"",
+    "format-code-staged": "pretty-quick --staged --pattern \"*.js\" --pattern \"test/*.js\""
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run format-code-staged"
+    }
   },
   "nyc": {
     "exclude": [
