@@ -52,7 +52,7 @@
     "ssb-generate": "^1.0.1",
     "ssb-index-feed-writer": "^0.6.0",
     "ssb-keys": "^8.1.0",
-    "ssb-meta-feeds": "^0.21.0",
+    "ssb-meta-feeds": "^0.22.0",
     "ssb-validate": "^4.1.4",
     "tap-spec": "^5.0.0",
     "tape": "^5.2.2"
