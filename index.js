@@ -215,7 +215,7 @@ exports.init = function (sbot, config) {
   function block(origFeedId, destFeedId, blocking, formatName) {
     initialized.promise.then(() => {
       const ebt = findEBTForFeed(origFeedId, formatName)
-      ebt.prepareForIsFeed(() => {
+      ebt.prepareForIsFeed(destFeedId, () => {
         if (!ebt.isFeed(origFeedId)) return
         if (!ebt.isFeed(destFeedId)) return
 
