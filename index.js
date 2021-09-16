@@ -92,6 +92,7 @@ exports.init = function (sbot, config) {
     ebt.isReady = format.isReady.bind(format, sbot)
     ebt.isFeed = isFeed
     ebt.name = format.name
+    ebt.prepareForIsFeed = format.prepareForIsFeed.bind(format, sbot)
 
     const existingId = ebts.findIndex((e) => e.name === format.name)
     if (existingId !== -1) ebts[existingId] = ebt
@@ -196,30 +197,38 @@ exports.init = function (sbot, config) {
 
   function request(destFeedId, requesting, formatName) {
     initialized.promise.then(() => {
-      const ebt = findEBTForFeed(destFeedId, formatName)
-
-      if (!ebt.isFeed(destFeedId)) return
-
-      ebt.request(destFeedId, requesting)
+      if (requesting) {
+        const ebt = findEBTForFeed(destFeedId, formatName)
+        ebt.prepareForIsFeed(destFeedId, () => {
+          if (!ebt.isFeed(destFeedId)) return
+          ebt.request(destFeedId, true)
+        })
+      } else {
+        // If we don't want a destFeedId, make sure it's not registered anywhere
+        ebts.forEach((ebt) => {
+          ebt.request(destFeedId, false)
+        })
+      }
     })
   }
 
   function block(origFeedId, destFeedId, blocking, formatName) {
     initialized.promise.then(() => {
       const ebt = findEBTForFeed(origFeedId, formatName)
+      ebt.prepareForIsFeed(() => {
+        if (!ebt.isFeed(origFeedId)) return
+        if (!ebt.isFeed(destFeedId)) return
 
-      if (!ebt.isFeed(origFeedId)) return
-      if (!ebt.isFeed(destFeedId)) return
-
-      if (blocking) {
-        ebt.block(origFeedId, destFeedId, true)
-      } else if (
-        ebt.state.blocks[origFeedId] &&
-        ebt.state.blocks[origFeedId][destFeedId]
-      ) {
-        // only update unblock if they were already blocked
-        ebt.block(origFeedId, destFeedId, false)
-      }
+        if (blocking) {
+          ebt.block(origFeedId, destFeedId, true)
+        } else if (
+          ebt.state.blocks[origFeedId] &&
+          ebt.state.blocks[origFeedId][destFeedId]
+        ) {
+          // only update unblock if they were already blocked
+          ebt.block(origFeedId, destFeedId, false)
+        }
+      })
     })
   }
 
