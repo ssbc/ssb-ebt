@@ -54,7 +54,7 @@ tape('clock works', async (t) => {
   const clockBobAfter = await pify(bob.ebt.clock)()
   t.equal(clockBobAfter[alice.id], 1, 'clock ok')
   t.equal(clockBobAfter[bob.id], 1, 'clock ok')
-  
+
   await pify(alice.publish)({ type: 'post', text: 'hello again' }),
 
   await sleep(REPLICATION_TIMEOUT)
@@ -65,7 +65,7 @@ tape('clock works', async (t) => {
 
   const clockBobAfter2 = await pify(bob.ebt.clock)()
   t.equal(clockBobAfter2[alice.id], 2, 'clock ok')
-  
+
   await Promise.all([
     pify(alice.close)(true),
     pify(bob.close)(true)

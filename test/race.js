@@ -6,7 +6,7 @@ const pify = require('promisify-4loc')
 const sleep = require('util').promisify(setTimeout)
 const u = require('./misc/util')
 
-function delayedVectorClock(sbot, config) {
+function delayedVectorClock (sbot, config) {
   const realGetVectorClock = sbot.getVectorClock
   sbot.getVectorClock = (cb) => {
     setTimeout(() => realGetVectorClock(cb), 1000)
@@ -19,7 +19,6 @@ const createSbot = require('secret-stack')({
   .use(require('ssb-db'))
   .use(delayedVectorClock)
   .use(require('../'))
-
 
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
@@ -44,7 +43,7 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
 
   await Promise.all([
     pify(alice.publish)({ type: 'post', text: 'hello world' }),
-    pify(bob.publish)({ type: 'post', text: 'hello world' }),
+    pify(bob.publish)({ type: 'post', text: 'hello world' })
   ])
   t.pass('all peers have posted "hello world"')
 
@@ -69,7 +68,7 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
     timeout: CONNECTION_TIMEOUT,
     keys: bobKeys
   })
-  
+
   // self replicate
   alice.ebt.request(alice.id, true)
   bob.ebt.request(bob.id, true)

@@ -1,5 +1,4 @@
 const tape = require('tape')
-const crypto = require('crypto')
 const SecretStack = require('secret-stack')
 const sleep = require('util').promisify(setTimeout)
 const pify = require('promisify-4loc')
@@ -13,7 +12,7 @@ const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
-function createSSBServer() {
+function createSSBServer () {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
     .use(require('ssb-db2/compat/ebt'))
@@ -25,7 +24,7 @@ function createSSBServer() {
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-function getFreshDir(name) {
+function getFreshDir (name) {
   const dir = '/tmp/test-format-' + name
   rimraf.sync(dir)
   mkdirp.sync(dir)
@@ -36,7 +35,7 @@ const aliceDir = getFreshDir('alice')
 let alice = createSSBServer().call(null, {
   path: aliceDir,
   timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('alice'),
+  keys: u.keysFor('alice')
 })
 
 const bobDir = getFreshDir('bob')
@@ -46,7 +45,7 @@ let bob = createSSBServer().call(null, {
   keys: u.keysFor('bob')
 })
 
-function getBBMsg(mainKeys) {
+function getBBMsg (mainKeys) {
   // fake some keys
   const mfKeys = ssbKeys.generate()
   const classicUri = SSBURI.fromFeedSigil(mfKeys.id)
@@ -55,8 +54,8 @@ function getBBMsg(mainKeys) {
   mfKeys.id = bendybuttUri
 
   const content = {
-    type: "metafeed/add/existing",
-    feedpurpose: "main",
+    type: 'metafeed/add/existing',
+    feedpurpose: 'main',
     subfeed: mainKeys.id,
     metafeed: mfKeys.id,
     tangles: {
@@ -158,7 +157,7 @@ tape('multiple formats restart', async (t) => {
   alice = createSSBServer().call(null, {
     path: aliceDir,
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice'),
+    keys: u.keysFor('alice')
   })
 
   bob = createSSBServer().call(null, {
@@ -227,13 +226,11 @@ tape('index format', async (t) => {
   dave.ebt.registerFormat(indexedMethods)
   dave.ebt.registerFormat(bendyButtMethods)
 
-  const carolIndexId = (await pify(carol.indexFeedWriter.start)({
-    author: carol.id, type: 'dog', private: false })).subfeed
-  const daveIndexId = (await pify(dave.indexFeedWriter.start)({
-    author: dave.id, type: 'dog', private: false })).subfeed
+  const carolIndexId = (await pify(carol.indexFeedWriter.start)({ author: carol.id, type: 'dog', private: false })).subfeed
+  const daveIndexId = (await pify(dave.indexFeedWriter.start)({ author: dave.id, type: 'dog', private: false })).subfeed
 
   // publish some messages
-  const res = await Promise.all([
+  await Promise.all([
     pify(carol.db.publish)({ type: 'post', text: 'hello 2' }),
     pify(carol.db.publish)({ type: 'dog', name: 'Buff' }),
     pify(dave.db.publish)({ type: 'post', text: 'hello 2' }),
@@ -260,7 +257,7 @@ tape('index format', async (t) => {
     where(type('metafeed/announce')),
     toPromise()
   )
-  
+
   // get meta index feed
   const daveMetaIndexMessages = await dave.db.query(
     where(type('metafeed/add/derived')),
@@ -269,27 +266,27 @@ tape('index format', async (t) => {
 
   const carolMetaId = carolMetaMessages[0].value.content.metafeed
   const carolMetaIndexId = carolMetaIndexMessages[0].value.content.subfeed
-  
+
   const daveMetaId = daveMetaMessages[0].value.content.metafeed
   const daveMetaIndexId = daveMetaIndexMessages[0].value.content.subfeed
-  
+
   // self replicate
   carol.ebt.request(carol.id, true)
   carol.ebt.request(carolMetaId, true)
   carol.ebt.request(carolMetaIndexId, true)
-  carol.ebt.request(carolIndexId, true, "indexed")
+  carol.ebt.request(carolIndexId, true, 'indexed')
 
   dave.ebt.request(dave.id, true)
   dave.ebt.request(daveMetaId, true)
   dave.ebt.request(daveMetaIndexId, true)
-  dave.ebt.request(daveIndexId, true, "indexed")
+  dave.ebt.request(daveIndexId, true, 'indexed')
 
   // replication
   carol.ebt.request(daveMetaId, true)
   carol.ebt.request(daveMetaIndexId, true)
   dave.ebt.request(carolMetaId, true)
   dave.ebt.request(carolMetaIndexId, true)
-  
+
   await pify(dave.connect)(carol.getAddress())
 
   await sleep(2 * REPLICATION_TIMEOUT)
@@ -307,12 +304,12 @@ tape('index format', async (t) => {
     toPromise()
   )
   t.equal(daveIndexMessages.length, 1, 'dave has carol meta index')
-  
+
   // now that we have meta feeds from the other peer we can replicate
   // index feeds
 
-  carol.ebt.request(daveIndexId, true, "indexed")
-  dave.ebt.request(carolIndexId, true, "indexed")
+  carol.ebt.request(daveIndexId, true, 'indexed')
+  dave.ebt.request(carolIndexId, true, 'indexed')
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
@@ -355,7 +352,7 @@ tape('sliced replication', async (t) => {
     keys: u.keysFor('alice')
   })
 
-  let carol = createSSBServer().call(null, {
+  const carol = createSSBServer().call(null, {
     path: carolDir,
     timeout: CONNECTION_TIMEOUT,
     keys: u.keysFor('carol')
@@ -363,7 +360,7 @@ tape('sliced replication', async (t) => {
 
   await Promise.all([
     pify(alice.db.publish)({ type: 'post', text: 'hello2' }),
-    pify(alice.db.publish)({ type: 'post', text: 'hello3' }),
+    pify(alice.db.publish)({ type: 'post', text: 'hello3' })
   ])
 
   // carol wants to slice replicate some things, so she overwrites
@@ -373,10 +370,9 @@ tape('sliced replication', async (t) => {
 
   const slicedMethods = {
     ...require('../formats/classic'),
-    appendMsg(sbot, msgVal, cb) {
+    appendMsg (sbot, msgVal, cb) {
       let append = sbot.add
-      if (sliced.includes(msgVal.author))
-        append = sbot.db.addOOO
+      if (sliced.includes(msgVal.author)) { append = sbot.db.addOOO }
 
       append(msgVal, (err, msg) => {
         if (err) return cb(err)
@@ -398,9 +394,9 @@ tape('sliced replication', async (t) => {
 
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.equal(clockAlice[alice.id], 3, 'alice correct index clock')
-  
+
   carol.ebt.setClockForSlicedReplication(alice.id,
-                                         clockAlice[alice.id] - 2)
+    clockAlice[alice.id] - 2)
   carol.ebt.request(alice.id, true)
 
   carol.ebt.request(bobId, true) // in full

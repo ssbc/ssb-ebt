@@ -49,7 +49,7 @@ exports.init = function (sbot, config) {
   const ebts = []
   registerFormat(classicMethods)
 
-  function registerFormat(format) {
+  function registerFormat (format) {
     if (!format.name) throw new Error('format must have a name')
 
     const dirName = 'ebt' + (format.name === 'classic' ? '' : format.name)
@@ -94,13 +94,10 @@ exports.init = function (sbot, config) {
     ebt.name = format.name
 
     const existingId = ebts.findIndex(e => e.name === format.name)
-    if (existingId !== -1)
-      ebts[existingId] = ebt
-    else
-      ebts.push(ebt)
+    if (existingId !== -1) { ebts[existingId] = ebt } else { ebts.push(ebt) }
   }
 
-  function getEBT(formatName) {
+  function getEBT (formatName) {
     const ebt = ebts.find(ebt => ebt.name === formatName)
     if (!ebt) {
       console.log(ebts)
@@ -119,9 +116,9 @@ exports.init = function (sbot, config) {
     Promise.all(readies).then(() => {
       ebts.forEach(ebt => {
         const validClock = {}
-        for (let k in clock)
-          if (ebt.isFeed(k))
-            validClock[k] = clock[k]
+        for (const k in clock) {
+          if (ebt.isFeed(k)) { validClock[k] = clock[k] }
+        }
 
         ebt.state.clock = validClock
         ebt.update()
@@ -133,8 +130,7 @@ exports.init = function (sbot, config) {
   sbot.post((msg) => {
     initialized.promise.then(() => {
       ebts.forEach(ebt => {
-        if (ebt.isFeed(msg.value.author))
-          ebt.onAppend(ebt.convertMsg(msg.value))
+        if (ebt.isFeed(msg.value.author)) { ebt.onAppend(ebt.convertMsg(msg.value)) }
       })
     })
   })
@@ -175,30 +171,26 @@ exports.init = function (sbot, config) {
     }
   })
 
-  function findEBTForFeed(feedId, formatName) {
+  function findEBTForFeed (feedId, formatName) {
     let ebt
-    if (formatName)
-      ebt = ebts.find(ebt => ebt.name === formatName)
-    else
-      ebt = ebts.find(ebt => ebt.isFeed(feedId))
+    if (formatName) { ebt = ebts.find(ebt => ebt.name === formatName) } else { ebt = ebts.find(ebt => ebt.isFeed(feedId)) }
 
-    if (!ebt)
-      ebt = ebts.find(ebt => ebt.name === 'classic')
+    if (!ebt) { ebt = ebts.find(ebt => ebt.name === 'classic') }
 
     return ebt
   }
 
-  function request(destFeedId, requesting, formatName) {
+  function request (destFeedId, requesting, formatName) {
     initialized.promise.then(() => {
       const ebt = findEBTForFeed(destFeedId, formatName)
 
       if (!ebt.isFeed(destFeedId)) return
-      
+
       ebt.request(destFeedId, requesting)
     })
   }
 
-  function block(origFeedId, destFeedId, blocking, formatName) {
+  function block (origFeedId, destFeedId, blocking, formatName) {
     initialized.promise.then(() => {
       const ebt = findEBTForFeed(origFeedId, formatName)
 
@@ -217,7 +209,7 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function replicateFormat(opts) {
+  function replicateFormat (opts) {
     if (opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3})')
     }
@@ -225,7 +217,7 @@ exports.init = function (sbot, config) {
     const formatName = opts.format || 'classic'
     const ebt = getEBT(formatName)
 
-    var deferred = pullDefer.duplex()
+    const deferred = pullDefer.duplex()
     initialized.promise.then(() => {
       // `this` refers to the remote peer who called this muxrpc API
       deferred.resolve(toPull.duplex(ebt.createStream(this.id, opts.version, false)))
@@ -234,7 +226,7 @@ exports.init = function (sbot, config) {
   }
 
   // get replication status for feeds for this id
-  function peerStatus(id) {
+  function peerStatus (id) {
     id = id || sbot.id
 
     const ebt = findEBTForFeed(id)
@@ -260,7 +252,7 @@ exports.init = function (sbot, config) {
     return data
   }
 
-  function clock(opts, cb) {
+  function clock (opts, cb) {
     if (!cb) {
       cb = opts
       opts = { format: 'classic' }
@@ -272,7 +264,7 @@ exports.init = function (sbot, config) {
     })
   }
 
-  function setClockForSlicedReplication(feedId, sequence, formatName) {
+  function setClockForSlicedReplication (feedId, sequence, formatName) {
     initialized.promise.then(() => {
       const ebt = findEBTForFeed(feedId, formatName)
 
