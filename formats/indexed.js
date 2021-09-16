@@ -5,6 +5,9 @@ const { QL0 } = require('ssb-subset-ql')
 module.exports = {
   ...classic,
   name: 'indexed',
+  prepareForIsFeed(sbot, feedId, cb) {
+    sbot.metafeeds.ensureLoaded(feedId, cb)
+  },
   isFeed (sbot, author) {
     const info = sbot.metafeeds.findByIdSync(author)
     return info && info.feedpurpose === 'index'

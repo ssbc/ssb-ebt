@@ -2,6 +2,9 @@ const ref = require('ssb-ref')
 
 module.exports = {
   name: 'classic',
+  prepareForIsFeed(sbot, feedId, cb) {
+    cb()
+  },
   // used in request, block, cleanClock, sbot.post, vectorClock
   isFeed (sbot, feedId) {
     return ref.isFeed(feedId)
