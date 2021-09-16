@@ -5,7 +5,7 @@ const { QL0 } = require('ssb-subset-ql')
 module.exports = {
   ...classic, 
   name: 'indexed',
-  sbotIsFeed(sbot, author) {
+  isFeed(sbot, author) {
     const info = sbot.metafeeds.findByIdSync(author)
     return info && info.feedpurpose === 'index'
   },

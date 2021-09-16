@@ -7,6 +7,7 @@ const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
 const DeferredPromise = require('p-defer')
 const pullDefer = require('pull-defer')
+const classicMethods = require('./formats/classic')
 
 function hook (hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
@@ -46,7 +47,7 @@ function cleanClock (clock, isFeed) {
 
 exports.init = function (sbot, config) {
   const ebts = []
-  registerFormat(require('./formats/classic'))
+  registerFormat(classicMethods)
 
   function registerFormat(format) {
     if (!format.name) throw new Error('format must have a name')
@@ -56,7 +57,7 @@ exports.init = function (sbot, config) {
     const store = Store(dir, null, toUrlFriendly)
 
     // EBT expects a function of only feedId so we bind sbot here
-    const isFeed = format.sbotIsFeed.bind(format, sbot)
+    const isFeed = format.isFeed.bind(format, sbot)
     const { isMsg, getMsgAuthor, getMsgSequence } = format
 
     const ebt = EBT({
