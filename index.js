@@ -93,7 +93,7 @@ exports.init = function (sbot, config) {
     ebt.name = format.name
 
     const existingId = ebts.findIndex(e => e.name === format.name)
-    if (existingId != -1)
+    if (existingId !== -1)
       ebts[existingId] = ebt
     else
       ebts.push(ebt)
