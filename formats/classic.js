@@ -20,8 +20,8 @@ module.exports = {
     })
   },
   // used in onAppend
-  convertMsg (msgVal) {
-    return msgVal
+  convertMsg (sbot, msgVal, cb) {
+    cb(null, msgVal)
   },
   // used in vectorClock
   isReady (sbot) {

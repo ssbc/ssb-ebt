@@ -88,7 +88,7 @@ exports.init = function (sbot, config) {
     })
 
     // attach a few methods we need in this module
-    ebt.convertMsg = format.convertMsg
+    ebt.convertMsg = format.convertMsg.bind(format, sbot)
     ebt.isReady = format.isReady.bind(format, sbot)
     ebt.isFeed = isFeed
     ebt.name = format.name
@@ -135,7 +135,9 @@ exports.init = function (sbot, config) {
     initialized.promise.then(() => {
       ebts.forEach((ebt) => {
         if (ebt.isFeed(msg.value.author)) {
-          ebt.onAppend(ebt.convertMsg(msg.value))
+          ebt.convertMsg(msg.value, (err, converted) => {
+            ebt.onAppend(converted)
+          })
         }
       })
     })

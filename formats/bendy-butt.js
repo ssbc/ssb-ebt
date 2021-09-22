@@ -20,8 +20,8 @@ module.exports = {
       cb(err && err.fatal ? err : null, msg)
     })
   },
-  convertMsg (msgVal) {
-    return bendyButt.encode(msgVal)
+  convertMsg (sbot, msgVal, cb) {
+    cb(null, bendyButt.encode(msgVal))
   },
   // used in vectorClock
   isReady (sbot) {
