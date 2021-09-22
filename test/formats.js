@@ -341,6 +341,17 @@ tape('index format', async (t) => {
   const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexed' })
   t.deepEqual(indexClockDave, expectedIndexClock, 'dave correct index clock')
 
+  await pify(carol.db.publish)({ type: 'dog', text: 'woof woof' })
+
+  await sleep(2 * REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  const daveCarolMessages2 = await dave.db.query(
+    where(author(carol.id)),
+    toPromise()
+  )
+  t.equal(daveCarolMessages2.length, 2, 'dave got 2 dog messages from carol')
+
   await Promise.all([pify(carol.close)(true), pify(dave.close)(true)])
   t.end()
 })
