@@ -5,7 +5,6 @@ const EBT = require('epidemic-broadcast-trees')
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
-const DeferredPromise = require('p-defer')
 const pullDefer = require('pull-defer')
 const classicMethods = require('./formats/classic')
 
@@ -109,7 +108,12 @@ exports.init = function (sbot, config) {
     return ebt
   }
 
-  const initialized = DeferredPromise()
+  let isReady = false
+  let waiting = []
+  function onReady(fn) {
+    if (isReady) fn()
+    else waiting.push(fn)
+  }
 
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
@@ -127,12 +131,15 @@ exports.init = function (sbot, config) {
         ebt.state.clock = validClock
         ebt.update()
       })
-      initialized.resolve()
+
+      isReady = true
+      for (let i = 0; i < waiting.length; ++i) waiting[i]()
+      waiting = []
     })
   })
 
   sbot.post((msg) => {
-    initialized.promise.then(() => {
+    onReady(() => {
       ebts.forEach((ebt) => {
         if (ebt.isFeed(msg.value.author)) {
           ebt.convertMsg(msg.value, (err, converted) => {
@@ -158,7 +165,7 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if (rpc.id === sbot.id) return // ssb-client connecting to ssb-server
     if (isClient) {
-      initialized.promise.then(() => {
+      onReady(() => {
         ebts.forEach((ebt) => {
           const format = ebt.name
           const opts = { version: 3, format }
@@ -198,7 +205,7 @@ exports.init = function (sbot, config) {
   }
 
   function request(destFeedId, requesting, formatName) {
-    initialized.promise.then(() => {
+    onReady(() => {
       if (requesting) {
         const ebt = findEBTForFeed(destFeedId, formatName)
         ebt.prepareForIsFeed(destFeedId, () => {
@@ -215,7 +222,7 @@ exports.init = function (sbot, config) {
   }
 
   function block(origFeedId, destFeedId, blocking, formatName) {
-    initialized.promise.then(() => {
+    onReady(() => {
       const ebt = findEBTForFeed(origFeedId, formatName)
       ebt.prepareForIsFeed(destFeedId, () => {
         if (!ebt.isFeed(origFeedId)) return
@@ -243,7 +250,7 @@ exports.init = function (sbot, config) {
     const ebt = getEBT(formatName)
 
     const deferred = pullDefer.duplex()
-    initialized.promise.then(() => {
+    onReady(() => {
       // `this` refers to the remote peer who called this muxrpc API
       deferred.resolve(
         toPull.duplex(ebt.createStream(this.id, opts.version, false))
@@ -287,14 +294,14 @@ exports.init = function (sbot, config) {
       opts = { format: 'classic' }
     }
 
-    initialized.promise.then(() => {
+    onReady(() => {
       const ebt = getEBT(opts.format)
       cb(null, ebt.state.clock)
     })
   }
 
   function setClockForSlicedReplication(feedId, sequence, formatName) {
-    initialized.promise.then(() => {
+    onReady(() => {
       const ebt = findEBTForFeed(feedId, formatName)
 
       ebt.state.clock[feedId] = sequence
