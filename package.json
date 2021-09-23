@@ -22,7 +22,6 @@
     "base64-url": "^2.2.0",
     "epidemic-broadcast-trees": "^8.0.4",
     "lossy-store": "^1.2.3",
-    "p-defer": "^3.0.0",
     "promisify-4loc": "^1.0.0",
     "pull-defer": "^0.2.3",
     "pull-stream": "^3.6.0",
