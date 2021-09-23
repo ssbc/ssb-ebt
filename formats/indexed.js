@@ -1,9 +1,8 @@
-const classic = require('./classic')
 const pify = require('promisify-4loc')
+const ref = require('ssb-ref')
 const { QL0 } = require('ssb-subset-ql')
 
 module.exports = {
-  ...classic,
   name: 'indexed',
   prepareForIsFeed(sbot, feedId, cb) {
     sbot.metafeeds.ensureLoaded(feedId, cb)
@@ -12,9 +11,8 @@ module.exports = {
     const info = sbot.metafeeds.findByIdSync(author)
     return info && info.feedpurpose === 'index'
   },
-  appendMsg (sbot, msgVal, cb) {
-    const payload = msgVal.content.indexed.payload
-    delete msgVal.content.indexed.payload
+  appendMsg (sbot, msgTuple, cb) {
+    const [msgVal, payload] = msgTuple
     sbot.db.addTransaction([msgVal], [payload], cb)
   },
   getAtSequence (sbot, pair, cb) {
@@ -32,18 +30,24 @@ module.exports = {
     sbot.getAtSequence([author, sequence], (err, indexedMsg) => {
       if (err) return cb(err)
 
-      // add referenced message as payload
-      const msgValWithPayload = { ...msgVal }
-      msgValWithPayload.content = { ...msgValWithPayload.content }
-      msgValWithPayload.content.indexed = {
-        ...msgValWithPayload.content.indexed,
-        payload: indexedMsg.value
-      }
-
-      cb(null, msgValWithPayload)
+      cb(null, [msgVal, indexedMsg.value])
     })
   },
   isReady (sbot) {
     return pify(sbot.metafeeds.loadState)()
+  },
+  isMsg (msgTuple) {
+    if (Array.isArray(msgTuple) && msgTuple.length === 2) {
+      const [msgVal, payload] = msgTuple
+      return Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
+        ref.isFeed(msgVal.author) && msgVal.content
+    } else
+      return false
+  },
+  getMsgAuthor (msgTuple) {
+    return msgTuple[0].author
+  },
+  getMsgSequence (msgTuple) {
+    return msgTuple[0].sequence
   }
 }
