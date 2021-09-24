@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "base64-url": "^2.2.0",
-    "epidemic-broadcast-trees": "^8.0.4",
+    "epidemic-broadcast-trees": "^9.0.0",
     "lossy-store": "^1.2.3",
     "promisify-4loc": "^1.0.0",
     "pull-defer": "^0.2.3",
