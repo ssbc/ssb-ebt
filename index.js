@@ -100,10 +100,7 @@ exports.init = function (sbot, config) {
 
   function getEBT(formatName) {
     const ebt = ebts.find((ebt) => ebt.name === formatName)
-    if (!ebt) {
-      console.log(ebts)
-      throw new Error('Unknown format: ' + formatName)
-    }
+    if (!ebt) throw new Error('Unknown format: ' + formatName)
 
     return ebt
   }
@@ -143,7 +140,9 @@ exports.init = function (sbot, config) {
       ebts.forEach((ebt) => {
         if (ebt.isFeed(msg.value.author)) {
           ebt.convertMsg(msg.value, (err, converted) => {
-            ebt.onAppend(converted)
+            if (err)
+              console.warn('Failed to convert msg in ssb-ebt because:', err)
+            else ebt.onAppend(converted)
           })
         }
       })
