@@ -14,12 +14,11 @@ function delayedVectorClock(sbot, config) {
 }
 
 const createSbot = require('secret-stack')({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(delayedVectorClock)
   .use(require('../'))
-
 
 const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
@@ -32,14 +31,14 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
   let alice = createSbot({
     path: '/tmp/alice',
     timeout: CONNECTION_TIMEOUT,
-    keys: aliceKeys
+    keys: aliceKeys,
   })
 
   const bobKeys = ssbKeys.generate()
   let bob = createSbot({
     path: '/tmp/bob',
     timeout: CONNECTION_TIMEOUT,
-    keys: bobKeys
+    keys: bobKeys,
   })
 
   await Promise.all([
@@ -53,23 +52,20 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
 
   t.pass('restarting')
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
 
   alice = createSbot({
     path: '/tmp/alice',
     timeout: CONNECTION_TIMEOUT,
-    keys: aliceKeys
+    keys: aliceKeys,
   })
 
   bob = createSbot({
     path: '/tmp/bob',
     timeout: CONNECTION_TIMEOUT,
-    keys: bobKeys
+    keys: bobKeys,
   })
-  
+
   // self replicate
   alice.ebt.request(alice.id, true)
   bob.ebt.request(bob.id, true)
@@ -87,12 +83,17 @@ tape('we wait for vectorclock being available before doing ebt', async (t) => {
 
   u.log('A', u.countClock(clockAlice), 'B', u.countClock(clockBob))
 
-  t.deepEqual(u.countClock(clockAlice), { total: 2, sum: 2 }, 'alice has both feeds')
-  t.deepEqual(u.countClock(clockBob), { total: 1, sum: 1 }, 'bob only has own feed')
+  t.deepEqual(
+    u.countClock(clockAlice),
+    { total: 2, sum: 2 },
+    'alice has both feeds'
+  )
+  t.deepEqual(
+    u.countClock(clockBob),
+    { total: 1, sum: 1 },
+    'bob only has own feed'
+  )
 
-  await Promise.all([
-    pify(alice.close)(true),
-    pify(bob.close)(true)
-  ])
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })

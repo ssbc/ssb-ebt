@@ -38,11 +38,13 @@ installed, instead, you need to call its API methods yourself (primarily
 `request` or `block`), or use a scheduler module such as
 [ssb-replication-scheduler](https://github.com/ssb-ngi-pointer/ssb-replication-scheduler).
 
-### `ssb.ebt.request(destination, replicating)` ("sync" muxrpc API)
+### `ssb.ebt.request(destination, replicating, formatName)` ("sync" muxrpc API)
 
 Request that the SSB feed ID `destination` be replicated. `replication` is a
 boolean, where `true` indicates we want to replicate the destination. If set to
-`false`, replication is stopped.
+`false`, replication is stopped. `formatName` is optional and used to specify
+the specific EBT instance, otherwise the first where isFeed is `true` for
+`destination` is used.
 
 Returns undefined, always.
 
@@ -55,6 +57,9 @@ them.
 `origin` is the SSB feed ID of the peer who created the block, `destination` is
 the SSB feed ID of the peer being blocked, and `blocking` is a boolean that
 indicates whether to enable the block (`true`) or to unblock (`false`).
+
+`formatName` is optional and used to specify the specific EBT instance,
+otherwise the first where isFeed is `true` for `origin` is used.
 
 Returns undefined, always.
 
@@ -96,8 +101,77 @@ The output looks like this:
   }
 }
 ```
-
 </details>
+
+### `ssb.ebt.registerFormat(methods)` ("sync" muxrpc API)
+
+Register a new format for replication. Note this does not have to be a
+new feed format, it could also be indexed replication or sliced
+replication. See `formats` folder for examples.
+
+By registering a format you create a new EBT instance used for
+replicating feeds using that format. This means its own clock. Message
+will be replicated using the `replicateFormat` API. The `methods`
+argument must implement the following functions. The example below
+shows the implementation for 'classic' ed25519 SSB feeds.
+
+<details>
+<summary>CLICK HERE</summary>
+
+```js
+{
+  name: 'classic',
+  // In case `isFeed` needs to load some state asynchronously
+  prepareForIsFeed(sbot, feedId, cb) {
+    cb()
+  },
+  // used in request, block, cleanClock, sbot.post, vectorClock
+  isFeed(sbot, feedId) {
+    return ref.isFeed(feedId)
+  },
+  getAtSequence(sbot, pair, cb) {
+    sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
+      cb(err, msg ? msg.value : null)
+    })
+  },
+  appendMsg(sbot, msgVal, cb) {
+    sbot.add(msgVal, (err, msg) => {
+      cb(err && err.fatal ? err : null, msg)
+    })
+  },
+  // used in onAppend
+  convertMsg(msgVal) {
+    return msgVal
+  },
+  // used in vectorClock
+  isReady(sbot) {
+    return Promise.resolve(true)
+  },
+
+  // used in ebt:stream to distinguish between messages and notes
+  isMsg(msgVal) {
+    return Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
+      ref.isFeed(msgVal.author) && msgVal.content
+  },
+  // used in ebt:events
+  getMsgAuthor(msgVal) {
+    return msgVal.author
+  },
+  // used in ebt:events
+  getMsgSequence(msgVal) {
+    return msgVal.sequence
+  }
+}
+```
+</details>
+
+### `ssb.ebt.setClockForSlicedReplication(feedId, sequence, formatName)` ("sync" muxrpc API)
+
+Sets the internal clock of a feed to a specific sequence. Note this
+does not start replicating the feed, it only updates the clock. By
+combining this with `clock` it is possible do to sliced replication
+with a remote peer where say only the latest 100 messages of a feed is
+replicated.
 
 ### (Internal) `ssb.ebt.replicate(opts)` ("duplex" muxrpc API)
 
@@ -105,6 +179,20 @@ Creates a duplex replication stream to the remote peer. When two peers connect,
 the peer who initiated the call (the client) should call this. You do not need
 to call this method, it is called automatically in ssb-ebt whenever our peer
 connects to a remote peer. `opts` is an object with one field: `version`.
+
+### (Internal) `ssb.ebt.replicateFormat(opts)` ("duplex" muxrpc API)
+
+Creates a duplex replication stream to the remote peer. This behaves
+similar to `replicate` except it takes an extra field `format`
+specifying what is transferred over this EBT stream. Classic feeds are
+still replicated using `replicate` while this will be used to
+replicate other feed formats.
+
+### (Internal) `ssb.ebt.clock(opts, cb)` ("async" muxrpc API)
+
+Gets the current vector clock of a remote peer. `opts` is an object
+with one field: `format` specifying what format to get the vector
+clock for. Defaults to 'classic'.
 
 ## Testing and debugging
 

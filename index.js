@@ -2,14 +2,13 @@ const path = require('path')
 const pull = require('pull-stream')
 const toPull = require('push-stream-to-pull-stream')
 const EBT = require('epidemic-broadcast-trees')
-const isFeed = require('ssb-ref').isFeed
 const Store = require('lossy-store')
 const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
-const DeferredPromise = require('p-defer')
 const pullDefer = require('pull-defer')
+const classicMethods = require('./formats/classic')
 
-function hook (hookable, fn) {
+function hook(hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
     hookable.hook(fn)
   }
@@ -21,21 +20,23 @@ exports.version = '1.0.0'
 
 exports.manifest = {
   replicate: 'duplex',
+  replicateFormat: 'duplex',
   request: 'sync',
   block: 'sync',
-  peerStatus: 'sync'
+  peerStatus: 'sync',
+  clock: 'async',
 }
 
 exports.permissions = {
   anonymous: {
-    allow: ['replicate']
-  }
+    allow: ['replicate', 'replicateFormat', 'clock'],
+  },
 }
 
 // there was a bug that caused some peers
 // to request things that weren't feeds.
 // this is fixed, so just ignore anything that isn't a feed.
-function cleanClock (clock) {
+function cleanClock(clock, isFeed) {
   for (const k in clock) {
     if (!isFeed(k)) {
       delete clock[k]
@@ -44,48 +45,107 @@ function cleanClock (clock) {
 }
 
 exports.init = function (sbot, config) {
-  const dir = config.path ? path.join(config.path, 'ebt') : null
-  const store = Store(dir, null, toUrlFriendly)
+  const ebts = []
+  registerFormat(classicMethods)
 
-  const ebt = EBT({
-    logging: config.ebt && config.ebt.logging,
-    id: sbot.id,
-    getClock (id, cb) {
-      store.ensure(id, function () {
-        const clock = store.get(id) || {}
-        cleanClock(clock)
-        cb(null, clock)
-      })
-    },
-    setClock (id, clock) {
-      cleanClock(clock, 'non-feed key when saving clock')
-      store.set(id, clock)
-    },
-    getAt (pair, cb) {
-      sbot.getAtSequence([pair.id, pair.sequence], (err, data) => {
-        cb(err, data ? data.value : null)
-      })
-    },
-    append (msg, cb) {
-      sbot.add(msg, (err, msg) => {
-        cb(err && err.fatal ? err : null, msg)
-      })
-    },
-    isFeed: isFeed
-  })
+  function registerFormat(format) {
+    if (!format.name) throw new Error('format must have a name')
 
-  const initialized = DeferredPromise()
+    const dirName = 'ebt' + (format.name === 'classic' ? '' : format.name)
+    const dir = config.path ? path.join(config.path, dirName) : null
+    const store = Store(dir, null, toUrlFriendly)
+
+    // EBT expects a function of only feedId so we bind sbot here
+    const isFeed = format.isFeed.bind(format, sbot)
+    const { isMsg, getMsgAuthor, getMsgSequence } = format
+
+    const ebt = EBT({
+      logging: config.ebt && config.ebt.logging,
+      id: sbot.id,
+      getClock(id, cb) {
+        store.ensure(id, function () {
+          const clock = store.get(id) || {}
+          cleanClock(clock, isFeed)
+          cb(null, clock)
+        })
+      },
+      setClock(id, clock) {
+        cleanClock(clock, isFeed)
+        store.set(id, clock)
+      },
+      getAt(pair, cb) {
+        format.getAtSequence(sbot, pair, cb)
+      },
+      append(msgVal, cb) {
+        format.appendMsg(sbot, msgVal, cb)
+      },
+
+      isFeed,
+      isMsg,
+      getMsgAuthor,
+      getMsgSequence,
+    })
+
+    // attach a few methods we need in this module
+    ebt.convertMsg = format.convertMsg.bind(format, sbot)
+    ebt.isReady = format.isReady.bind(format, sbot)
+    ebt.isFeed = isFeed
+    ebt.name = format.name
+    ebt.prepareForIsFeed = format.prepareForIsFeed.bind(format, sbot)
+
+    const existingId = ebts.findIndex((e) => e.name === format.name)
+    if (existingId !== -1) ebts[existingId] = ebt
+    else ebts.push(ebt)
+  }
+
+  function getEBT(formatName) {
+    const ebt = ebts.find((ebt) => ebt.name === formatName)
+    if (!ebt) throw new Error('Unknown format: ' + formatName)
+
+    return ebt
+  }
+
+  let isReady = false
+  let waiting = []
+  function onReady(fn) {
+    if (isReady) fn()
+    else waiting.push(fn)
+  }
 
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
-    ebt.state.clock = clock || {}
-    ebt.update()
-    initialized.resolve()
+
+    const readies = ebts.map((ebt) => ebt.isReady())
+    Promise.all(readies).then(() => {
+      ebts.forEach((ebt) => {
+        const validClock = {}
+        for (const k in clock) {
+          if (ebt.isFeed(k)) {
+            validClock[k] = clock[k]
+          }
+        }
+
+        ebt.state.clock = validClock
+        ebt.update()
+      })
+
+      isReady = true
+      for (let i = 0; i < waiting.length; ++i) waiting[i]()
+      waiting = []
+    })
   })
 
   sbot.post((msg) => {
-    initialized.promise.then(() => {
-      ebt.onAppend(msg.value)
+    onReady(() => {
+      ebts.forEach((ebt) => {
+        if (ebt.isFeed(msg.value.author)) {
+          ebt.convertMsg(msg.value, (err, converted) => {
+            if (err)
+              console.warn('Failed to convert msg in ssb-ebt because:', err)
+            else ebt.onAppend(converted)
+          })
+        }
+      })
     })
   })
 
@@ -94,6 +154,7 @@ exports.init = function (sbot, config) {
   if (sbot.progress) {
     hook(sbot.progress, function (fn) {
       const _progress = fn()
+      const ebt = ebts.find((ebt) => ebt.name === 'classic')
       const ebtProg = ebt.progress()
       if (ebtProg.target) _progress.ebt = ebtProg
       return _progress
@@ -103,81 +164,157 @@ exports.init = function (sbot, config) {
   sbot.on('rpc:connect', function (rpc, isClient) {
     if (rpc.id === sbot.id) return // ssb-client connecting to ssb-server
     if (isClient) {
-      initialized.promise.then(() => {
-        const opts = { version: 3 }
-        const local = toPull.duplex(ebt.createStream(rpc.id, opts.version, true))
-        const remote = rpc.ebt.replicate(opts, (networkError) => {
-          if (networkError && getSeverity(networkError) >= 3) {
-            console.error('rpc.ebt.replicate exception:', networkError)
-          }
+      onReady(() => {
+        ebts.forEach((ebt) => {
+          const format = ebt.name
+          const opts = { version: 3, format }
+          const local = toPull.duplex(
+            ebt.createStream(rpc.id, opts.version, true)
+          )
+
+          // for backwards compatibility we always replicate classic
+          // feeds using existing replicate RPC
+          const replicate =
+            format === 'classic' ? rpc.ebt.replicate : rpc.ebt.replicateFormat
+
+          const remote = replicate(opts, (networkError) => {
+            if (networkError && getSeverity(networkError) >= 3) {
+              console.error('rpc.ebt.replicate exception:', networkError)
+            }
+          })
+          pull(local, remote, local)
         })
-        pull(local, remote, local)
       })
     }
   })
 
-  function request (destFeedId, requesting) {
-    initialized.promise.then(() => {
-      if (!isFeed(destFeedId)) return
-      ebt.request(destFeedId, requesting)
-    })
+  function findEBTForFeed(feedId, formatName) {
+    let ebt
+    if (formatName) {
+      ebt = ebts.find((ebt) => ebt.name === formatName)
+    } else {
+      ebt = ebts.find((ebt) => ebt.isFeed(feedId))
+    }
+
+    if (!ebt) {
+      ebt = ebts.find((ebt) => ebt.name === 'classic')
+    }
+
+    return ebt
   }
 
-  function block (origFeedId, destFeedId, blocking) {
-    initialized.promise.then(() => {
-      if (!isFeed(origFeedId)) return
-      if (!isFeed(destFeedId)) return
-      if (blocking) {
-        ebt.block(origFeedId, destFeedId, true)
-      } else if (
-        ebt.state.blocks[origFeedId] &&
-          ebt.state.blocks[origFeedId][destFeedId]
-      ) {
-        // only update unblock if they were already blocked
-        ebt.block(origFeedId, destFeedId, false)
+  function request(destFeedId, requesting, formatName) {
+    onReady(() => {
+      if (requesting) {
+        const ebt = findEBTForFeed(destFeedId, formatName)
+        ebt.prepareForIsFeed(destFeedId, () => {
+          if (!ebt.isFeed(destFeedId)) return
+          ebt.request(destFeedId, true)
+        })
+      } else {
+        // If we don't want a destFeedId, make sure it's not registered anywhere
+        ebts.forEach((ebt) => {
+          ebt.request(destFeedId, false)
+        })
       }
     })
   }
 
-  function replicate (opts) {
+  function block(origFeedId, destFeedId, blocking, formatName) {
+    onReady(() => {
+      const ebt = findEBTForFeed(origFeedId, formatName)
+      ebt.prepareForIsFeed(destFeedId, () => {
+        if (!ebt.isFeed(origFeedId)) return
+        if (!ebt.isFeed(destFeedId)) return
+
+        if (blocking) {
+          ebt.block(origFeedId, destFeedId, true)
+        } else if (
+          ebt.state.blocks[origFeedId] &&
+          ebt.state.blocks[origFeedId][destFeedId]
+        ) {
+          // only update unblock if they were already blocked
+          ebt.block(origFeedId, destFeedId, false)
+        }
+      })
+    })
+  }
+
+  function replicateFormat(opts) {
     if (opts.version !== 3) {
       throw new Error('expected ebt.replicate({version: 3})')
     }
 
-    var deferred = pullDefer.duplex()
-    initialized.promise.then(() => {
+    const formatName = opts.format || 'classic'
+    const ebt = getEBT(formatName)
+
+    const deferred = pullDefer.duplex()
+    onReady(() => {
       // `this` refers to the remote peer who called this muxrpc API
-      deferred.resolve(toPull.duplex(ebt.createStream(this.id, opts.version, false)))
+      deferred.resolve(
+        toPull.duplex(ebt.createStream(this.id, opts.version, false))
+      )
     })
     return deferred
   }
 
-  // get replication status for feeds for this id.
-  function peerStatus (id) {
+  // get replication status for feeds for this id
+  function peerStatus(id) {
     id = id || sbot.id
+
+    const ebt = findEBTForFeed(id)
+
     const data = {
       id: id,
       seq: ebt.state.clock[id],
-      peers: {}
+      peers: {},
     }
+
     for (const k in ebt.state.peers) {
       const peer = ebt.state.peers[k]
-      if (peer.clock[id] != null ||
-          (peer.replicating && peer.replicating[id] != null)) {
+      if (
+        peer.clock[id] != null ||
+        (peer.replicating && peer.replicating[id] != null)
+      ) {
         const rep = peer.replicating && peer.replicating[id]
         data.peers[k] = {
           seq: peer.clock[id],
-          replicating: rep
+          replicating: rep,
         }
       }
     }
+
     return data
+  }
+
+  function clock(opts, cb) {
+    if (!cb) {
+      cb = opts
+      opts = { format: 'classic' }
+    }
+
+    onReady(() => {
+      const ebt = getEBT(opts.format)
+      cb(null, ebt.state.clock)
+    })
+  }
+
+  function setClockForSlicedReplication(feedId, sequence, formatName) {
+    onReady(() => {
+      const ebt = findEBTForFeed(feedId, formatName)
+
+      ebt.state.clock[feedId] = sequence
+    })
   }
 
   return {
     request,
     block,
-    replicate,
-    peerStatus
+    replicate: replicateFormat,
+    replicateFormat,
+    peerStatus,
+    clock,
+    setClockForSlicedReplication,
+    registerFormat,
   }
 }

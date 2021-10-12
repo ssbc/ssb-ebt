@@ -6,7 +6,7 @@ const sleep = require('util').promisify(setTimeout)
 const SecretStack = require('secret-stack')
 
 const createSbot = SecretStack({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(require('../')) // EBT
@@ -18,7 +18,7 @@ const bobKeys = ssbKeys.generate()
 const alice = createSbot({
   temp: 'random-animals',
   timeout: CONNECTION_TIMEOUT,
-  keys: ssbKeys.generate()
+  keys: ssbKeys.generate(),
 })
 
 tape('legacy (version 1) is unsupported', async (t) => {

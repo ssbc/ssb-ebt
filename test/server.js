@@ -10,7 +10,7 @@ const sleep = require('util').promisify(setTimeout)
 // and get them to follow each other...
 
 const createSsbServer = SecretStack({
-  caps: { shs: crypto.randomBytes(32).toString('base64') }
+  caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
   .use(require('ssb-db'))
   .use(require('..'))
@@ -25,19 +25,19 @@ tape('replicate between 3 peers', async (t) => {
     temp: 'server-alice',
     keys: ssbKeys.generate(),
     timeout: CONNECTION_TIMEOUT,
-    level: 'info'
+    level: 'info',
   })
   const bob = createSsbServer({
     temp: 'server-bob',
     keys: ssbKeys.generate(),
     timeout: CONNECTION_TIMEOUT,
-    level: 'info'
+    level: 'info',
   })
   const carol = createSsbServer({
     temp: 'server-carol',
     keys: ssbKeys.generate(),
     timeout: CONNECTION_TIMEOUT,
-    level: 'info'
+    level: 'info',
   })
 
   // Wait for all bots to be ready
@@ -52,7 +52,7 @@ tape('replicate between 3 peers', async (t) => {
     pify(bob.publish)({ type: 'post', text: 'world' }),
 
     pify(carol.publish)({ type: 'post', text: 'hello' }),
-    pify(carol.publish)({ type: 'post', text: 'world' })
+    pify(carol.publish)({ type: 'post', text: 'world' }),
   ])
 
   // Self replicate
@@ -81,13 +81,13 @@ tape('replicate between 3 peers', async (t) => {
   const [connectionBA, connectionBC, connectionCA] = await Promise.all([
     pify(bob.connect)(alice.getAddress()),
     pify(bob.connect)(carol.getAddress()),
-    pify(carol.connect)(alice.getAddress())
+    pify(carol.connect)(alice.getAddress()),
   ])
 
   const expectedClock = {
     [alice.id]: 2,
     [bob.id]: 2,
-    [carol.id]: 2
+    [carol.id]: 2,
   }
 
   await sleep(REPLICATION_TIMEOUT)
@@ -95,23 +95,23 @@ tape('replicate between 3 peers', async (t) => {
   const [clockAlice, clockBob, clockCarol] = await Promise.all([
     pify(alice.getVectorClock)(),
     pify(bob.getVectorClock)(),
-    pify(carol.getVectorClock)()
+    pify(carol.getVectorClock)(),
   ])
 
-  t.deepEqual(clockAlice, expectedClock, 'alice\'s clock is correct')
-  t.deepEqual(clockBob, expectedClock, 'bob\'s clock is correct')
-  t.deepEqual(clockCarol, expectedClock, 'carol\'s clock is correct')
+  t.deepEqual(clockAlice, expectedClock, "alice's clock is correct")
+  t.deepEqual(clockBob, expectedClock, "bob's clock is correct")
+  t.deepEqual(clockCarol, expectedClock, "carol's clock is correct")
 
   await Promise.all([
     pify(connectionBA.close)(true),
     pify(connectionBC.close)(true),
-    pify(connectionCA.close)(true)
+    pify(connectionCA.close)(true),
   ])
 
   await Promise.all([
     pify(alice.close)(true),
     pify(bob.close)(true),
-    pify(carol.close)(true)
+    pify(carol.close)(true),
   ])
 
   t.end()
