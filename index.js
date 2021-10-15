@@ -44,6 +44,13 @@ function cleanClock(clock, isFeed) {
   }
 }
 
+function isMuxrpcMissing(err, methodName) {
+  const jsErrorMessage =
+    'method:ebt,' + methodName + ' is not in list of allowed methods'
+  const goErrorMessage = 'muxrpc: no such command: ebt.' + methodName
+  return err.message === jsErrorMessage || err.message === goErrorMessage
+}
+
 exports.init = function (sbot, config) {
   const ebts = []
   registerFormat(classicMethods)
@@ -174,11 +181,15 @@ exports.init = function (sbot, config) {
 
           // for backwards compatibility we always replicate classic
           // feeds using existing replicate RPC
-          const replicate =
-            format === 'classic' ? rpc.ebt.replicate : rpc.ebt.replicateFormat
+          const methodName =
+            format === 'classic' ? 'replicate' : 'replicateFormat'
 
-          const remote = replicate(opts, (networkError) => {
-            if (networkError && getSeverity(networkError) >= 3) {
+          const remote = rpc.ebt[methodName](opts, (networkError) => {
+            if (isMuxrpcMissing(err, methodName)) {
+              console.warn(
+                'peer ' + rpc.id + ' does not support RPC ebt.' + methodName
+              )
+            } else if (networkError && getSeverity(networkError) >= 3) {
               console.error('rpc.ebt.replicate exception:', networkError)
             }
           })
