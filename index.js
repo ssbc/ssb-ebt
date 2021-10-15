@@ -185,12 +185,14 @@ exports.init = function (sbot, config) {
             format === 'classic' ? 'replicate' : 'replicateFormat'
 
           const remote = rpc.ebt[methodName](opts, (networkError) => {
-            if (isMuxrpcMissing(err, methodName)) {
-              console.warn(
-                'peer ' + rpc.id + ' does not support RPC ebt.' + methodName
-              )
-            } else if (networkError && getSeverity(networkError) >= 3) {
-              console.error('rpc.ebt.replicate exception:', networkError)
+            if (networkError && getSeverity(networkError) >= 3) {
+              if (isMuxrpcMissing(networkError, methodName)) {
+                console.warn(
+                  'peer ' + rpc.id + ' does not support RPC ebt.' + methodName
+                )
+              } else {
+                console.error('rpc.ebt.replicate exception:', networkError)
+              }
             }
           })
           pull(local, remote, local)
