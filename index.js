@@ -78,6 +78,7 @@ exports.init = function (sbot, config) {
       },
       setClock(id, clock) {
         cleanClock(clock, isFeed)
+        console.log('EBT setting clock', id, clock)
         store.set(id, clock)
       },
       getAt(pair, cb) {
@@ -132,6 +133,7 @@ exports.init = function (sbot, config) {
           }
         }
 
+        console.log('EBT updating clock', validClock)
         ebt.state.clock = validClock
         ebt.update()
       })
@@ -294,6 +296,7 @@ exports.init = function (sbot, config) {
           seq: peer.clock[id],
           replicating: rep,
         }
+        console.log('EBT data peers', data.peers[k])
       }
     }
 
