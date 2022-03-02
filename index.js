@@ -44,11 +44,15 @@ function cleanClock(clock, isFeed) {
   }
 }
 
-function isMuxrpcMissing(err, methodName) {
+function isMuxrpcMissingError(err, methodName) {
   const jsErrorMessage =
     'method:ebt,' + methodName + ' is not in list of allowed methods'
   const goErrorMessage = 'muxrpc: no such command: ebt.' + methodName
   return err.message === jsErrorMessage || err.message === goErrorMessage
+}
+
+function isReconnectedError(err) {
+  return err.message === 'reconnected to peer'
 }
 
 exports.init = function (sbot, config) {
@@ -186,10 +190,12 @@ exports.init = function (sbot, config) {
 
           const remote = rpc.ebt[methodName](opts, (networkError) => {
             if (networkError && getSeverity(networkError) >= 3) {
-              if (isMuxrpcMissing(networkError, methodName)) {
+              if (isMuxrpcMissingError(networkError, methodName)) {
                 console.warn(
-                  'peer ' + rpc.id + ' does not support RPC ebt.' + methodName
+                  `peer ${rpc.id} does not support RPC ebt.${methodName}`
                 )
+              } else if (isReconnectedError(networkError)) {
+                // Do nothing, this is a harmless error
               } else {
                 console.error('rpc.ebt.replicate exception:', networkError)
               }
