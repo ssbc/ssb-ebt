@@ -1,7 +1,7 @@
 {
   "name": "ssb-ebt",
   "description": "Replicates SSB feeds using Epidemic broadcast trees",
-  "version": "8.1.0",
+  "version": "8.1.1",
   "author": "'Dominic Tarr' <dominic.tarr@gmail.com> (http://dominictarr.com)",
   "license": "MIT",
   "homepage": "https://github.com/ssbc/ssb-ebt",
