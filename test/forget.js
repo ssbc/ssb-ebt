@@ -50,39 +50,62 @@ tape('after forgetting a feed, replicate stream gives nothing', async (t) => {
 
   // Carla <== Alice
   carla.ebt.request(alice.id, true)
+  // Carla <== Bob
+  carla.ebt.request(bob.id, true)
 
   const clockCarla1 = await pify(carla.ebt.clock)()
   t.deepEquals(clockCarla1, { [carla.id]: 1 }, 'carla clock ok')
 
   const rpcBobToAlice = await pify(bob.connect)(alice.getAddress())
+  t.pass('bob connects to alice')
 
   await sleep(REPLICATION_TIMEOUT)
-  t.pass('wait for replication to complete')
+  t.pass('wait for alice and bob to sync')
 
-  const clockAliceAfter = await pify(alice.ebt.clock)()
-  t.deepEquals(
-    clockAliceAfter,
-    { [alice.id]: 1, [bob.id]: 1 },
-    'alice clock ok'
-  )
+  const clockAlice1 = await pify(alice.ebt.clock)()
+  t.deepEquals(clockAlice1, { [alice.id]: 1, [bob.id]: 1 }, 'alice clock ok')
 
-  const clockBobAfter = await pify(bob.ebt.clock)()
-  t.deepEquals(clockBobAfter, { [alice.id]: 1, [bob.id]: 1 }, 'bob clock ok')
+  const clockBob1 = await pify(bob.ebt.clock)()
+  t.deepEquals(clockBob1, { [alice.id]: 1, [bob.id]: 1 }, 'bob clock ok')
 
   await pify(rpcBobToAlice.close)(true)
+  t.pass('bob disconnects from alice')
 
   bob.ebt.forget(alice.id)
   t.pass('bob forgets alice')
 
+  await sleep(REPLICATION_TIMEOUT)
+
+  const clockBob2 = await pify(bob.ebt.clock)()
+  t.deepEquals(clockBob2, { [bob.id]: 1 }, 'bob clock ok')
+
   const rpcBobToCarla = await pify(bob.connect)(carla.getAddress())
+  t.pass('bob connects to carla')
 
   await sleep(REPLICATION_TIMEOUT)
-  t.pass('wait for replication to complete')
+  t.pass('wait for bob and carla to sync')
 
   const clockCarla2 = await pify(carla.ebt.clock)()
-  t.deepEquals(clockCarla2, { [carla.id]: 1 }, 'carla clock ok')
+  t.deepEquals(clockCarla2, { [carla.id]: 1, [bob.id]: 1 }, 'carla clock ok')
 
   await pify(rpcBobToCarla.close)(true)
+  t.pass('bob disconnects from carla')
+
+  bob.ebt.request(alice.id, true)
+  t.pass('bob unforgets alice')
+
+  const rpcBobToAlice2 = await pify(bob.connect)(alice.getAddress())
+  t.pass('bob connects to alice')
+
+  await sleep(REPLICATION_TIMEOUT)
+  t.pass('wait for alice and bob to sync')
+
+  const clockBob3 = await pify(bob.ebt.clock)()
+  t.deepEquals(clockBob3, { [alice.id]: 1, [bob.id]: 1 }, 'bob clock ok')
+
+  await pify(rpcBobToAlice2.close)(true)
+  t.pass('bob disconnects from alice')
+
   await Promise.all([
     pify(alice.close)(true),
     pify(bob.close)(true),
