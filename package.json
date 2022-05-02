@@ -21,7 +21,7 @@
   "dependencies": {
     "base64-url": "^2.2.0",
     "epidemic-broadcast-trees": "^9.0.2",
-    "key-value-file-store": "^1.0.1",
+    "key-value-file-store": "^1.1.1",
     "promisify-4loc": "^1.0.0",
     "pull-defer": "^0.2.3",
     "pull-stream": "^3.6.0",

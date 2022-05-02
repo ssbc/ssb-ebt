@@ -23,6 +23,7 @@ exports.manifest = {
   replicateFormat: 'duplex',
   request: 'sync',
   block: 'sync',
+  forget: 'sync',
   peerStatus: 'sync',
   clock: 'async',
 }
@@ -103,6 +104,7 @@ exports.init = function (sbot, config) {
     ebt.isFeed = isFeed
     ebt.name = format.name
     ebt.prepareForIsFeed = format.prepareForIsFeed.bind(format, sbot)
+    ebt.clearClock = store.delete.bind(store)
 
     const existingId = ebts.findIndex((e) => e.name === format.name)
     if (existingId !== -1) ebts[existingId] = ebt
@@ -239,6 +241,15 @@ exports.init = function (sbot, config) {
     })
   }
 
+  function forget(destFeedId) {
+    onReady(() => {
+      for (const ebt of ebts) {
+        ebt.request(destFeedId, false)
+        ebt.clearClock(destFeedId)
+      }
+    })
+  }
+
   function block(origFeedId, destFeedId, blocking, formatName) {
     onReady(() => {
       const ebt = findEBTForFeed(origFeedId, formatName)
@@ -329,6 +340,7 @@ exports.init = function (sbot, config) {
   return {
     request,
     block,
+    forget,
     replicate: replicateFormat,
     replicateFormat,
     peerStatus,

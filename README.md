@@ -63,6 +63,13 @@ otherwise the first where isFeed is `true` for `origin` is used.
 
 Returns undefined, always.
 
+### `ssb.ebt.forget(destination)` ("sync" muxrpc API)
+
+Same as `ssb.ebt.request(destination, false)`, but also cleans up any persistent
+state used by the EBT instance for this given `destination` ID.
+
+Returns undefined, always.
+
 ### `ssb.ebt.peerStatus(id)` ("sync" muxrpc API)
 
 Query the status of replication for a given SSB feed ID `id`. Returns a JSON
