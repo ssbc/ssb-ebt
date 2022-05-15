@@ -162,6 +162,16 @@ exports.init = function (sbot, config) {
     })
   })
 
+  if (sbot.db) {
+    sbot.db.buttPost((butt2) => {
+      onReady(() => {
+        ebts.forEach((ebt) => {
+          if (ebt.name === 'butt2-v1') ebt.onAppend(butt2)
+        })
+      })
+    })
+  }
+
   // TODO: remove this when no one uses ssb-db anymore, because
   // sbot.progress is defined in ssb-db but not in ssb-db2
   if (sbot.progress) {
