@@ -10,6 +10,8 @@ const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt')
+const butt2 = require('ssb-bendy-butt-2')
+const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
 function createSSBServer() {
@@ -44,6 +46,103 @@ let bob = createSSBServer().call(null, {
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('bob'),
 })
+
+const butt2Methods = require('../formats/butt2')
+
+tape('multiple formats butt2', async (t) => {
+  alice.ebt.registerFormat(butt2Methods)
+  bob.ebt.registerFormat(butt2Methods)
+
+  // self replicate
+  alice.ebt.request(alice.id, true)
+  bob.ebt.request(bob.id, true)
+
+  // publish normal messages
+  await Promise.all([
+    pify(alice.db.publish)({ type: 'post', text: 'hello' }),
+    pify(bob.db.publish)({ type: 'post', text: 'hello' }),
+  ])
+
+  const hmac = null
+
+  const aliceButtKeys = ssbKeys.generate()
+  const aliceContent = { type: 'post', text: 'Hello world from Alice' }
+
+  // FIXME: another way of doing this
+  const [msgKeyBFE, butt2Msg] = butt2.encodeNew(
+    aliceContent,
+    aliceButtKeys,
+    null,
+    1,
+    null,
+    +new Date(),
+    butt2.tags.SSB_FEED,
+    hmac
+  )
+
+  const bobButtKeys = ssbKeys.generate()
+  const bobContent = { type: 'post', text: 'Hello world from Bob' }
+
+  const [msgKeyBFE2, butt2Msg2] = butt2.encodeNew(
+    bobContent,
+    bobButtKeys,
+    null,
+    1,
+    null,
+    +new Date(),
+    butt2.tags.SSB_FEED,
+    hmac
+  )
+
+  const aliceButtId = bfe.decode(butt2.extractAuthor(butt2Msg))
+  const bobButtId = bfe.decode(butt2.extractAuthor(butt2Msg2))
+
+  // self replicate
+  alice.ebt.request(aliceButtId, true)
+  bob.ebt.request(bobButtId, true)
+
+  await Promise.all([
+    pify(alice.db.addButt2)(butt2Msg),
+    pify(bob.db.addButt2)(butt2Msg2),
+  ])
+
+  alice.ebt.request(bob.id, true)
+  alice.ebt.request(bobButtId, true)
+
+  bob.ebt.request(alice.id, true)
+  bob.ebt.request(aliceButtId, true)
+
+  await pify(bob.connect)(alice.getAddress())
+
+  await sleep(REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  const expectedClassicClock = {
+    [alice.id]: 1,
+    [bob.id]: 1,
+  }
+  const expectedButt2Clock = {
+    [aliceButtId]: 1,
+    [bobButtId]: 1,
+  }
+
+  const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
+  t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
+
+  const butt2ClockAlice = await pify(alice.ebt.clock)({ format: 'butt2-v1' })
+  t.deepEqual(butt2ClockAlice, expectedButt2Clock, 'alice correct butt2 clock')
+
+  const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
+  t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
+
+  const butt2ClockBob = await pify(bob.ebt.clock)({ format: 'butt2-v1' })
+  t.deepEqual(butt2ClockBob, expectedButt2Clock, 'bob correct butt2 clock')
+
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
+  t.end()
+})
+
+return
 
 function getBBMsg(mainKeys) {
   // fake some keys
