@@ -13,16 +13,10 @@ module.exports = {
     return SSBURI.isButt2V1FeedSSBURI(feedId)
   },
   getAtSequence (sbot, pair, cb) {
-    sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-      if (err) return cb(err)
-      else return cb(null, butt2.msgValToButt2(msg.value))
-    })
-
-    /* do this instead
     sbot.getAtSequenceRaw([pair.id, pair.sequence], (err, buf) => {
-      // fixme: convert to butt2
+      if (err) return cb(err)
+      else return cb(null, butt2.bipfToButt2(buf))
     })
-    */
   },
   appendMsg (sbot, buffer, cb) {
     sbot.db.addButt2(buffer, (err) => {
