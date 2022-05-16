@@ -23,6 +23,7 @@ module.exports = {
       cb(err && err.fatal ? err : null)
     })
   },
+  // not used
   convertMsg (sbot, msgVal, cb) {
     cb(null, butt2.msgValToButt2(msgVal))
   },
@@ -33,13 +34,7 @@ module.exports = {
 
   // used in ebt:stream to distinguish between messages and notes
   isMsg (bufferOrMsgVal) {
-    if (Buffer.isBuffer(bufferOrMsgVal)) {
-      const authorBFE = butt2.extractAuthor(bufferOrMsgVal)
-      // FIXME: use bfe here
-      return authorBFE && Buffer.compare(authorBFE.slice(0, 2), Buffer.from([4,0]))
-    } else {
-      return bufferOrMsgVal && SSBURI.isButt2V1FeedSSBURI(bufferOrMsgVal.author)
-    }
+    return Buffer.isBuffer(bufferOrMsgVal)
   },
   // used in ebt:events
   getMsgAuthor (bufferOrMsgVal) {
