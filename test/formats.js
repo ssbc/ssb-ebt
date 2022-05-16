@@ -80,10 +80,22 @@ tape('multiple formats butt2', async (t) => {
     hmac
   )
 
+  // subfeed
+  const [msgKeyBFE2, butt2Msg2] = butt2.encodeNew(
+    aliceContent,
+    aliceButtKeys,
+    msgKeyBFE,
+    1,
+    null,
+    +new Date(),
+    butt2.tags.SSB_FEED,
+    hmac
+  )
+
   const bobButtKeys = ssbKeys.generate()
   const bobContent = { type: 'post', text: 'Hello world from Bob' }
 
-  const [msgKeyBFE2, butt2Msg2] = butt2.encodeNew(
+  const [msgKeyBFE3, butt2Msg3] = butt2.encodeNew(
     bobContent,
     bobButtKeys,
     null,
@@ -95,15 +107,18 @@ tape('multiple formats butt2', async (t) => {
   )
 
   const aliceButtId = bfe.decode(butt2.extractAuthor(butt2Msg))
-  const bobButtId = bfe.decode(butt2.extractAuthor(butt2Msg2))
+  const aliceSubFeedId = bfe.decode(butt2.extractParent(butt2Msg2))
+  const bobButtId = bfe.decode(butt2.extractAuthor(butt2Msg3))
 
   // self replicate
   alice.ebt.request(aliceButtId, true)
+  alice.ebt.request(aliceButtId + aliceSubFeedId, true)
   bob.ebt.request(bobButtId, true)
 
   await Promise.all([
     pify(alice.db.addButt2)(butt2Msg),
-    pify(bob.db.addButt2)(butt2Msg2),
+    pify(alice.db.addButt2)(butt2Msg2),
+    pify(bob.db.addButt2)(butt2Msg3),
   ])
 
   alice.ebt.request(bob.id, true)
@@ -111,6 +126,7 @@ tape('multiple formats butt2', async (t) => {
 
   bob.ebt.request(alice.id, true)
   bob.ebt.request(aliceButtId, true)
+  bob.ebt.request(aliceButtId + aliceSubFeedId, true)
 
   await pify(bob.connect)(alice.getAddress())
 
@@ -123,8 +139,14 @@ tape('multiple formats butt2', async (t) => {
   }
   const expectedButt2Clock = {
     [aliceButtId]: 1,
+    [aliceButtId + aliceSubFeedId]: 1,
     [bobButtId]: 1,
   }
+
+  /*
+  const results = await alice.db.query(toPromise())
+  console.log(results)
+  */
 
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')

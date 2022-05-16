@@ -50,9 +50,11 @@ module.exports = {
   // used in ebt:events
   getMsgAuthor (bufferOrMsgVal) {
     if (Buffer.isBuffer(bufferOrMsgVal)) {
-      return bfe.decode(butt2.extractAuthor(bufferOrMsgVal))
+      const author = bfe.decode(butt2.extractAuthor(bufferOrMsgVal))
+      const parent = bfe.decode(butt2.extractParent(bufferOrMsgVal))
+      return author + (parent === null ? '' : parent)
     } else {
-      return bufferOrMsgVal.author
+      return bufferOrMsgVal.author + (bufferOrMsgVal.parent === null ? '' : bufferOrMsgVal.parent)
     }
   },
   // used in ebt:events
