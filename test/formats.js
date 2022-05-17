@@ -46,7 +46,120 @@ let bob = createSSBServer().call(null, {
   keys: u.keysFor('bob'),
 })
 
+const content = {
+  type: 'post',
+  channel: 'tinyssb',
+  text: '# Introducing ScuttleSort: incremental untangling\n\nThese past days (weeks..) I worked on something wonderful and would like to have your advise and scrutiny.\n\nIt\'s about creating total order (a timeline) from tangled feeds _without_ indexing: instead, when a new log entry arrives, I now have a method to compute its position in the total order "on the fly" (aka incremental). It\'s a total order with "strong eventual consistency" that is, regardless in which order you or me ingest log entries, we both will end up with the same timeline. It also hooks directly into a MVC environment i.e. log entries automagically show up at the right place.\n\nIt\'s lengthy writeup [README.pdf](&pyKqGIPMMtUMTzhZxt1f/jNmU9lal+0ogvqbmEYLNJI=.sha256) how I arrived there, and there is also code:\n```\n% python3 -m pip install scuttlesort\n% npm install scuttlesort\n```\n(it\'s my third or so JavaScript program, so bare with me 8-), any suggestion for improvements more than welcome)\n\nBoth versions come with a demo program which shows the convergence by exhaustively trying out all possible delivery schedules for a small tangle.\n\nIs something similar already used somewhere in the SSB code base? If novel, is anybody interested to go for a academic paper?\n\nHere is a first abstract, subject to your improvements:\n\n> _ScuttleSort: Incremental and Convergent Linearization of Tangles_\n>\n> We present an incremental topological sort algorithm that permits to linearize tangled append-only feeds in a convergent way with modest effort. Moreover, our architecture permits to synchronize the linearization with a local replica (database, GUI) such that on average one to three edit operations per log entry are sufficient, for reasonably sized tangles. We discuss the use and performance of “ScuttleSort” for append-only systems like Secure Scuttlebutt (SSB). In terms of conflict-free replicated data types (CRDT), our update algorithm implements a partial order-preserving replicated add-only sequence (“timeline”) with strong eventual consistency.\n',
+  mentions: [
+    {
+      link: '&pyKqGIPMMtUMTzhZxt1f/jNmU9lal+0ogvqbmEYLNJI=.sha256',
+      name: 'README.pdf',
+      type: 'application/pdf',
+      size: 827090,
+    },
+  ],
+}
+const simpleContent = { text: 'hello world', type: 'post' }
 const butt2Methods = require('../formats/butt2')
+
+tape('butt2 performance', async (t) => {
+  alice.ebt.registerFormat(butt2Methods)
+  bob.ebt.registerFormat(butt2Methods)
+
+  // self replicate
+  alice.ebt.request(alice.id, true)
+  bob.ebt.request(bob.id, true)
+
+  let messagesAtBob = 0
+  bob.db.buttPost((msg) => {
+    messagesAtBob += 1
+  })
+
+  let messages = []
+  const aliceButtKeys = ssbKeys.generate()
+  const hmac = null
+  let previousBFE = null
+  let startDate = +new Date()
+  for (var i = 0; i < 25 * 1000; ++i) {
+    const [msgKeyBFE, butt2Msg] = butt2.encodeNew(
+      content,
+      aliceButtKeys,
+      null,
+      messages.length + 1,
+      previousBFE,
+      startDate++,
+      butt2.tags.SSB_FEED,
+      hmac
+    )
+    messages.push(butt2Msg)
+    previousBFE = msgKeyBFE
+  }
+
+  const publishes = []
+  for (var i = 0; i < 25 * 1000; ++i) {
+    publishes.push(pify(alice.db.addButt2)(messages[i]))
+  }
+
+  // let alice have some time to index stuff
+  await sleep(5 * REPLICATION_TIMEOUT)
+  const results = await alice.db.query(toPromise())
+
+  const aliceButtId = bfe.decode(butt2.extractAuthor(messages[0]))
+
+  // self replicate
+  alice.ebt.request(aliceButtId, true)
+
+  alice.ebt.request(bob.id, true)
+  bob.ebt.request(alice.id, true)
+  bob.ebt.request(aliceButtId, true)
+
+  await pify(bob.connect)(alice.getAddress())
+
+  await sleep(3 * REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  console.log('after', 3 * REPLICATION_TIMEOUT, 'ms bob has', messagesAtBob)
+
+  t.end()
+})
+
+return
+
+tape('classic performance', async (t) => {
+  // self replicate
+  alice.ebt.request(alice.id, true)
+  bob.ebt.request(bob.id, true)
+
+  let messagesAtBob = 0
+  bob.db.post((msg) => {
+    messagesAtBob += 1
+  })
+
+  const publishes = []
+  for (var i = 0; i < 25 * 1000; ++i)
+    publishes.push(pify(alice.db.publish)(content))
+
+  await Promise.all(publishes)
+
+  // let alice have some time to index stuff
+  await sleep(5 * REPLICATION_TIMEOUT)
+  const results = await alice.db.query(toPromise())
+
+  alice.ebt.request(bob.id, true)
+
+  bob.ebt.request(alice.id, true)
+
+  await pify(bob.connect)(alice.getAddress())
+
+  await sleep(3 * REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  console.log('after', 3 * REPLICATION_TIMEOUT, 'ms bob has', messagesAtBob)
+
+  t.end()
+})
+
+return
 
 tape('multiple formats butt2', async (t) => {
   alice.ebt.registerFormat(butt2Methods)
