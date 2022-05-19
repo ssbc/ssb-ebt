@@ -1,6 +1,9 @@
 const tape = require('tape')
 const crypto = require('crypto')
 const SecretStack = require('secret-stack')
+const fs = require('fs')
+const path = require('path')
+const os = require('os')
 const sleep = require('util').promisify(setTimeout)
 const pify = require('promisify-4loc')
 const u = require('./misc/util')
@@ -72,11 +75,36 @@ tape('after forgetting a feed, replicate stream gives nothing', async (t) => {
   await pify(rpcBobToAlice.close)(true)
   t.pass('bob disconnects from alice')
 
+  await sleep(REPLICATION_TIMEOUT)
+  t.true(
+    fs.existsSync(
+      path.join(
+        os.tmpdir(),
+        'test-delete-bob',
+        'ebt',
+        alice.id.replace(/\//g, '_').replace('=', '')
+      )
+    ),
+    'bob has ebt state for alice in disk'
+  )
+
   bob.ebt.forget(alice.id)
   t.pass('bob forgets alice')
 
   await pify(bob.db.deleteFeed)(alice.id)
   t.pass("bob deletes alice's messages")
+
+  t.false(
+    fs.existsSync(
+      path.join(
+        os.tmpdir(),
+        'test-delete-bob',
+        'ebt',
+        alice.id.replace(/\//g, '_').replace('=', '')
+      )
+    ),
+    'bob does NOT have ebt state for alice in disk'
+  )
 
   await sleep(REPLICATION_TIMEOUT)
 
