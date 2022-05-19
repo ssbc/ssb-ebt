@@ -8,7 +8,8 @@ const u = require('./misc/util')
 const createSsbServer = SecretStack({
   caps: { shs: crypto.randomBytes(32).toString('base64') },
 })
-  .use(require('ssb-db'))
+  .use(require('ssb-db2'))
+  .use(require('ssb-db2/compat/ebt'))
   .use(require('../'))
 
 const CONNECTION_TIMEOUT = 500 // ms
@@ -34,9 +35,9 @@ const carla = createSsbServer({
 
 tape('after forgetting a feed, replicate stream gives nothing', async (t) => {
   await Promise.all([
-    pify(alice.publish)({ type: 'post', text: 'hello' }),
-    pify(bob.publish)({ type: 'post', text: 'hello' }),
-    pify(carla.publish)({ type: 'post', text: 'hello' }),
+    pify(alice.db.publish)({ type: 'post', text: 'hello' }),
+    pify(bob.db.publish)({ type: 'post', text: 'hello' }),
+    pify(carla.db.publish)({ type: 'post', text: 'hello' }),
   ])
 
   // Self replicate
@@ -73,6 +74,9 @@ tape('after forgetting a feed, replicate stream gives nothing', async (t) => {
 
   bob.ebt.forget(alice.id)
   t.pass('bob forgets alice')
+
+  await pify(bob.db.deleteFeed)(alice.id)
+  t.pass("bob deletes alice's messages")
 
   await sleep(REPLICATION_TIMEOUT)
 

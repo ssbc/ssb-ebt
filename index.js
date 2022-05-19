@@ -246,7 +246,7 @@ exports.init = function (sbot, config) {
       for (const ebt of ebts) {
         ebt.request(destFeedId, false)
         ebt.clearClock(destFeedId)
-        delete ebt.state.clock[destFeedId] // TODO: perhaps E-B-T should do this
+        delete ebt.state.clock[destFeedId]
       }
     })
   }
