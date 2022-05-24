@@ -60,7 +60,7 @@ const content = {
   ],
 }
 const simpleContent = { text: 'hello world', type: 'post' }
-const butt2Methods = require('../formats/butt2')
+const butt2Methods = require('../formats/buttwoo')
 
 tape('butt2 performance', async (t) => {
   alice.ebt.registerFormat(butt2Methods)
