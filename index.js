@@ -166,7 +166,7 @@ exports.init = function (sbot, config) {
     sbot.db.buttPost((butt2) => {
       onReady(() => {
         ebts.forEach((ebt) => {
-          if (ebt.name === 'butt2-v1') ebt.onAppend(butt2)
+          if (ebt.name === 'buttwoo-v1') ebt.onAppend(butt2)
         })
       })
     })

@@ -9,7 +9,7 @@ const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const bendyButt = require('ssb-bendy-butt')
-const butt2 = require('ssb-bendy-butt-2')
+const butt2 = require('ssb-buttwoo')
 const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
@@ -97,7 +97,7 @@ tape('butt2 performance', async (t) => {
 
   const publishes = []
   for (var i = 0; i < 25 * 1000; ++i) {
-    publishes.push(pify(alice.db.addButt2)(messages[i]))
+    publishes.push(pify(alice.db.addButtwoo)(messages[i]))
   }
 
   // let alice have some time to index stuff
@@ -228,9 +228,9 @@ tape('multiple formats butt2', async (t) => {
   bob.ebt.request(bobButtId, true)
 
   await Promise.all([
-    pify(alice.db.addButt2)(butt2Msg),
-    pify(alice.db.addButt2)(butt2Msg2),
-    pify(bob.db.addButt2)(butt2Msg3),
+    pify(alice.db.addButtwoo)(butt2Msg),
+    pify(alice.db.addButtwoo)(butt2Msg2),
+    pify(bob.db.addButtwoo)(butt2Msg3),
   ])
 
   alice.ebt.request(bob.id, true)

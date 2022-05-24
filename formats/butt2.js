@@ -1,16 +1,16 @@
 const SSBURI = require('ssb-uri2')
-const butt2 = require('ssb-bendy-butt-2')
+const butt2 = require('ssb-buttwoo')
 const bfe = require('ssb-bfe')
 
 module.exports = {
-  name: 'butt2-v1',
+  name: 'buttwoo-v1',
   prepareForIsFeed(sbot, feedId, cb) {
     cb()
   },
   // used in request, block, cleanClock, sbot.post, vectorClock
   isFeed (sbot, feedId) {
     // FIXME: this needs to handle parent!
-    return SSBURI.isButt2V1FeedSSBURI(feedId)
+    return SSBURI.isButtwooV1FeedSSBURI(feedId)
   },
   getAtSequence (sbot, pair, cb) {
     sbot.getAtSequenceRaw([pair.id, pair.sequence], (err, buf) => {
@@ -19,14 +19,12 @@ module.exports = {
     })
   },
   appendMsg (sbot, buffer, cb) {
-    sbot.db.addButt2(buffer, (err) => {
+    sbot.db.addButtwoo(buffer, (err) => {
       cb(err && err.fatal ? err : null)
     })
   },
   // not used
-  convertMsg (sbot, msgVal, cb) {
-    cb(null, butt2.msgValToButt2(msgVal))
-  },
+  convertMsg (sbot, msgVal, cb) {},
   // used in vectorClock
   isReady (sbot) {
     return Promise.resolve(true)
