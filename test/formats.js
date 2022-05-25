@@ -63,6 +63,7 @@ const content = {
 const simpleContent = { text: 'hello world', type: 'post' }
 const butt2Methods = require('../formats/buttwoo')
 
+/*
 tape('butt2 performance', async (t) => {
   alice.ebt.registerFormat(butt2Methods)
   bob.ebt.registerFormat(butt2Methods)
@@ -126,6 +127,7 @@ tape('butt2 performance', async (t) => {
 
 return
 
+// to run this you need to disable debouncer and use ssb-validate2 in db2
 tape('classic performance', async (t) => {
   // self replicate
   alice.ebt.request(alice.id, true)
@@ -161,6 +163,7 @@ tape('classic performance', async (t) => {
 })
 
 return
+*/
 
 tape('multiple formats butt2', async (t) => {
   alice.ebt.registerFormat(butt2Methods)
@@ -170,18 +173,11 @@ tape('multiple formats butt2', async (t) => {
   alice.ebt.request(alice.id, true)
   bob.ebt.request(bob.id, true)
 
-  // publish normal messages
-  await Promise.all([
-    pify(alice.db.publish)({ type: 'post', text: 'hello' }),
-    pify(bob.db.publish)({ type: 'post', text: 'hello' }),
-  ])
-
   const hmac = null
 
   const aliceButtKeys = ssbKeys.generate()
   const aliceContent = { type: 'post', text: 'Hello world from Alice' }
 
-  // FIXME: another way of doing this
   const [msgKeyBFE, butt2Msg] = butt2.encodeNew(
     aliceContent,
     aliceButtKeys,
@@ -246,10 +242,7 @@ tape('multiple formats butt2', async (t) => {
   await sleep(REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
 
-  const expectedClassicClock = {
-    [alice.id]: 1,
-    [bob.id]: 1,
-  }
+  const expectedClassicClock = {}
   const expectedButt2Clock = {
     [aliceButtId]: 1,
     [aliceButtId + aliceSubFeedId]: 1,
@@ -264,20 +257,18 @@ tape('multiple formats butt2', async (t) => {
   const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
 
-  const butt2ClockAlice = await pify(alice.ebt.clock)({ format: 'butt2-v1' })
+  const butt2ClockAlice = await pify(alice.ebt.clock)({ format: 'buttwoo-v1' })
   t.deepEqual(butt2ClockAlice, expectedButt2Clock, 'alice correct butt2 clock')
 
   const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
   t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
 
-  const butt2ClockBob = await pify(bob.ebt.clock)({ format: 'butt2-v1' })
+  const butt2ClockBob = await pify(bob.ebt.clock)({ format: 'buttwoo-v1' })
   t.deepEqual(butt2ClockBob, expectedButt2Clock, 'bob correct butt2 clock')
 
   await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
   t.end()
 })
-
-return
 
 function getBBMsg(mainKeys) {
   // fake some keys
@@ -320,6 +311,18 @@ let aliceMFId
 let bobMFId
 
 tape('multiple formats', async (t) => {
+  alice = createSSBServer().call(null, {
+    path: aliceDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('alice'),
+  })
+
+  bob = createSSBServer().call(null, {
+    path: bobDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('bob'),
+  })
+
   alice.ebt.registerFormat(bendyButtMethods)
   bob.ebt.registerFormat(bendyButtMethods)
 
