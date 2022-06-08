@@ -13,13 +13,13 @@ module.exports = {
     return SSBURI.isButtwooV1FeedSSBURI(feedId)
   },
   getAtSequence (sbot, pair, cb) {
-    sbot.getAtSequenceRaw([pair.id, pair.sequence], (err, buf) => {
-      if (err) return cb(err)
-      else return cb(null, butt2.bipfToButt2(buf))
+    sbot.getAtSequenceNativeMsg([pair.id, pair.sequence], (err, nativeMsg) => {
+      if (err) cb(err)
+      else cb(null, nativeMsg) //butt2.bipfToButt2(buf))
     })
   },
   appendMsg (sbot, buffer, cb) {
-    sbot.db.addButtwoo(buffer, (err) => {
+    sbot.db.add(buffer, { encoding: 'bipf', feedFormat: 'buttwoo-v1' }, (err) => {
       cb(err && err.fatal ? err : null)
     })
   },

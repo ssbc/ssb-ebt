@@ -72,7 +72,7 @@ tape('butt2 performance', async (t) => {
   bob.ebt.request(bob.id, true)
 
   let messagesAtBob = 0
-  bob.db.buttPost((msg) => {
+  bob.db.onMsgAdded((msg) => {
     messagesAtBob += 1
   })
 
@@ -97,9 +97,8 @@ tape('butt2 performance', async (t) => {
   }
 
   const publishes = []
-  for (var i = 0; i < 25 * 1000; ++i) {
-    publishes.push(pify(alice.db.addButtwoo)(messages[i]))
-  }
+  for (var i = 0; i < 25 * 1000; ++i)
+    publishes.push(pify(alice.db.add)(messages[i], { encoding: 'bipf', feedFormat: 'buttwoo-v1' }))
 
   // let alice have some time to index stuff
   await sleep(5 * REPLICATION_TIMEOUT)
@@ -133,7 +132,7 @@ tape('classic performance', async (t) => {
   bob.ebt.request(bob.id, true)
 
   let messagesAtBob = 0
-  bob.db.post((msg) => {
+  bob.db.onMsgAdded((msg) => {
     messagesAtBob += 1
   })
 

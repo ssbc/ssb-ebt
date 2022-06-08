@@ -148,25 +148,25 @@ exports.init = function (sbot, config) {
     })
   })
 
-  sbot.post((msg) => {
-    onReady(() => {
-      ebts.forEach((ebt) => {
-        if (ebt.isFeed(msg.value.author)) {
-          ebt.convertMsg(msg.value, (err, converted) => {
-            if (err)
-              console.warn('Failed to convert msg in ssb-ebt because:', err)
-            else ebt.onAppend(converted)
-          })
-        }
-      })
-    })
-  })
-
   if (sbot.db) {
-    sbot.db.buttPost((butt2) => {
+    sbot.db.onMsgAdded((data) => {
       onReady(() => {
         ebts.forEach((ebt) => {
-          if (ebt.name === 'buttwoo-v1') ebt.onAppend(butt2)
+          if (ebt.name === data.feedFormat) ebt.onAppend(data.nativeMsg)
+        })
+      })
+    })
+  } else {
+    sbot.post((msg) => {
+      onReady(() => {
+        ebts.forEach((ebt) => {
+          if (ebt.isFeed(msg.value.author)) {
+            ebt.convertMsg(msg.value, (err, converted) => {
+              if (err)
+                console.warn('Failed to convert msg in ssb-ebt because:', err)
+              else ebt.onAppend(converted)
+            })
+          }
         })
       })
     })
