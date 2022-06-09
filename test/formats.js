@@ -103,6 +103,7 @@ tape('butt2 performance', async (t) => {
   // let alice have some time to index stuff
   await sleep(5 * REPLICATION_TIMEOUT)
   const results = await alice.db.query(toPromise())
+  console.log("alice has", results.length)
 
   const aliceButtId = bfe.decode(butt2.extractAuthor(messages[0]))
 
@@ -124,7 +125,9 @@ tape('butt2 performance', async (t) => {
 })
 
 return
+*/
 
+/*
 // to run this you need to disable debouncer and use ssb-validate2 in db2
 tape('classic performance', async (t) => {
   // self replicate
@@ -213,19 +216,23 @@ tape('multiple formats butt2', async (t) => {
     hmac
   )
 
-  const aliceButtId = bfe.decode(butt2.extractAuthor(butt2Msg))
-  const aliceSubFeedId = bfe.decode(butt2.extractParent(butt2Msg2))
-  const bobButtId = bfe.decode(butt2.extractAuthor(butt2Msg3))
+  const feedformat = alice.db.findFeedFormatByName('buttwoo-v1')
+
+  const aliceButtId = feedformat.getFeedId(butt2Msg)
+  const aliceSubFeedId = feedformat.getFeedId(butt2Msg2)
+  const bobButtId = feedformat.getFeedId(butt2Msg3)
 
   // self replicate
   alice.ebt.request(aliceButtId, true)
-  alice.ebt.request(aliceButtId + aliceSubFeedId, true)
+  alice.ebt.request(aliceSubFeedId, true)
   bob.ebt.request(bobButtId, true)
 
+  const opts = { encoding: 'bipf', feedFormat: 'buttwoo-v1' }
+
   await Promise.all([
-    pify(alice.db.addButtwoo)(butt2Msg),
-    pify(alice.db.addButtwoo)(butt2Msg2),
-    pify(bob.db.addButtwoo)(butt2Msg3),
+    pify(alice.db.add)(butt2Msg, opts),
+    pify(alice.db.add)(butt2Msg2, opts),
+    pify(bob.db.add)(butt2Msg3, opts),
   ])
 
   alice.ebt.request(bob.id, true)
@@ -233,7 +240,7 @@ tape('multiple formats butt2', async (t) => {
 
   bob.ebt.request(alice.id, true)
   bob.ebt.request(aliceButtId, true)
-  bob.ebt.request(aliceButtId + aliceSubFeedId, true)
+  bob.ebt.request(aliceSubFeedId, true)
 
   await pify(bob.connect)(alice.getAddress())
 
@@ -243,7 +250,7 @@ tape('multiple formats butt2', async (t) => {
   const expectedClassicClock = {}
   const expectedButt2Clock = {
     [aliceButtId]: 1,
-    [aliceButtId + aliceSubFeedId]: 1,
+    [aliceSubFeedId]: 1,
     [bobButtId]: 1,
   }
 
@@ -295,7 +302,7 @@ function getBBMsg(mainKeys) {
     null
   )
 
-  return bendyButt.decode(bbmsg)
+  return bbmsg
 }
 
 const bendyButtMethods = require('../formats/bendy-butt')
@@ -333,8 +340,8 @@ tape('multiple formats', async (t) => {
   const aliceBBMsg = getBBMsg(alice.config.keys)
   const bobBBMsg = getBBMsg(bob.config.keys)
 
-  aliceMFId = aliceBBMsg.author
-  bobMFId = bobBBMsg.author
+  aliceMFId = bendyButt.decode(aliceBBMsg).author
+  bobMFId = bendyButt.decode(bobBBMsg).author
 
   // self replicate
   alice.ebt.request(aliceMFId, true)

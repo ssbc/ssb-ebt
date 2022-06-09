@@ -16,7 +16,7 @@ module.exports = {
     })
   },
   appendMsg (sbot, msgVal, cb) {
-    sbot.add(bendyButt.decode(msgVal), (err, msg) => {
+    sbot.add(msgVal, (err, msg) => {
       cb(err && err.fatal ? err : null, msg)
     })
   },

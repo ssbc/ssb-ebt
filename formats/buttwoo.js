@@ -2,6 +2,8 @@ const SSBURI = require('ssb-uri2')
 const butt2 = require('ssb-buttwoo')
 const bfe = require('ssb-bfe')
 
+let feedFormat
+
 module.exports = {
   name: 'buttwoo-v1',
   prepareForIsFeed(sbot, feedId, cb) {
@@ -27,6 +29,7 @@ module.exports = {
   convertMsg (sbot, msgVal, cb) {},
   // used in vectorClock
   isReady (sbot) {
+    feedFormat = sbot.db.findFeedFormatByName('buttwoo-v1')
     return Promise.resolve(true)
   },
 
@@ -36,20 +39,10 @@ module.exports = {
   },
   // used in ebt:events
   getMsgAuthor (bufferOrMsgVal) {
-    if (Buffer.isBuffer(bufferOrMsgVal)) {
-      const author = bfe.decode(butt2.extractAuthor(bufferOrMsgVal))
-      const parent = bfe.decode(butt2.extractParent(bufferOrMsgVal))
-      return author + (parent === null ? '' : parent)
-    } else {
-      return bufferOrMsgVal.author + (bufferOrMsgVal.parent === null ? '' : bufferOrMsgVal.parent)
-    }
+    return feedFormat.getFeedId(bufferOrMsgVal)
   },
   // used in ebt:events
   getMsgSequence (bufferOrMsgVal) {
-    if (Buffer.isBuffer(bufferOrMsgVal)) {
-      return bfe.decode(butt2.extractSequence(bufferOrMsgVal))
-    } else {
-      return bufferOrMsgVal.sequence
-    }
+    return butt2.extractSequence(bufferOrMsgVal)
   }
 }
