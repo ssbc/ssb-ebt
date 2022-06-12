@@ -3,6 +3,7 @@ const butt2 = require('ssb-buttwoo')
 const bfe = require('ssb-bfe')
 
 let feedFormat
+const appendOpts = { encoding: 'bipf', feedFormat: 'buttwoo-v1' }
 
 module.exports = {
   name: 'buttwoo-v1',
@@ -21,7 +22,7 @@ module.exports = {
     })
   },
   appendMsg (sbot, buffer, cb) {
-    sbot.db.add(buffer, { encoding: 'bipf', feedFormat: 'buttwoo-v1' }, (err) => {
+    sbot.db.add(buffer, appendOpts, (err) => {
       cb(err && err.fatal ? err : null)
     })
   },
