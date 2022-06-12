@@ -44,6 +44,6 @@ module.exports = {
   },
   // used in ebt:events
   getMsgSequence (bufferOrMsgVal) {
-    return butt2.extractSequence(bufferOrMsgVal)
+    return feedFormat.getSequence(bufferOrMsgVal)
   }
 }
