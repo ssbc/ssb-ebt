@@ -15,7 +15,7 @@ module.exports = {
     return SSBURI.isButtwooV1FeedSSBURI(feedId)
   },
   getAtSequence (sbot, pair, cb) {
-    sbot.getAtSequenceNativeMsg([pair.id, pair.sequence], (err, nativeMsg) => {
+    sbot.getAtSequenceNativeMsg([pair.id, pair.sequence], 'buttwoo-v1', (err, nativeMsg) => {
       if (err) cb(err)
       else cb(null, nativeMsg) //butt2.bipfToButt2(buf))
     })
