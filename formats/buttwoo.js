@@ -12,8 +12,7 @@ module.exports = {
   },
   // used in request, block, cleanClock, sbot.post, vectorClock
   isFeed (sbot, feedId) {
-    // FIXME: this needs to handle parent!
-    return SSBURI.isButtwooV1FeedSSBURI(feedId)
+    return feedFormat.isAuthor(feedId)
   },
   getAtSequence (sbot, pair, cb) {
     sbot.getAtSequenceNativeMsg([pair.id, pair.sequence], 'buttwoo-v1', (err, nativeMsg) => {
