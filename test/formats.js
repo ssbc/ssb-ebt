@@ -9,7 +9,7 @@ const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const bendyButt = require('ssb-bendy-butt')
-const butt2 = require('ssb-buttwoo')
+const butt2 = require('ssb-buttwoo/format')
 const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
@@ -77,23 +77,24 @@ tape('butt2 performance', async (t) => {
   })
 
   let messages = []
-  const aliceButtKeys = ssbKeys.generate()
-  const hmac = null
-  let previousBFE = null
+  const aliceButtKeys = ssbKeys.generate(null, 'alice', 'buttwoo-v1')
+  const hmacKey = null
+  let previous = { key: null, value: { sequence: 0 } }
   let startDate = +new Date()
   for (var i = 0; i < 25 * 1000; ++i) {
-    const [msgKeyBFE, butt2Msg] = butt2.encodeNew(
+    const butt2Msg = butt2.newNativeMsg({
+      keys: aliceButtKeys,
       content,
-      aliceButtKeys,
-      null,
-      messages.length + 1,
-      previousBFE,
-      startDate++,
-      butt2.tags.SSB_FEED,
-      hmac
-    )
+      previous,
+      timestamp: startDate++,
+      tag: butt2.tags.SSB_FEED,
+      hmacKey
+    })
+    previous = {
+      key: butt2.getMsgId(butt2Msg),
+      value: butt2.fromNativeMsg(butt2Msg)
+    }
     messages.push(butt2Msg)
-    previousBFE = msgKeyBFE
   }
 
   const publishes = []
@@ -105,7 +106,7 @@ tape('butt2 performance', async (t) => {
   const results = await alice.db.query(toPromise())
   console.log("alice has", results.length)
 
-  const aliceButtId = bfe.decode(butt2.extractAuthor(messages[0]))
+  const aliceButtId = aliceButtKeys.id
 
   // self replicate
   alice.ebt.request(aliceButtId, true)
