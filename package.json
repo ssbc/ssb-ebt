@@ -30,7 +30,7 @@
     "ssb-network-errors": "^1.0.1",
     "ssb-ref": "^2.13.0",
     "ssb-subset-ql": "^0.6.4",
-    "ssb-uri2": "^1.7.2"
+    "ssb-uri2": "^2.0.0"
   },
   "devDependencies": {
     "cat-names": "^3.0.0",
@@ -50,7 +50,7 @@
     "ssb-db2": "^4.0.4",
     "ssb-generate": "^1.0.1",
     "ssb-index-feed-writer": "^0.7.0",
-    "ssb-keys": "^8.2.1",
+    "ssb-keys": "^8.4.0",
     "ssb-meta-feeds": "^0.28.2",
     "ssb-validate": "^4.1.4",
     "tap-spec": "^5.0.0",

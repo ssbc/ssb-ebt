@@ -8,7 +8,6 @@ const caps = require('ssb-caps')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
-const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
@@ -47,11 +46,7 @@ let bob = createSSBServer().call(null, {
 
 function getBBMsg(mainKeys) {
   // fake some keys
-  const mfKeys = ssbKeys.generate()
-  const classicUri = SSBURI.fromFeedSigil(mfKeys.id)
-  const { type, /* format, */ data } = SSBURI.decompose(classicUri)
-  const bendybuttUri = SSBURI.compose({ type, format: 'bendybutt-v1', data })
-  mfKeys.id = bendybuttUri
+  const mfKeys = ssbKeys.generate(null, null, 'bendybutt-v1')
 
   const content = {
     type: 'metafeed/add/existing',
