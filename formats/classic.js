@@ -1,5 +1,7 @@
 const ref = require('ssb-ref')
 
+const appendOpts = { encoding: 'js', feedFormat: 'classic' }
+
 module.exports = {
   name: 'classic',
   prepareForIsFeed(sbot, feedId, cb) {
@@ -15,7 +17,7 @@ module.exports = {
     })
   },
   appendMsg (sbot, msgVal, cb) {
-    sbot.add(msgVal, (err, msg) => {
+    sbot.db.add(msgVal, appendOpts, (err, msg) => {
       cb(err && err.fatal ? err : null, msg)
     })
   },

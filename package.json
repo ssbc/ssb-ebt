@@ -27,7 +27,7 @@
     "pull-stream": "^3.6.0",
     "push-stream-to-pull-stream": "^1.0.5",
     "ssb-bendy-butt": "^0.12.5",
-    "ssb-buttwoo": "^0.2.0",
+    "ssb-buttwoo": "^0.3.1",
     "ssb-network-errors": "^1.0.1",
     "ssb-ref": "^2.13.0",
     "ssb-subset-ql": "^0.6.4",

@@ -16,6 +16,7 @@ const { where, author, type, toPromise } = require('ssb-db2/operators')
 function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
+    .use(require('ssb-buttwoo'))
     .use(require('ssb-db2/compat/ebt'))
     .use(require('ssb-meta-feeds'))
     .use(require('ssb-index-feed-writer'))
