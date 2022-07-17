@@ -1,8 +1,5 @@
-const SSBURI = require('ssb-uri2')
-const butt2 = require('ssb-buttwoo')
-const bfe = require('ssb-bfe')
+const butt2 = require('ssb-buttwoo/format')
 
-let feedFormat
 const appendOpts = { encoding: 'bipf', feedFormat: 'buttwoo-v1' }
 
 module.exports = {
@@ -12,12 +9,12 @@ module.exports = {
   },
   // used in request, block, cleanClock, sbot.post, vectorClock
   isFeed (sbot, feedId) {
-    return feedFormat.isAuthor(feedId)
+    return butt2.isAuthor(feedId)
   },
   getAtSequence (sbot, pair, cb) {
     sbot.getAtSequenceNativeMsg([pair.id, pair.sequence], 'buttwoo-v1', (err, nativeMsg) => {
       if (err) cb(err)
-      else cb(null, nativeMsg) //butt2.bipfToButt2(buf))
+      else cb(null, nativeMsg)
     })
   },
   appendMsg (sbot, buffer, cb) {
@@ -29,7 +26,6 @@ module.exports = {
   convertMsg (sbot, msgVal, cb) {},
   // used in vectorClock
   isReady (sbot) {
-    feedFormat = sbot.db.findFeedFormatByName('buttwoo-v1')
     return Promise.resolve(true)
   },
 
@@ -39,10 +35,10 @@ module.exports = {
   },
   // used in ebt:events
   getMsgAuthor (bufferOrMsgVal) {
-    return feedFormat.getFeedId(bufferOrMsgVal)
+    return butt2.getFeedId(bufferOrMsgVal)
   },
   // used in ebt:events
   getMsgSequence (bufferOrMsgVal) {
-    return feedFormat.getSequence(bufferOrMsgVal)
+    return butt2.getSequence(bufferOrMsgVal)
   }
 }
