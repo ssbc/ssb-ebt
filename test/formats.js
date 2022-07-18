@@ -204,7 +204,7 @@ tape('multiple formats butt2', async (t) => {
   })
   const msgKeyBFE2 = butt2.getMsgId(butt2Msg2)
 
-  const bobButtKeys = ssbKeys.generate(null, 'alice', 'buttwoo-v1')
+  const bobButtKeys = ssbKeys.generate(null, 'bob', 'buttwoo-v1')
   const bobContent = { type: 'post', text: 'Hello world from Bob' }
 
   const butt2Msg3 = butt2.newNativeMsg({
