@@ -8,7 +8,7 @@ const caps = require('ssb-caps')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
-const bendyButt = require('ssb-bendy-butt')
+const bendyButt = require('ssb-bendy-butt/format')
 const butt2 = require('ssb-buttwoo/format')
 const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
@@ -17,6 +17,7 @@ function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
     .use(require('ssb-buttwoo'))
+    .use(require('ssb-bendy-butt'))
     .use(require('ssb-db2/compat/ebt'))
     .use(require('ssb-meta-feeds'))
     .use(require('ssb-index-feed-writer'))
@@ -178,45 +179,43 @@ tape('multiple formats butt2', async (t) => {
 
   const hmac = null
 
-  const aliceButtKeys = ssbKeys.generate()
+  const aliceButtKeys = ssbKeys.generate(null, 'alice', 'buttwoo-v1')
   const aliceContent = { type: 'post', text: 'Hello world from Alice' }
 
-  const [msgKeyBFE, butt2Msg] = butt2.encodeNew(
-    aliceContent,
-    aliceButtKeys,
-    null,
-    1,
-    null,
-    +new Date(),
-    butt2.tags.SSB_FEED,
-    hmac
-  )
+  const butt2Msg = butt2.newNativeMsg({
+    keys: aliceButtKeys,
+    content: aliceContent,
+    previous: null,
+    timestamp: +new Date(),
+    tag: butt2.tags.SSB_FEED,
+    hmac,
+  })
+  const msgKeyBFE = butt2.getMsgId(butt2Msg)
 
   // subfeed
-  const [msgKeyBFE2, butt2Msg2] = butt2.encodeNew(
-    aliceContent,
-    aliceButtKeys,
-    msgKeyBFE,
-    1,
-    null,
-    +new Date(),
-    butt2.tags.SSB_FEED,
-    hmac
-  )
+  const butt2Msg2 = butt2.newNativeMsg({
+    keys: aliceButtKeys,
+    content: aliceContent,
+    parent: msgKeyBFE,
+    previous: null,
+    timestamp: +new Date(),
+    tag: butt2.tags.SSB_FEED,
+    hmac,
+  })
+  const msgKeyBFE2 = butt2.getMsgId(butt2Msg2)
 
-  const bobButtKeys = ssbKeys.generate()
+  const bobButtKeys = ssbKeys.generate(null, 'alice', 'buttwoo-v1')
   const bobContent = { type: 'post', text: 'Hello world from Bob' }
 
-  const [msgKeyBFE3, butt2Msg3] = butt2.encodeNew(
-    bobContent,
-    bobButtKeys,
-    null,
-    1,
-    null,
-    +new Date(),
-    butt2.tags.SSB_FEED,
-    hmac
-  )
+  const butt2Msg3 = butt2.newNativeMsg({
+    keys: bobButtKeys,
+    content: bobContent,
+    previous: null,
+    timestamp: +new Date(),
+    tag: butt2.tags.SSB_FEED,
+    hmac,
+  })
+  const msgKeyBFE3 = butt2.getMsgId(butt2Msg3)
 
   const feedformat = alice.db.findFeedFormatByName('buttwoo-v1')
 
@@ -294,15 +293,14 @@ function getBBMsg(mainKeys) {
     },
   }
 
-  const bbmsg = bendyButt.encodeNew(
+  const bbmsg = bendyButt.newNativeMsg({
     content,
-    mainKeys,
-    mfKeys,
-    1,
-    null,
-    Date.now(),
-    null
-  )
+    contentKeys: mainKeys,
+    keys: mfKeys,
+    previous: null,
+    timestamp: +Date.now(),
+    hmacKey: null,
+  })
 
   return bbmsg
 }
@@ -342,8 +340,8 @@ tape('multiple formats', async (t) => {
   const aliceBBMsg = getBBMsg(alice.config.keys)
   const bobBBMsg = getBBMsg(bob.config.keys)
 
-  aliceMFId = bendyButt.decode(aliceBBMsg).author
-  bobMFId = bendyButt.decode(bobBBMsg).author
+  aliceMFId = bendyButt.fromNativeMsg(aliceBBMsg).author
+  bobMFId = bendyButt.fromNativeMsg(bobBBMsg).author
 
   // self replicate
   alice.ebt.request(aliceMFId, true)
