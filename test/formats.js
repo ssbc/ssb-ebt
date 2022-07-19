@@ -10,6 +10,7 @@ const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const bendyButt = require('ssb-bendy-butt/format')
 const butt2 = require('ssb-buttwoo/format')
+const classic = require('ssb-classic/format')
 const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
@@ -83,7 +84,7 @@ tape('butt2 performance', async (t) => {
   const hmacKey = null
   let previous = { key: null, value: { sequence: 0 } }
   let startDate = +new Date()
-  for (var i = 0; i < 25 * 1000; ++i) {
+  for (var i = 0; i < 15 * 1000; ++i) {
     const butt2Msg = butt2.newNativeMsg({
       keys: aliceButtKeys,
       content,
@@ -99,9 +100,13 @@ tape('butt2 performance', async (t) => {
     messages.push(butt2Msg)
   }
 
+  console.time("adding 15k msgs")
   const publishes = []
-  for (var i = 0; i < 25 * 1000; ++i)
+  for (var i = 0; i < 15 * 1000; ++i)
     publishes.push(pify(alice.db.add)(messages[i], { encoding: 'bipf', feedFormat: 'buttwoo-v1' }))
+
+  await Promise.all(publishes)
+  console.timeEnd("adding 15k msgs")
 
   // let alice have some time to index stuff
   await sleep(5 * REPLICATION_TIMEOUT)
@@ -142,11 +147,34 @@ tape('classic performance', async (t) => {
     messagesAtBob += 1
   })
 
+  let messages = []
+  const aliceKeys = u.keysFor('alice')
+  let previous = { key: null, value: { sequence: 0 } }
+  let startDate = +new Date()
+  for (var i = 0; i < 15 * 1000; ++i) {
+    const msgVal = classic.newNativeMsg({
+      keys: aliceKeys,
+      content, //: simpleContent
+      timestamp: startDate++,
+      previous,
+      hmacKey: null,
+    })
+    previous = {
+      key: classic.getMsgId(msgVal),
+      value: msgVal
+    }
+    messages.push(JSON.stringify(msgVal))
+  }
+
+  console.time("adding 15k msgs")
   const publishes = []
-  for (var i = 0; i < 25 * 1000; ++i)
-    publishes.push(pify(alice.db.publish)(content))
+  for (var i = 0; i < 15 * 1000; ++i) {
+    const msg = JSON.parse(messages[i])
+    publishes.push(pify(alice.db.add)(msg, { encoding: 'js', feedFormat: 'classic' }))
+  }
 
   await Promise.all(publishes)
+  console.timeEnd("adding 15k msgs")
 
   // let alice have some time to index stuff
   await sleep(5 * REPLICATION_TIMEOUT)
