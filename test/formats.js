@@ -49,6 +49,9 @@ let bob = createSSBServer().call(null, {
   keys: u.keysFor('bob'),
 })
 
+const butt2Methods = require('../formats/buttwoo')
+
+/*
 const content = {
   type: 'post',
   channel: 'tinyssb',
@@ -63,7 +66,7 @@ const content = {
   ],
 }
 const simpleContent = { text: 'hello world', type: 'post' }
-const butt2Methods = require('../formats/buttwoo')
+*/
 
 /*
 tape('butt2 performance', async (t) => {
