@@ -200,7 +200,7 @@ tape('classic performance', async (t) => {
 return
 */
 
-tape('multiple formats butt2', async (t) => {
+tape('multiple formats buttwoo', async (t) => {
   alice.ebt.registerFormat(butt2Methods)
   bob.ebt.registerFormat(butt2Methods)
 
