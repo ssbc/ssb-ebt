@@ -1,6 +1,9 @@
 const SSBURI = require('ssb-uri2')
 const bendyButt = require('ssb-bendy-butt/format')
 
+// encoding is wierd here, it is actually bencode
+const appendOpts = { encoding: 'js', feedFormat: 'bendybutt-v1' }
+
 module.exports = {
   name: 'bendybutt-v1',
   prepareForIsFeed(sbot, feedId, cb) {
@@ -15,8 +18,8 @@ module.exports = {
       cb(err, msg ? bendyButt.toNativeMsg(msg.value) : null)
     })
   },
-  appendMsg (sbot, msgVal, cb) {
-    sbot.add(msgVal, (err, msg) => {
+  appendMsg (sbot, buffer, cb) {
+    sbot.db.add(buffer, appendOpts, (err, msg) => {
       cb(err && err.fatal ? err : null, msg)
     })
   },
