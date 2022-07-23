@@ -1,6 +1,6 @@
 const ref = require('ssb-ref')
 
-const appendOpts = { encoding: 'js', feedFormat: 'classic' }
+const appendOpts = { feedFormat: 'classic' }
 
 module.exports = {
   name: 'classic',
