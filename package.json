@@ -30,7 +30,7 @@
     "ssb-buttwoo": "^0.3.2",
     "ssb-network-errors": "^1.0.1",
     "ssb-ref": "^2.13.0",
-    "ssb-subset-ql": "^0.6.4",
+    "ssb-subset-ql": "^1.0.0",
     "ssb-uri2": "^2.0.0"
   },
   "devDependencies": {
@@ -50,9 +50,9 @@
     "ssb-db": "^19.2.0",
     "ssb-db2": "^5.0.0",
     "ssb-generate": "^1.0.1",
-    "ssb-index-feed-writer": "^0.7.0",
+    "ssb-index-feed-writer": "^0.8.0",
     "ssb-keys": "^8.4.0",
-    "ssb-meta-feeds": "^0.28.2",
+    "ssb-meta-feeds": "^0.29.0",
     "ssb-validate": "^4.1.4",
     "tap-spec": "^5.0.0",
     "tape": "^5.2.2"
