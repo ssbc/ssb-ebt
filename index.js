@@ -153,6 +153,15 @@ exports.init = function (sbot, config) {
       onReady(() => {
         ebts.forEach((ebt) => {
           if (ebt.name === data.feedFormat) ebt.onAppend(data.nativeMsg)
+          else if (
+            ebt.name === 'indexed' &&
+            data.feedFormat === 'classic' &&
+            ebt.isFeed(data.nativeMsg.author)
+          ) {
+            ebt.convertMsg(data.nativeMsg, (err, converted) => {
+              ebt.onAppend(converted)
+            })
+          }
         })
       })
     })
