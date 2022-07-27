@@ -17,9 +17,15 @@ module.exports = {
     })
   },
   appendMsg (sbot, msgVal, cb) {
-    sbot.db.add(msgVal, appendOpts, (err, msg) => {
-      cb(err && err.fatal ? err : null, msg)
-    })
+    if (sbot.db) {
+      sbot.db.add(msgVal, appendOpts, (err, msg) => {
+        cb(err && err.fatal ? err : null, msg)
+      })
+    } else {
+      sbot.add(msgVal, (err, msg) => {
+        cb(err && err.fatal ? err : null, msg)
+      })
+    }
   },
   // used in onAppend
   convertMsg (sbot, msgVal, cb) {
