@@ -148,19 +148,38 @@ exports.init = function (sbot, config) {
     })
   })
 
-  sbot.post((msg) => {
-    onReady(() => {
-      ebts.forEach((ebt) => {
-        if (ebt.isFeed(msg.value.author)) {
-          ebt.convertMsg(msg.value, (err, converted) => {
-            if (err)
-              console.warn('Failed to convert msg in ssb-ebt because:', err)
-            else ebt.onAppend(converted)
-          })
-        }
+  if (sbot.db) {
+    sbot.db.onMsgAdded((data) => {
+      onReady(() => {
+        ebts.forEach((ebt) => {
+          if (ebt.name === data.feedFormat) ebt.onAppend(data.nativeMsg)
+          else if (
+            ebt.name === 'indexed' &&
+            data.feedFormat === 'classic' &&
+            ebt.isFeed(data.nativeMsg.author)
+          ) {
+            ebt.convertMsg(data.nativeMsg, (err, converted) => {
+              ebt.onAppend(converted)
+            })
+          }
+        })
       })
     })
-  })
+  } else {
+    sbot.post((msg) => {
+      onReady(() => {
+        ebts.forEach((ebt) => {
+          if (ebt.isFeed(msg.value.author)) {
+            ebt.convertMsg(msg.value, (err, converted) => {
+              if (err)
+                console.warn('Failed to convert msg in ssb-ebt because:', err)
+              else ebt.onAppend(converted)
+            })
+          }
+        })
+      })
+    })
+  }
 
   // TODO: remove this when no one uses ssb-db anymore, because
   // sbot.progress is defined in ssb-db but not in ssb-db2

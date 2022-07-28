@@ -1,5 +1,7 @@
 const SSBURI = require('ssb-uri2')
-const bendyButt = require('ssb-bendy-butt')
+const bendyButt = require('ssb-bendy-butt/format')
+
+const appendOpts = { feedFormat: 'bendybutt-v1' }
 
 module.exports = {
   name: 'bendybutt-v1',
@@ -12,16 +14,16 @@ module.exports = {
   },
   getAtSequence (sbot, pair, cb) {
     sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
-      cb(err, msg ? bendyButt.encode(msg.value) : null)
+      cb(err, msg ? bendyButt.toNativeMsg(msg.value) : null)
     })
   },
-  appendMsg (sbot, msgVal, cb) {
-    sbot.add(bendyButt.decode(msgVal), (err, msg) => {
+  appendMsg (sbot, buffer, cb) {
+    sbot.db.add(buffer, appendOpts, (err, msg) => {
       cb(err && err.fatal ? err : null, msg)
     })
   },
   convertMsg (sbot, msgVal, cb) {
-    cb(null, bendyButt.encode(msgVal))
+    cb(null, bendyButt.toNativeMsg(msgVal))
   },
   // used in vectorClock
   isReady (sbot) {
@@ -31,7 +33,7 @@ module.exports = {
   // used in ebt:stream to distinguish between messages and notes
   isMsg (bbVal) {
     if (Buffer.isBuffer(bbVal)) {
-      const msgVal = bendyButt.decode(bbVal)
+      const msgVal = bendyButt.fromNativeMsg(bbVal)
       return msgVal && SSBURI.isBendyButtV1FeedSSBURI(msgVal.author)
     } else {
       return bbVal && SSBURI.isBendyButtV1FeedSSBURI(bbVal.author)
@@ -39,10 +41,10 @@ module.exports = {
   },
   // used in ebt:events
   getMsgAuthor (bbVal) {
-    if (Buffer.isBuffer(bbVal)) { return bendyButt.decode(bbVal).author } else { return bbVal.author }
+    if (Buffer.isBuffer(bbVal)) { return bendyButt.fromNativeMsg(bbVal).author } else { return bbVal.author }
   },
   // used in ebt:events
   getMsgSequence (bbVal) {
-    if (Buffer.isBuffer(bbVal)) { return bendyButt.decode(bbVal).sequence } else { return bbVal.sequence }
+    if (Buffer.isBuffer(bbVal)) { return bendyButt.fromNativeMsg(bbVal).sequence } else { return bbVal.sequence }
   }
 }

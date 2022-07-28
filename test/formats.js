@@ -8,12 +8,17 @@ const caps = require('ssb-caps')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
-const bendyButt = require('ssb-bendy-butt')
+const bendyButt = require('ssb-bendy-butt/format')
+const butt2 = require('ssb-buttwoo/format')
+const classic = require('ssb-classic/format')
+const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
 function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
+    .use(require('ssb-buttwoo'))
+    .use(require('ssb-bendy-butt'))
     .use(require('ssb-db2/compat/ebt'))
     .use(require('ssb-meta-feeds'))
     .use(require('ssb-index-feed-writer'))
@@ -44,6 +49,115 @@ let bob = createSSBServer().call(null, {
   keys: u.keysFor('bob'),
 })
 
+const butt2Methods = require('../formats/buttwoo')
+
+tape('multiple formats buttwoo', async (t) => {
+  alice.ebt.registerFormat(butt2Methods)
+  bob.ebt.registerFormat(butt2Methods)
+
+  // self replicate
+  alice.ebt.request(alice.id, true)
+  bob.ebt.request(bob.id, true)
+
+  const hmac = null
+
+  const aliceButtKeys = ssbKeys.generate(null, 'alice', 'buttwoo-v1')
+  const aliceContent = { type: 'post', text: 'Hello world from Alice' }
+
+  const butt2Msg = butt2.newNativeMsg({
+    keys: aliceButtKeys,
+    content: aliceContent,
+    previous: null,
+    timestamp: +new Date(),
+    tag: butt2.tags.SSB_FEED,
+    hmac,
+  })
+  const msgKeyBFE = butt2.getMsgId(butt2Msg)
+
+  // subfeed
+  const butt2Msg2 = butt2.newNativeMsg({
+    keys: aliceButtKeys,
+    content: aliceContent,
+    parent: msgKeyBFE,
+    previous: null,
+    timestamp: +new Date(),
+    tag: butt2.tags.SSB_FEED,
+    hmac,
+  })
+  const msgKeyBFE2 = butt2.getMsgId(butt2Msg2)
+
+  const bobButtKeys = ssbKeys.generate(null, 'bob', 'buttwoo-v1')
+  const bobContent = { type: 'post', text: 'Hello world from Bob' }
+
+  const butt2Msg3 = butt2.newNativeMsg({
+    keys: bobButtKeys,
+    content: bobContent,
+    previous: null,
+    timestamp: +new Date(),
+    tag: butt2.tags.SSB_FEED,
+    hmac,
+  })
+  const msgKeyBFE3 = butt2.getMsgId(butt2Msg3)
+
+  const feedformat = alice.db.findFeedFormatByName('buttwoo-v1')
+
+  const aliceButtId = feedformat.getFeedId(butt2Msg)
+  const aliceSubFeedId = feedformat.getFeedId(butt2Msg2)
+  const bobButtId = feedformat.getFeedId(butt2Msg3)
+
+  // self replicate
+  alice.ebt.request(aliceButtId, true)
+  alice.ebt.request(aliceSubFeedId, true)
+  bob.ebt.request(bobButtId, true)
+
+  const opts = { encoding: 'bipf', feedFormat: 'buttwoo-v1' }
+
+  await Promise.all([
+    pify(alice.db.add)(butt2Msg, opts),
+    pify(alice.db.add)(butt2Msg2, opts),
+    pify(bob.db.add)(butt2Msg3, opts),
+  ])
+
+  alice.ebt.request(bob.id, true)
+  alice.ebt.request(bobButtId, true)
+
+  bob.ebt.request(alice.id, true)
+  bob.ebt.request(aliceButtId, true)
+  bob.ebt.request(aliceSubFeedId, true)
+
+  await pify(bob.connect)(alice.getAddress())
+
+  await sleep(REPLICATION_TIMEOUT)
+  t.pass('wait for replication to complete')
+
+  const expectedClassicClock = {}
+  const expectedButt2Clock = {
+    [aliceButtId]: 1,
+    [aliceSubFeedId]: 1,
+    [bobButtId]: 1,
+  }
+
+  /*
+  const results = await alice.db.query(toPromise())
+  console.log(results)
+  */
+
+  const clockAlice = await pify(alice.ebt.clock)({ format: 'classic' })
+  t.deepEqual(clockAlice, expectedClassicClock, 'alice correct classic clock')
+
+  const butt2ClockAlice = await pify(alice.ebt.clock)({ format: 'buttwoo-v1' })
+  t.deepEqual(butt2ClockAlice, expectedButt2Clock, 'alice correct butt2 clock')
+
+  const clockBob = await pify(bob.ebt.clock)({ format: 'classic' })
+  t.deepEqual(clockBob, expectedClassicClock, 'bob correct classic clock')
+
+  const butt2ClockBob = await pify(bob.ebt.clock)({ format: 'buttwoo-v1' })
+  t.deepEqual(butt2ClockBob, expectedButt2Clock, 'bob correct butt2 clock')
+
+  await Promise.all([pify(alice.close)(true), pify(bob.close)(true)])
+  t.end()
+})
+
 function getBBMsg(mainKeys) {
   // fake some keys
   const mfKeys = ssbKeys.generate(null, null, 'bendybutt-v1')
@@ -61,17 +175,16 @@ function getBBMsg(mainKeys) {
     },
   }
 
-  const bbmsg = bendyButt.encodeNew(
+  const bbmsg = bendyButt.newNativeMsg({
     content,
-    mainKeys,
-    mfKeys,
-    1,
-    null,
-    Date.now(),
-    null
-  )
+    contentKeys: mainKeys,
+    keys: mfKeys,
+    previous: null,
+    timestamp: +Date.now(),
+    hmacKey: null,
+  })
 
-  return bendyButt.decode(bbmsg)
+  return bbmsg
 }
 
 const bendyButtMethods = require('../formats/bendy-butt')
@@ -81,6 +194,18 @@ let aliceMFId
 let bobMFId
 
 tape('multiple formats', async (t) => {
+  alice = createSSBServer().call(null, {
+    path: aliceDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('alice'),
+  })
+
+  bob = createSSBServer().call(null, {
+    path: bobDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('bob'),
+  })
+
   alice.ebt.registerFormat(bendyButtMethods)
   bob.ebt.registerFormat(bendyButtMethods)
 
@@ -97,8 +222,8 @@ tape('multiple formats', async (t) => {
   const aliceBBMsg = getBBMsg(alice.config.keys)
   const bobBBMsg = getBBMsg(bob.config.keys)
 
-  aliceMFId = aliceBBMsg.author
-  bobMFId = bobBBMsg.author
+  aliceMFId = bendyButt.fromNativeMsg(aliceBBMsg).author
+  bobMFId = bendyButt.fromNativeMsg(bobBBMsg).author
 
   // self replicate
   alice.ebt.request(aliceMFId, true)
