@@ -11,7 +11,7 @@ to work with [secure-scuttlebutt](http://scuttlebutt.nz/). Supersedes
 **Prerequisites:**
 
 - Requires **Node.js 10** or higher
-- Requires **ssb-db** or **ssb-db2**
+- Requires **ssb-db** or **ssb-db2** version 5.0 or higher
 
 ```
 npm install --save ssb-ebt
