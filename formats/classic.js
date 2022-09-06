@@ -8,15 +8,15 @@ module.exports = {
     cb()
   },
   // used in request, block, cleanClock, sbot.post, vectorClock
-  isFeed (sbot, feedId) {
+  isFeed(sbot, feedId) {
     return ref.isFeed(feedId)
   },
-  getAtSequence (sbot, pair, cb) {
+  getAtSequence(sbot, pair, cb) {
     sbot.getAtSequence([pair.id, pair.sequence], (err, msg) => {
       cb(err, msg ? msg.value : null)
     })
   },
-  appendMsg (sbot, msgVal, cb) {
+  appendMsg(sbot, msgVal, cb) {
     if (sbot.db) {
       sbot.db.add(msgVal, appendOpts, (err, msg) => {
         cb(err && err.fatal ? err : null, msg)
@@ -28,25 +28,29 @@ module.exports = {
     }
   },
   // used in onAppend
-  convertMsg (sbot, msgVal, cb) {
+  convertMsg(sbot, msgVal, cb) {
     cb(null, msgVal)
   },
   // used in vectorClock
-  isReady (sbot) {
+  isReady(sbot) {
     return Promise.resolve(true)
   },
 
   // used in ebt:stream to distinguish between messages and notes
-  isMsg (msgVal) {
-    return Number.isInteger(msgVal.sequence) && msgVal.sequence > 0 &&
-      ref.isFeed(msgVal.author) && msgVal.content
+  isMsg(msgVal) {
+    return (
+      Number.isInteger(msgVal.sequence) &&
+      msgVal.sequence > 0 &&
+      ref.isFeed(msgVal.author) &&
+      msgVal.content
+    )
   },
   // used in ebt:events
-  getMsgAuthor (msgVal) {
+  getMsgAuthor(msgVal) {
     return msgVal.author
   },
   // used in ebt:events
-  getMsgSequence (msgVal) {
+  getMsgSequence(msgVal) {
     return msgVal.sequence
-  }
+  },
 }
