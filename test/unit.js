@@ -14,13 +14,13 @@ const CONNECTION_TIMEOUT = 500 // ms
 const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 const alice = createSsbServer({
-  temp: 'test-block-alice',
+  temp: 'test-block-alice2',
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('alice'),
 })
 
 const bob = createSsbServer({
-  temp: 'test-block-bob',
+  temp: 'test-block-bob2',
   timeout: CONNECTION_TIMEOUT,
   keys: u.keysFor('bob'),
 })

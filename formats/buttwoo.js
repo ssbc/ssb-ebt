@@ -8,37 +8,42 @@ module.exports = {
     cb()
   },
   // used in request, block, cleanClock, sbot.post, vectorClock
-  isFeed (sbot, feedId) {
+  isFeed(sbot, feedId) {
     return butt2.isAuthor(feedId)
   },
-  getAtSequence (sbot, pair, cb) {
-    sbot.getAtSequenceNativeMsg([pair.id, pair.sequence], 'buttwoo-v1', (err, nativeMsg) => {
-      if (err) cb(err)
-      else cb(null, nativeMsg)
-    })
+  getAtSequence(sbot, pair, cb) {
+    sbot.getAtSequenceNativeMsg(
+      [pair.id, pair.sequence],
+      'buttwoo-v1',
+      (err, nativeMsg) => {
+        if (err) cb(err)
+        else cb(null, nativeMsg)
+      }
+    )
   },
-  appendMsg (sbot, buffer, cb) {
+  appendMsg(sbot, buffer, cb) {
     sbot.db.add(buffer, appendOpts, (err) => {
-      cb(err && err.fatal ? err : null)
+      if (err && err.fatal) cb(err)
+      else cb()
     })
   },
   // not used
-  convertMsg (sbot, msgVal, cb) {},
+  convertMsg(sbot, msgVal, cb) {},
   // used in vectorClock
-  isReady (sbot) {
+  isReady(sbot) {
     return Promise.resolve(true)
   },
 
   // used in ebt:stream to distinguish between messages and notes
-  isMsg (bufferOrMsgVal) {
+  isMsg(bufferOrMsgVal) {
     return Buffer.isBuffer(bufferOrMsgVal)
   },
   // used in ebt:events
-  getMsgAuthor (bufferOrMsgVal) {
+  getMsgAuthor(bufferOrMsgVal) {
     return butt2.getFeedId(bufferOrMsgVal)
   },
   // used in ebt:events
-  getMsgSequence (bufferOrMsgVal) {
+  getMsgSequence(bufferOrMsgVal) {
     return butt2.getSequence(bufferOrMsgVal)
-  }
+  },
 }
