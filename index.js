@@ -68,8 +68,7 @@ exports.init = function (sbot, config) {
     const store = Store(dir, null, toUrlFriendly)
 
     // EBT expects a function of only feedId so we bind sbot here
-    const isFeed = format.isFeed.bind(format, sbot)
-    const { isMsg, getMsgAuthor, getMsgSequence } = format
+    const { isMsg, getMsgAuthor, getMsgSequence, isFeed } = format
 
     const ebt = EBT({
       logging: config.ebt && config.ebt.logging,
@@ -99,11 +98,8 @@ exports.init = function (sbot, config) {
     })
 
     // attach a few methods we need in this module
-    ebt.convertMsg = format.convertMsg.bind(format, sbot)
-    ebt.isReady = format.isReady.bind(format, sbot)
     ebt.isFeed = isFeed
     ebt.name = format.name
-    ebt.prepareForIsFeed = format.prepareForIsFeed.bind(format, sbot)
     ebt.clearClock = store.delete.bind(store)
 
     const existingId = ebts.findIndex((e) => e.name === format.name)
@@ -128,24 +124,21 @@ exports.init = function (sbot, config) {
   sbot.getVectorClock((err, clock) => {
     if (err) console.warn('Failed to getVectorClock in ssb-ebt because:', err)
 
-    const readies = ebts.map((ebt) => ebt.isReady())
-    Promise.all(readies).then(() => {
-      ebts.forEach((ebt) => {
-        const validClock = {}
-        for (const k in clock) {
-          if (ebt.isFeed(k)) {
-            validClock[k] = clock[k]
-          }
+    ebts.forEach((ebt) => {
+      const validClock = {}
+      for (const k in clock) {
+        if (ebt.isFeed(k)) {
+          validClock[k] = clock[k]
         }
+      }
 
-        ebt.state.clock = validClock
-        ebt.update()
-      })
-
-      isReady = true
-      for (let i = 0; i < waiting.length; ++i) waiting[i]()
-      waiting = []
+      ebt.state.clock = validClock
+      ebt.update()
     })
+
+    isReady = true
+    for (let i = 0; i < waiting.length; ++i) waiting[i]()
+    waiting = []
   })
 
   if (sbot.db) {
@@ -153,15 +146,6 @@ exports.init = function (sbot, config) {
       onReady(() => {
         ebts.forEach((ebt) => {
           if (ebt.name === data.feedFormat) ebt.onAppend(data.nativeMsg)
-          else if (
-            ebt.name === 'indexed' &&
-            data.feedFormat === 'classic' &&
-            ebt.isFeed(data.nativeMsg.author)
-          ) {
-            ebt.convertMsg(data.nativeMsg, (err, converted) => {
-              ebt.onAppend(converted)
-            })
-          }
         })
       })
     })
@@ -169,13 +153,7 @@ exports.init = function (sbot, config) {
     sbot.post((msg) => {
       onReady(() => {
         ebts.forEach((ebt) => {
-          if (ebt.isFeed(msg.value.author)) {
-            ebt.convertMsg(msg.value, (err, converted) => {
-              if (err)
-                console.warn('Failed to convert msg in ssb-ebt because:', err)
-              else ebt.onAppend(converted)
-            })
-          }
+          if (ebt.isFeed(msg.value.author)) ebt.onAppend(msg.value)
         })
       })
     })
@@ -247,10 +225,8 @@ exports.init = function (sbot, config) {
     onReady(() => {
       if (requesting) {
         const ebt = findEBTForFeed(destFeedId, formatName)
-        ebt.prepareForIsFeed(destFeedId, () => {
-          if (!ebt.isFeed(destFeedId)) return
-          ebt.request(destFeedId, true)
-        })
+        if (!ebt.isFeed(destFeedId)) return
+        ebt.request(destFeedId, true)
       } else {
         // If we don't want a destFeedId, make sure it's not registered anywhere
         ebts.forEach((ebt) => {
@@ -273,20 +249,18 @@ exports.init = function (sbot, config) {
   function block(origFeedId, destFeedId, blocking, formatName) {
     onReady(() => {
       const ebt = findEBTForFeed(origFeedId, formatName)
-      ebt.prepareForIsFeed(destFeedId, () => {
-        if (!ebt.isFeed(origFeedId)) return
-        if (!ebt.isFeed(destFeedId)) return
+      if (!ebt.isFeed(origFeedId)) return
+      if (!ebt.isFeed(destFeedId)) return
 
-        if (blocking) {
-          ebt.block(origFeedId, destFeedId, true)
-        } else if (
-          ebt.state.blocks[origFeedId] &&
-          ebt.state.blocks[origFeedId][destFeedId]
-        ) {
-          // only update unblock if they were already blocked
-          ebt.block(origFeedId, destFeedId, false)
-        }
-      })
+      if (blocking) {
+        ebt.block(origFeedId, destFeedId, true)
+      } else if (
+        ebt.state.blocks[origFeedId] &&
+        ebt.state.blocks[origFeedId][destFeedId]
+      ) {
+        // only update unblock if they were already blocked
+        ebt.block(origFeedId, destFeedId, false)
+      }
     })
   }
 

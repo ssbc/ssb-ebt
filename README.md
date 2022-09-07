@@ -128,12 +128,8 @@ shows the implementation for 'classic' ed25519 SSB feeds.
 ```js
 {
   name: 'classic',
-  // In case `isFeed` needs to load some state asynchronously
-  prepareForIsFeed(sbot, feedId, cb) {
-    cb()
-  },
   // used in request, block, cleanClock, sbot.post, vectorClock
-  isFeed(sbot, feedId) {
+  isFeed(feedId) {
     return ref.isFeed(feedId)
   },
   getAtSequence(sbot, pair, cb) {
@@ -145,14 +141,6 @@ shows the implementation for 'classic' ed25519 SSB feeds.
     sbot.add(msgVal, (err, msg) => {
       cb(err && err.fatal ? err : null, msg)
     })
-  },
-  // used in onAppend
-  convertMsg(msgVal) {
-    return msgVal
-  },
-  // used in vectorClock
-  isReady(sbot) {
-    return Promise.resolve(true)
   },
 
   // used in ebt:stream to distinguish between messages and notes

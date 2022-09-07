@@ -10,16 +10,15 @@ const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
 const bendyButt = require('ssb-bendy-butt/format')
 const butt2 = require('ssb-buttwoo/format')
-const classic = require('ssb-classic/format')
-const bfe = require('ssb-bfe')
 const { where, author, type, toPromise } = require('ssb-db2/operators')
 
 function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
     .use(require('ssb-db2'))
+    .use(require('ssb-db2/compat/ebt'))
     .use(require('ssb-buttwoo'))
     .use(require('ssb-bendy-butt'))
-    .use(require('ssb-db2/compat/ebt'))
+    .use((ssb) => ssb.db.installFeedFormat(require('../indexed-feed-format')))
     .use(require('ssb-meta-feeds'))
     .use(require('ssb-index-feed-writer'))
     .use(require('../'))
@@ -36,22 +35,26 @@ function getFreshDir(name) {
 }
 
 const aliceDir = getFreshDir('alice')
-let alice = createSSBServer().call(null, {
-  path: aliceDir,
-  timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('alice'),
-})
+let alice
 
 const bobDir = getFreshDir('bob')
-let bob = createSSBServer().call(null, {
-  path: bobDir,
-  timeout: CONNECTION_TIMEOUT,
-  keys: u.keysFor('bob'),
-})
+let bob
 
 const butt2Methods = require('../formats/buttwoo')
 
 tape('multiple formats buttwoo', async (t) => {
+  alice = createSSBServer().call(null, {
+    path: aliceDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('alice'),
+  })
+
+  bob = createSSBServer().call(null, {
+    path: bobDir,
+    timeout: CONNECTION_TIMEOUT,
+    keys: u.keysFor('bob'),
+  })
+
   alice.ebt.registerFormat(butt2Methods)
   bob.ebt.registerFormat(butt2Methods)
 
@@ -397,12 +400,12 @@ tape('index format', async (t) => {
   carol.ebt.request(carol.id, true)
   carol.ebt.request(carolMetaId, true)
   carol.ebt.request(carolMetaIndexId, true)
-  carol.ebt.request(carolIndexId, true, 'indexed')
+  carol.ebt.request(carolIndexId, true, 'indexed-v1')
 
   dave.ebt.request(dave.id, true)
   dave.ebt.request(daveMetaId, true)
   dave.ebt.request(daveMetaIndexId, true)
-  dave.ebt.request(daveIndexId, true, 'indexed')
+  dave.ebt.request(daveIndexId, true, 'indexed-v1')
 
   // replication
   carol.ebt.request(daveMetaId, true)
@@ -431,8 +434,8 @@ tape('index format', async (t) => {
   // now that we have meta feeds from the other peer we can replicate
   // index feeds
 
-  carol.ebt.request(daveIndexId, true, 'indexed')
-  dave.ebt.request(carolIndexId, true, 'indexed')
+  carol.ebt.request(daveIndexId, true, 'indexed-v1')
+  dave.ebt.request(carolIndexId, true, 'indexed-v1')
 
   await sleep(2 * REPLICATION_TIMEOUT)
   t.pass('wait for replication to complete')
@@ -455,10 +458,10 @@ tape('index format', async (t) => {
     [daveIndexId]: 1,
   }
 
-  const indexClockCarol = await pify(carol.ebt.clock)({ format: 'indexed' })
+  const indexClockCarol = await pify(carol.ebt.clock)({ format: 'indexed-v1' })
   t.deepEqual(indexClockCarol, expectedIndexClock, 'carol correct index clock')
 
-  const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexed' })
+  const indexClockDave = await pify(dave.ebt.clock)({ format: 'indexed-v1' })
   t.deepEqual(indexClockDave, expectedIndexClock, 'dave correct index clock')
 
   await pify(carol.db.publish)({ type: 'dog', text: 'woof woof' })
