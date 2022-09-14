@@ -18,7 +18,6 @@ function createSSBServer() {
     .use(require('ssb-db2/compat/ebt'))
     .use(require('ssb-buttwoo'))
     .use(require('ssb-bendy-butt'))
-    .use((ssb) => ssb.db.installFeedFormat(require('../indexed-feed-format')))
     .use(require('ssb-meta-feeds'))
     .use(require('ssb-index-feed-writer'))
     .use(require('../'))
