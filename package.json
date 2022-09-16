@@ -22,16 +22,14 @@
     "base64-url": "^2.2.0",
     "epidemic-broadcast-trees": "^9.0.2",
     "key-value-file-store": "^1.1.1",
-    "promisify-4loc": "^1.0.0",
     "pull-defer": "^0.2.3",
     "pull-stream": "^3.6.0",
     "push-stream-to-pull-stream": "^1.0.5",
     "ssb-bendy-butt": "^1.0.1",
     "ssb-buttwoo": "^0.3.2",
     "ssb-classic": "^1.0.3",
-    "ssb-network-errors": "^1.0.1",
-    "ssb-ref": "^2.13.0",
-    "ssb-subset-ql": "^1.0.0"
+    "ssb-index-feeds": "~0.9.0",
+    "ssb-network-errors": "^1.0.1"
   },
   "devDependencies": {
     "c8": "^7.12.0",
@@ -41,6 +39,7 @@
     "mkdirp": "^1.0.4",
     "prettier": "^2.1.2",
     "pretty-quick": "^3.1.0",
+    "promisify-4loc": "^1.0.0",
     "pull-paramap": "^1.2.2",
     "rimraf": "^2.7.1",
     "rng": "^0.2.2",
@@ -50,10 +49,9 @@
     "ssb-db": "^19.2.0",
     "ssb-db2": "^6.2.0",
     "ssb-generate": "^1.0.1",
-    "ssb-index-feeds": "~0.9.0",
     "ssb-keys": "^8.5.0",
     "ssb-meta-feeds": "^0.30.0",
-    "ssb-uri2": "^2.1.0",
+    "ssb-ref": "^2.13.0",
     "ssb-validate": "^4.1.4",
     "tap-arc": "^0.3.5",
     "tape": "^5.2.2"

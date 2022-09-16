@@ -1,5 +1,5 @@
-const ebtFormatFrom = require('./base')
 const buttwoo = require('ssb-buttwoo/format')
+const ebtFormatFrom = require('./base')
 
 module.exports = {
   ...ebtFormatFrom(buttwoo),
