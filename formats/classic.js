@@ -1,5 +1,5 @@
-const ebtFormatFrom = require('./base')
 const classic = require('ssb-classic/format')
+const ebtFormatFrom = require('./base')
 
 module.exports = {
   ...ebtFormatFrom(classic),
