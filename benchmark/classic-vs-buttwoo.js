@@ -10,11 +10,9 @@ const caps = require('ssb-caps')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
 const ssbKeys = require('ssb-keys')
-const bendyButt = require('ssb-bendy-butt/format')
 const butt2 = require('ssb-buttwoo/format')
 const classic = require('ssb-classic/format')
-const bfe = require('ssb-bfe')
-const { where, author, type, toPromise } = require('ssb-db2/operators')
+const { toPromise } = require('ssb-db2/operators')
 
 function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
@@ -23,7 +21,7 @@ function createSSBServer() {
     .use(require('ssb-bendy-butt'))
     .use(require('ssb-db2/compat/ebt'))
     .use(require('ssb-meta-feeds'))
-    .use(require('ssb-index-feed-writer'))
+    .use(require('ssb-index-feeds'))
     .use(require('../'))
 }
 
@@ -71,7 +69,7 @@ const simpleContent = { text: 'hello world', type: 'post' }
 tape('butt2 performance', async (t) => {
   // falsify to test butt2
   if (true) { t.end(); return }
-  
+
   alice.ebt.registerFormat(butt2Methods)
   bob.ebt.registerFormat(butt2Methods)
 

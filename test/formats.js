@@ -19,7 +19,7 @@ function createSSBServer() {
     .use(require('ssb-buttwoo'))
     .use(require('ssb-bendy-butt'))
     .use(require('ssb-meta-feeds'))
-    .use(require('ssb-index-feed-writer'))
+    .use(require('ssb-index-feeds'))
     .use(require('../'))
 }
 
@@ -340,14 +340,14 @@ tape('index format', async (t) => {
   dave.ebt.registerFormat(bendyButtMethods)
 
   const carolIndexId = (
-    await pify(carol.indexFeedWriter.start)({
+    await pify(carol.indexFeeds.start)({
       author: carol.id,
       type: 'dog',
       private: false,
     })
   ).subfeed
   const daveIndexId = (
-    await pify(dave.indexFeedWriter.start)({
+    await pify(dave.indexFeeds.start)({
       author: dave.id,
       type: 'dog',
       private: false,
