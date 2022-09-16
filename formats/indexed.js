@@ -1,4 +1,4 @@
-const indexed = require('ssb-index-feed-writer/format')
+const indexed = require('ssb-index-feeds/format')
 const ebtFormatFrom = require('./base')
 
 module.exports = {
