@@ -1,15 +1,12 @@
 const tape = require('tape')
 const SecretStack = require('secret-stack')
-const sleep = require('util').promisify(setTimeout)
 const pify = require('promisify-4loc')
 const pull = require('pull-stream')
 const caps = require('ssb-caps')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
-const bendyButt = require('ssb-bendy-butt/format')
 const {
   where,
-  author,
   type,
   live,
   count,
@@ -32,10 +29,9 @@ function createSSBServer() {
 }
 
 const CONNECTION_TIMEOUT = 500 // ms
-const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
 function getFreshDir(name) {
-  const dir = '/tmp/test-format-' + name
+  const dir = '/tmp/test-format-' + name + Date.now()
   rimraf.sync(dir)
   mkdirp.sync(dir)
   return dir
@@ -70,12 +66,10 @@ tape('switching from full replication to indexed-v1 replication', async (t) => {
   await pify(alice.db.create)({ content: { type: 'post', text: '3rd post' } })
   t.pass('alice created 3 posts')
 
-  // self replicate main feed
   alice.ebt.request(alice.id, true)
   bob.ebt.request(bob.id, true)
   t.pass('alice and bob are requesting their own feeds')
 
-  // replicate each other's main
   alice.ebt.request(bob.id, true)
   bob.ebt.request(alice.id, true)
   t.pass('alice and bob are requesting each others feeds')
