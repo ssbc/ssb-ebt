@@ -7,6 +7,7 @@ const toUrlFriendly = require('base64-url').escape
 const getSeverity = require('ssb-network-errors')
 const pullDefer = require('pull-defer')
 const classicMethods = require('./formats/classic')
+const { format } = require('path')
 
 function hook(hookable, fn) {
   if (typeof hookable === 'function' && hookable.hook) {
@@ -71,23 +72,27 @@ exports.init = function (sbot, config) {
     const { isMsg, getMsgAuthor, getMsgSequence, isFeed } = format
 
     const ebt = EBT({
-      logging: config.ebt && config.ebt.logging,
+      logging: true,
       id: sbot.id,
       getClock(id, cb) {
         store.ensure(id, function () {
           const clock = store.get(id) || {}
+          console.log('reading clock for ', id, ' = ', clock)
           cleanClock(clock, isFeed)
           cb(null, clock)
         })
       },
       setClock(id, clock) {
+        console.log('setting clock for ', id, ' = ', clock)
         cleanClock(clock, isFeed)
         store.set(id, clock)
       },
       getAt(pair, cb) {
+        console.log('get at')
         format.getAtSequence(sbot, pair, cb)
       },
       append(msgVal, cb) {
+        console.log('appending message', msgVal)
         format.appendMsg(sbot, msgVal, cb)
       },
 
@@ -133,7 +138,6 @@ exports.init = function (sbot, config) {
       }
 
       ebt.state.clock = validClock
-      ebt.update()
     })
 
     isReady = true
@@ -172,6 +176,7 @@ exports.init = function (sbot, config) {
   }
 
   sbot.on('rpc:connect', function (rpc, isClient) {
+    console.log('rpc:connect')
     if (rpc.id === sbot.id) return // ssb-client connecting to ssb-server
     if (isClient) {
       onReady(() => {
@@ -207,6 +212,7 @@ exports.init = function (sbot, config) {
   })
 
   function findEBTForFeed(feedId, formatName) {
+    console.log('findEBTForFeed')
     let ebt
     if (formatName) {
       ebt = ebts.find((ebt) => ebt.name === formatName)
@@ -223,6 +229,14 @@ exports.init = function (sbot, config) {
 
   function request(destFeedId, requesting, formatName) {
     onReady(() => {
+      console.log(
+        'request destFeedId:',
+        destFeedId,
+        ' requesting: ',
+        requesting,
+        ' formatName: ',
+        formatName
+      )
       if (requesting) {
         const ebt = findEBTForFeed(destFeedId, formatName)
         if (!ebt.isFeed(destFeedId)) return
