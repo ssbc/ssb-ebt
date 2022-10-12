@@ -27,8 +27,8 @@
     "push-stream-to-pull-stream": "^1.0.5",
     "ssb-bendy-butt": "^1.0.1",
     "ssb-buttwoo": "^0.3.2",
-    "ssb-classic": "^1.0.3",
-    "ssb-index-feeds": "~0.10.0",
+    "ssb-classic": "^1.1.0",
+    "ssb-index-feeds": "~0.10.1",
     "ssb-network-errors": "^1.0.1"
   },
   "devDependencies": {
