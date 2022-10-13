@@ -1,9 +1,11 @@
 const tape = require('tape')
 const crypto = require('crypto')
 const SecretStack = require('secret-stack')
-const pify = require('promisify-4loc')
-const sleep = require('util').promisify(setTimeout)
+const { promisify: pify } = require('util')
+
 const u = require('./misc/util')
+
+const sleep = pify(setTimeout)
 
 tape.only('alice restores from pub', async (t) => {
   const createSsbServer = SecretStack({
@@ -37,28 +39,47 @@ tape.only('alice restores from pub', async (t) => {
   console.log('pub key: ', u.keysFor('pub').public)
 
   const msg = await pify(alice.publish)({ type: 'post', text: 'hello!' })
-  alice.close()
+  const msg2 = await pify(alice.publish)({ type: 'post', text: 'hello again' })
 
   // await pify(pub.publish)({ type: 'pub' })
   pub.add(msg.value, (err) => t.error(err))
+  pub.add(msg2.value, (err) => t.error(err))
+
+  aliceNew.ebt.request(alice.id, true)
 
   console.log('alice is connecting to pub')
   await pify(aliceNew.connect)(pub.getAddress())
   console.log('alice is requesting their feed')
-  aliceNew.ebt.request(alice.id, true)
+
+  await new Promise((resolve, reject) => {
+    setTimeout(() => resolve(), 5000)
+  })
+
+  // expect
+  const aliceState1 = aliceNew.ebt.peerStatus(aliceNew.id)
+  console.log(JSON.stringify(aliceState1, null, 2))
+  t.equal(aliceState1.seq, 0, 'Alices vector clock on self is zero')
+  t.equal(aliceState1.peers[pub.id].seq, 1, 'Alice sees pub has 1 message')
+
+  // console.log({
+  //   clockAlice: aliceNew.ebt.peerStatus(aliceNew.id),
+  //   clockPub: pub.ebt.peerStatus(aliceNew.id)
+  // })
 
   // wait for replication
-  await sleep(5000)
+  console.log('here')
+  // await sleep(5000)
+  console.log('here')
 
   console.log(
     'getting vector clocks. What are these? Idk. But the test race.js makes them seem important.'
   )
 
-  // MIX - the test appears to hang here
-  const clockAlice = await pify(aliceNew.getVectorClock)()
-  const clockBob = await pify(bob.getVectorClock)()
-
-  console.log('A', u.countClock(clockAlice), 'B', u.countClock(clockBob))
+  const result = {
+    clockAlice: aliceNew.ebt.peerStatus(aliceNew.id),
+    clockPub: pub.ebt.peerStatus(aliceNew.id),
+  }
+  console.log(JSON.stringify(result, null, 2))
 
   // TODO: Assert that alice got their own feed
 
@@ -73,6 +94,7 @@ tape.only('alice restores from pub', async (t) => {
   //   'bob only has own feed'
   // )
 
+  alice.close()
   aliceNew.close()
   pub.close()
 
