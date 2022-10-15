@@ -9,9 +9,7 @@ const u = require('../test/misc/util')
 const caps = require('ssb-caps')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
-const ssbKeys = require('ssb-keys')
-const classic = require('ssb-classic/format')
-const { toPromise } = require('ssb-db2/operators')
+const { where, type, count, toCallback, toPromise } = require('ssb-db2/operators')
 
 function createSSBServer() {
   return SecretStack({ appKey: caps.shs })
@@ -87,8 +85,16 @@ tape('index performance', async (t) => {
   await Promise.all(publishes)
 
   // let alice have some time to index stuff
-  await sleep(10 * REPLICATION_TIMEOUT)
+  await sleep(3 * REPLICATION_TIMEOUT)
   const results = await alice.db.query(toPromise())
+
+  await new Promise((resolve) => {
+    setInterval(() => {
+      alice.db.query(where(type('metafeed/index')), count(), toCallback((err, num) => {
+        if (num === noMessages/2) resolve()
+      }))
+    }, 1000)
+  })
 
   let messagesAtBob = 0
   bob.db.onMsgAdded((msg) => {
