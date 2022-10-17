@@ -6,97 +6,165 @@ const { promisify: pify } = require('util')
 const u = require('./misc/util')
 
 const sleep = pify(setTimeout)
+const caps = {
+  shs: crypto.randomBytes(32).toString('base64'),
+}
 
-tape.only('alice restores from pub', async (t) => {
-  const createSsbServer = SecretStack({
-    caps: { shs: crypto.randomBytes(32).toString('base64') },
-  })
-    .use(require('ssb-db'))
-    .use(require('../'))
+const CONNECTION_TIMEOUT = 500 // ms
+const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
 
-  const CONNECTION_TIMEOUT = 500 // ms
-  const REPLICATION_TIMEOUT = 2 * CONNECTION_TIMEOUT
+function Server(name, opts = {}) {
+  const stack = SecretStack({ caps }).use(require('ssb-db')).use(require('../'))
 
-  const alice = createSsbServer({
-    temp: 'test-self-replicate-alice',
+  return stack({
+    temp: `test-self-replicate-${name}`, // ssb-db only
     timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice'),
+    keys: u.keysFor(name),
+    ...opts,
   })
-  console.log('alice key: ', u.keysFor('alice').public)
+}
 
-  const aliceNew = createSsbServer({
-    temp: 'test-self-replicate-alice-new',
-    timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('alice'),
-  })
+tape('alice restores from pub', async (t) => {
+  const aliceKeys = u.keysFor('alice')
 
-  const pub = createSsbServer({
-    temp: 'test-self-replicate-pub',
-    timeout: CONNECTION_TIMEOUT,
-    keys: u.keysFor('pub'),
-  })
+  const alice = Server('alice', { keys: aliceKeys })
+  const pub = Server('pub')
 
-  console.log('pub key: ', u.keysFor('pub').public)
+  await pify(alice.publish)({ type: 'post', text: 'hello!' })
+  await pify(alice.publish)({ type: 'post', text: 'hello again' })
+  await pify(pub.publish)({ type: 'pub', text: 'i am pub' }) // needed to provide clock info
 
-  const msg = await pify(alice.publish)({ type: 'post', text: 'hello!' })
-  const msg2 = await pify(alice.publish)({ type: 'post', text: 'hello again' })
-
-  // await pify(pub.publish)({ type: 'pub' })
-  pub.add(msg.value, (err) => t.error(err))
-  pub.add(msg2.value, (err) => t.error(err))
-
-  aliceNew.ebt.request(alice.id, true)
-
-  console.log('alice is connecting to pub')
-  await pify(aliceNew.connect)(pub.getAddress())
-  console.log('alice is requesting their feed')
-
-  await new Promise((resolve, reject) => {
-    setTimeout(() => resolve(), 5000)
-  })
-
-  // expect
-  const aliceState1 = aliceNew.ebt.peerStatus(aliceNew.id)
-  console.log(JSON.stringify(aliceState1, null, 2))
-  t.equal(aliceState1.seq, 0, 'Alices vector clock on self is zero')
-  t.equal(aliceState1.peers[pub.id].seq, 1, 'Alice sees pub has 1 message')
-
-  // console.log({
-  //   clockAlice: aliceNew.ebt.peerStatus(aliceNew.id),
-  //   clockPub: pub.ebt.peerStatus(aliceNew.id)
-  // })
-
-  // wait for replication
-  console.log('here')
-  // await sleep(5000)
-  console.log('here')
-
-  console.log(
-    'getting vector clocks. What are these? Idk. But the test race.js makes them seem important.'
+  t.deepEqual(
+    alice.ebt.peerStatus(alice.id),
+    {
+      id: alice.id,
+      seq: 2,
+      peers: {},
+    },
+    'alice: correct local state'
+  )
+  t.deepEqual(
+    pub.ebt.peerStatus(alice.id),
+    {
+      id: alice.id,
+      seq: undefined,
+      peers: {},
+    },
+    'pub: has nothing on alice'
   )
 
-  const result = {
-    clockAlice: aliceNew.ebt.peerStatus(aliceNew.id),
-    clockPub: pub.ebt.peerStatus(aliceNew.id),
-  }
-  console.log(JSON.stringify(result, null, 2))
+  // pub set up to want alice
+  pub.ebt.request(alice.id, true)
+  // pub.ebt.request(pub.id, true) // NOT needed
+  // alice.ebt.request(pub.id, true) // NOT needed
+  alice.ebt.request(alice.id, true) // :fire: MYSTERY - replication fails without this
+  await pify(alice.connect)(pub.getAddress())
 
-  // TODO: Assert that alice got their own feed
+  await sleep(REPLICATION_TIMEOUT)
 
-  // t.deepEqual(
-  //   u.countClock(clockAlice),
-  //   { total: 2, sum: 2 },
-  //   'alice has both feeds'
-  // )
-  // t.deepEqual(
-  //   u.countClock(clockBob),
-  //   { total: 1, sum: 1 },
-  //   'bob only has own feed'
-  // )
+  t.deepEqual(
+    await pify(pub.ebt.clock)(),
+    {
+      [alice.id]: 2,
+      [pub.id]: 1,
+    },
+    "pub: clock shows has alice's messages"
+  )
+  t.deepEqual(
+    pub.ebt.peerStatus(alice.id),
+    {
+      id: alice.id,
+      seq: 2,
+      peers: {
+        [alice.id]: {
+          seq: 2,
+          replicating: {
+            requested: 0,
+            rx: true,
+            sent: 2,
+            tx: true,
+          },
+        },
+      },
+    },
+    "pub: has replicated alice's messages"
+  )
 
-  alice.close()
-  aliceNew.close()
-  pub.close()
+  // alice "dies"
+  await pify(alice.close)(true).catch(t.error)
+
+  // aliceNew is created from same keys, tries to restore
+  const aliceNew = Server('aliceNew', { keys: aliceKeys })
+  aliceNew.ebt.request(alice.id, true)
+  await pify(aliceNew.connect)(pub.getAddress()).catch(t.error)
+
+  await sleep(REPLICATION_TIMEOUT)
+
+  t.deepEqual(
+    await pify(alice.ebt.clock)(),
+    {
+      [alice.id]: 2,
+    },
+    "aliceNew: clock shows has replicated alice's messages"
+  )
+  t.deepEqual(
+    alice.ebt.peerStatus(alice.id),
+    {
+      id: alice.id,
+      seq: 2,
+      peers: {
+        /* MYSTERY: why do we not see the pub status of alice.id? */
+        // [pub.id]: {
+        //   seq: 2,
+        //   replicating: {
+        //     tx: true,
+        //     rx: false,
+        //     sent: 2,
+        //     requested: 2
+        //   }
+        // }
+      },
+    },
+    'aliceNew: peerStatus correct'
+  )
+
+  // aliceNew publishe a new message
+  await pify(aliceNew.publish)({ type: 'boop' })
+
+  await sleep(REPLICATION_TIMEOUT)
+
+  t.deepEqual(
+    pub.ebt.peerStatus(alice.id),
+    {
+      id: alice.id,
+      seq: 3,
+      peers: {
+        [alice.id]: {
+          seq: 3,
+          replicating: {
+            tx: false,
+            rx: true,
+            sent: 3,
+            requested: 2,
+          },
+        },
+      },
+    },
+    'pub: peerStatus shows new messages from aliceNew'
+  )
+  t.deepEqual(
+    await pify(pub.ebt.clock)(),
+    {
+      [pub.id]: 1,
+      [alice.id]: 3,
+    },
+    'pub: clock agrees'
+  )
+
+  await Promise.all([
+    await pify(aliceNew.close)(true),
+    await pify(pub.close)(true),
+  ]).catch(t.error)
 
   t.end()
 })

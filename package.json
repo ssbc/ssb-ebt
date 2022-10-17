@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "base64-url": "^2.2.0",
-    "epidemic-broadcast-trees": "^9.0.2",
+    "epidemic-broadcast-trees": "^9.0.3",
     "key-value-file-store": "^1.1.1",
     "pull-defer": "^0.2.3",
     "pull-stream": "^3.6.0",
