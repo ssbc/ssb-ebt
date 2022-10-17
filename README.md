@@ -38,6 +38,22 @@ installed, instead, you need to call its API methods yourself (primarily
 `request` or `block`), or use a scheduler module such as
 [ssb-replication-scheduler](https://github.com/ssb-ngi-pointer/ssb-replication-scheduler).
 
+You should really install `ssb-replication-scheduler`, but if you have a strong
+reason not to, this is how you should use `ssb-ebt`:
+
+- You need to call `ssb.ebt.request()` for **all** feeds that *you want* AND
+for all the feeds that *you allow other peers to fetch* from you
+- In particular, this means you need to call `ssb.ebt.request(ssb.id, true)`
+(i.e. "replicate myself") if you want *other peers to replicate you*
+- Replicating yourself is also important for recovering your feed from zero
+- Note that `ssb.ebt.block` takes a `destination` AND `origin`, while 
+`ssb.ebt.request` only takes a `destination` because the `origin` is assumed to
+be yourself
+- You need to call `ssb.ebt.block(ssb.id, feedId, true)` for all `feedId` that
+you (`ssb.id`) want to prevent replication, but you also have to call 
+`ssb.ebt.block(alice, bob, true)` for *all* cases where `alice` blocks `bob`.
+This is important to respect Alice's wish for her data to not be shared with Bob.
+
 ### `ssb.ebt.request(destination, replicating, formatName)` ("sync" muxrpc API)
 
 Request that the SSB feed ID `destination` be replicated. `replication` is a
