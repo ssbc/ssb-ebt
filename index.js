@@ -71,7 +71,7 @@ exports.init = function (sbot, config) {
     const { isMsg, getMsgAuthor, getMsgSequence, isFeed } = format
 
     const ebt = EBT({
-      // logging: true,
+      logging: config.ebt && config.ebt.logging,
       id: sbot.id,
       getClock(id, cb) {
         store.ensure(id, function () {
@@ -133,6 +133,7 @@ exports.init = function (sbot, config) {
       }
 
       ebt.state.clock = validClock
+      ebt.update()
     })
 
     isReady = true

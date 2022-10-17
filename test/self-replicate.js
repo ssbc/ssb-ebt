@@ -92,37 +92,40 @@ tape('alice restores from pub', async (t) => {
 
   // alice "dies"
   await pify(alice.close)(true).catch(t.error)
+  alice.ebt = 'nope'
 
-  // aliceNew is created from same keys, tries to restore
+  // aliceNew is created from same keys
   const aliceNew = Server('aliceNew', { keys: aliceKeys })
+  t.equal(aliceNew.id, alice.id, 'aliceNew has the same id')
+
+  // try to restore from pub
   aliceNew.ebt.request(alice.id, true)
   await pify(aliceNew.connect)(pub.getAddress()).catch(t.error)
 
   await sleep(REPLICATION_TIMEOUT)
 
   t.deepEqual(
-    await pify(alice.ebt.clock)(),
+    await pify(aliceNew.ebt.clock)(),
     {
-      [alice.id]: 2,
+      [aliceNew.id]: 2,
     },
     "aliceNew: clock shows has replicated alice's messages"
   )
   t.deepEqual(
-    alice.ebt.peerStatus(alice.id),
+    aliceNew.ebt.peerStatus(alice.id),
     {
-      id: alice.id,
+      id: aliceNew.id,
       seq: 2,
       peers: {
-        /* MYSTERY: why do we not see the pub status of alice.id? */
-        // [pub.id]: {
-        //   seq: 2,
-        //   replicating: {
-        //     tx: true,
-        //     rx: false,
-        //     sent: 2,
-        //     requested: 2
-        //   }
-        // }
+        [pub.id]: {
+          seq: 2,
+          replicating: {
+            tx: false,
+            rx: true,
+            requested: 0,
+            sent: 2,
+          },
+        },
       },
     },
     'aliceNew: peerStatus correct'
@@ -161,10 +164,11 @@ tape('alice restores from pub', async (t) => {
     'pub: clock agrees'
   )
 
-  await Promise.all([
-    await pify(aliceNew.close)(true),
-    await pify(pub.close)(true),
-  ]).catch(t.error)
+  console.time('shutdown')
+  await Promise.all([pify(aliceNew.close)(true), pify(pub.close)(true)]).catch(
+    t.error
+  )
+  console.timeEnd('shutdown')
 
   t.end()
 })
